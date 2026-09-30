@@ -1,0 +1,279 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   CORPORACIÓN BOLIVIA GOURMET — SISTEMA DE DISEÑO
+   ----------------------------------------------------------------------------
+   Dos niveles de tokens:
+
+     1. `--marca-*`  PRIMITIVOS DE MARCA. Salen del análisis de los folletos
+                     (docs/brand/identidad-visual.md §3). Son aproximados hasta
+                     recibir los códigos oficiales; se cambian AQUÍ y solo aquí.
+
+     2. `--t-*`      TOKENS SEMÁNTICOS (superficie, tinta, acción, estructural,
+                     cursos, promo…). Es lo único que consumen los componentes,
+                     a través de las utilidades de Tailwind mapeadas en
+                     `@theme inline`: `bg-superficie`, `text-tinta`,
+                     `bg-accion`, `text-sobre-accion`, `border-linea`…
+
+   Regla de oro: ningún componente escribe un color literal ni lee un
+   `--marca-*`. Cambiar la paleta no toca un solo componente.
+
+   Contraste (docs/brand §3.3): el amarillo SIEMPRE lleva azul marino encima
+   (`bg-accion text-sobre-accion`), nunca blanco ni texto amarillo sobre blanco.
+   ========================================================================= */
+
+@theme inline {
+  --color-superficie: var(--t-superficie);
+  --color-superficie-alterna: var(--t-superficie-alterna);
+  --color-tarjeta: var(--t-tarjeta);
+  --color-linea: var(--t-linea);
+  --color-tinta: var(--t-tinta);
+  --color-tinta-suave: var(--t-tinta-suave);
+  --color-estructural: var(--t-estructural);
+  --color-estructural-profundo: var(--t-estructural-profundo);
+  --color-sobre-estructural: var(--t-sobre-estructural);
+  --color-accion: var(--t-accion);
+  --color-accion-fuerte: var(--t-accion-fuerte);
+  --color-sobre-accion: var(--t-sobre-accion);
+  --color-cursos: var(--t-cursos);
+  --color-cursos-profundo: var(--t-cursos-profundo);
+  --color-sobre-cursos: var(--t-sobre-cursos);
+  --color-promo: var(--t-promo);
+  --color-suave: var(--t-suave);
+  --color-peligro: var(--t-peligro);
+  --color-exito: var(--t-exito);
+
+  --radius-sm: var(--t-radio-sm);
+  --radius-md: var(--t-radio-md);
+  --radius-lg: var(--t-radio-lg);
+  --radius-xl: var(--t-radio-xl);
+
+  --font-script: var(--t-fuente-script);
+  --font-display: var(--t-fuente-display);
+  --font-body: var(--t-fuente-cuerpo);
+}
+
+:root {
+  /* ---- Primitivos de marca (aproximados; ver docs/brand §3 y §12) ---- */
+  --marca-azul: #1f2447;
+  --marca-azul-profundo: #151936;
+  --marca-amarillo: #e4e03a;
+  --marca-amarillo-fuerte: #c9c520;
+  --marca-vino: #7a1f2d;
+  --marca-vino-profundo: #5a1420;
+  --marca-rojo: #d9262e;
+  --marca-rosa: #f3e2de;
+  --bolivia-rojo: #d52b1e;
+  --bolivia-amarillo: #f9e300;
+  --bolivia-verde: #007934;
+
+  /* ---- Semánticos ---- */
+  --t-superficie: #ffffff;
+  --t-superficie-alterna: #f6f5f1;
+  --t-tarjeta: #ffffff;
+  --t-linea: #e3e1da;
+  --t-tinta: #1a1d33;
+  --t-tinta-suave: #5c5f73;
+  --t-estructural: var(--marca-azul);
+  --t-estructural-profundo: var(--marca-azul-profundo);
+  --t-sobre-estructural: #ffffff;
+  --t-accion: var(--marca-amarillo);
+  --t-accion-fuerte: var(--marca-amarillo-fuerte);
+  --t-sobre-accion: var(--marca-azul-profundo);
+  --t-foco: var(--marca-azul);
+  --t-cursos: var(--marca-vino);
+  --t-cursos-profundo: var(--marca-vino-profundo);
+  --t-sobre-cursos: #ffffff;
+  --t-promo: var(--marca-rojo);
+  --t-suave: var(--marca-rosa);
+  --t-peligro: #b3261e;
+  --t-exito: #1f7a3a;
+
+  /* Forma: esquinas medias, como las cajas del folleto (docs/brand §8.7) */
+  --t-radio-sm: 6px;
+  --t-radio-md: 10px;
+  --t-radio-lg: 14px;
+  --t-radio-xl: 20px;
+
+  /* Tipografía: las variables `--font-*` las inyecta `next/font` en el layout */
+  --t-fuente-script: var(--font-kaushan), 'Brush Script MT', cursive;
+  --t-fuente-display: var(--font-bebas), 'Arial Narrow', sans-serif;
+  --t-fuente-cuerpo: var(--font-montserrat), system-ui, sans-serif;
+
+  --t-tamano-display: clamp(2.6rem, 1.6rem + 4.8vw, 5.4rem);
+  --t-tamano-h1: clamp(2.2rem, 1.5rem + 3.2vw, 3.8rem);
+  --t-tamano-h2: clamp(1.7rem, 1.3rem + 1.9vw, 2.7rem);
+  --t-tamano-h3: clamp(1.2rem, 1.05rem + 0.7vw, 1.6rem);
+  --t-tamano-lead: clamp(1.05rem, 0.98rem + 0.4vw, 1.25rem);
+  --t-espacio-seccion: clamp(4rem, 2.6rem + 5vw, 7.5rem);
+
+  --shell-max: 1200px;
+  --shell-gutter: clamp(1rem, 0.7rem + 1.8vw, 2.5rem);
+  --header-height: 72px;
+}
+
+/* ===========================================================================
+   BASE — todo dentro de `@layer base`. En Tailwind v4 una regla SIN capa gana
+   a cualquier utilidad; fuera de capa, `p { margin: 0 }` anularía todos los
+   `mt-*` del sitio (lección del proyecto anterior).
+   ======================================================================== */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    /* Sin esto, un hijo de flex/grid no encoge por debajo de su contenido y
+       aparece desplazamiento horizontal en móvil. */
+    min-width: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 1.5rem);
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--t-superficie);
+    color: var(--t-tinta);
+    font-family: var(--t-fuente-cuerpo);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  button:not(:disabled),
+  [role='button'],
+  select,
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    line-height: 1.1;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img,
+  svg,
+  video {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  ul,
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Foco visible SIEMPRE (WCAG 2.2). */
+  :focus-visible {
+    outline: 3px solid var(--t-foco);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background: var(--t-accion);
+    color: var(--t-sobre-accion);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* ===========================================================================
+   LAYOUT
+   ======================================================================== */
+.shell {
+  width: 100%;
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding-inline: var(--shell-gutter);
+}
+
+.section {
+  padding-block: var(--t-espacio-seccion);
+  position: relative;
+}
+
+/* ===========================================================================
+   TIPOGRAFÍA DE MARCA
+   La combinación script + display en la misma frase es el rasgo más
+   reconocible de los folletos (docs/brand §4.3).
+   ======================================================================== */
+.t-script {
+  font-family: var(--t-fuente-script);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.t-display {
+  font-family: var(--t-fuente-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 0.95;
+}
+
+.t-h1 {
+  font-size: var(--t-tamano-h1);
+}
+.t-h2 {
+  font-size: var(--t-tamano-h2);
+}
+.t-h3 {
+  font-size: var(--t-tamano-h3);
+}
+
+.t-lead {
+  font-size: var(--t-tamano-lead);
+  color: var(--t-tinta-suave);
+  line-height: 1.7;
+}
+
+.t-etiqueta {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--t-estructural);
+}
