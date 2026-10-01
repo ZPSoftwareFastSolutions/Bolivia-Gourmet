@@ -13,7 +13,7 @@ export default async function Recuperar() {
     <MarcoDeAcceso
       etiqueta="Portal de estudiantes"
       titulo="Recupera tu acceso"
-      foto="emplatado-con-pinzas"
+      foto="cocteleria-preparacion"
       descripcion={<p>Escribe el correo de tu cuenta y te enviaremos un enlace para crear una contraseña nueva.</p>}
       pie={
         <Link href={RUTAS.acceso} className="enlace">

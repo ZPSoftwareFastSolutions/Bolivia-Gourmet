@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: 'Nueva contraseña' };
 export default async function NuevaClave() {
   const sesion = await estadoDeSesion();
   return (
-    <MarcoDeAcceso etiqueta="Portal de estudiantes" titulo="Nueva contraseña" foto="emplatado-con-pinzas">
+    <MarcoDeAcceso etiqueta="Portal de estudiantes" titulo="Nueva contraseña" foto="reposteria-batidora">
       {sesion.estado === 'autenticado' ? (
         <FormularioDeNuevaClave />
       ) : (

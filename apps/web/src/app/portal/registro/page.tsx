@@ -14,7 +14,7 @@ export default async function Registro() {
       etiqueta="Portal de estudiantes"
       script="Empieza"
       titulo="tu inscripción"
-      foto="cocina-en-equipo"
+      foto="emplatado-con-pinzas"
       descripcion={<p>Crea tu cuenta para solicitar tu inscripción a la carrera o a un curso, y seguir su estado desde aquí.</p>}
       pie={
         <p>

@@ -17,7 +17,7 @@ export function MarcoDeAcceso({
   script,
   titulo,
   descripcion,
-  foto = 'estudiantes-brazos-cruzados',
+  foto = 'kit-de-cuchillos',
   pie,
   children,
 }: {
@@ -42,7 +42,9 @@ export function MarcoDeAcceso({
         {pie ? <div className="mt-8 border-t border-linea pt-6 text-center text-tinta-suave">{pie}</div> : null}
       </section>
       <div className="relative hidden overflow-hidden rounded-[var(--t-radio-xl)] lg:block">
-        <Foto nombre={foto} sizes="480px" relleno alt="" />
+        {/* Marco vertical y alto: con fotos verticales el recorte es mínimo; ~700 px
+            es el ancho que ocupa la imagen al cubrir el marco a 1440 px. */}
+        <Foto nombre={foto} sizes="700px" relleno alt="" />
         <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-estructural-profundo/95 to-transparent p-8 text-sobre-estructural">
           <p className="t-script text-3xl">Descubre el chef</p>
           <p className="t-display text-5xl">que llevas dentro!</p>
