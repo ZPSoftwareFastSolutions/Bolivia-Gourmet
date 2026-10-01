@@ -52,10 +52,14 @@ git push -u origin feat/sistema-interno
 Antes de cualquier push: `git remote -v` y comprobar que el remoto es el de
 este proyecto y no el de otro.
 
-## 4. Estado actual
+## 4. Estado actual (2026-10-01)
 
-| Rama | Existe | Contenido |
-|---|---|---|
-| `main` | sí | Fase 0 completa (análisis, arquitectura, documentación, estructura base, dominio inicial con pruebas) |
-| `feat/sistema-interno` | sí | Creada desde `main`; rama de trabajo activa |
-| `feat/pagina-web` | no | Se crea al iniciar el sistema 2 |
+| Rama | Contenido |
+|---|---|
+| `main` | Fase 0 + base de datos, aclaraciones y catálogo actualizado |
+| `feat/sistema-interno` | Igual a `main`; sin trabajo propio todavía |
+| `feat/pagina-web` | Web pública, portal de estudiantes y escudos de seguridad. Pendiente de aprobación para merge a `main` |
+
+Remoto: https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet. Los
+últimos commits pueden estar solo en local si el gestor de credenciales pidió
+iniciar sesión (TASKS E2.D3): `git push origin main feat/sistema-interno feat/pagina-web`.

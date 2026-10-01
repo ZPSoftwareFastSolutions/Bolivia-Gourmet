@@ -50,7 +50,7 @@ export const INSTITUTO = {
   pilares: [
     {
       titulo: 'Titúlate',
-      icono: 'titulo',
+      icono: 'documento',
       texto: 'Obtén tu título en Provisión Nacional de Técnico Superior en Gastronomía.',
     },
     {

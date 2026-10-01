@@ -63,9 +63,10 @@
   --marca-vino-profundo: #5a1420;
   --marca-rojo: #d9262e;
   --marca-rosa: #f3e2de;
-  --bolivia-rojo: #d52b1e;
-  --bolivia-amarillo: #f9e300;
-  --bolivia-verde: #007934;
+  /* Medidos en el logotipo oficial de Bolivia Gastronómica (docs/brand §14). */
+  --bolivia-rojo: #ff0025;
+  --bolivia-amarillo: #ffff14;
+  --bolivia-verde: #00c12e;
 
   /* ---- Semánticos ---- */
   --t-superficie: #ffffff;
@@ -222,58 +223,209 @@
 }
 
 /* ===========================================================================
-   LAYOUT
+   COMPONENTES — dentro de `@layer components`. Fuera de capa, estas clases
+   ganarían a CUALQUIER utilidad de Tailwind (una regla sin capa gana a todas
+   las capas): `text-sobre-estructural` sobre un `.t-lead` no se aplicaría.
+   Dentro de la capa, las utilidades las ajustan como se espera.
    ======================================================================== */
-.shell {
-  width: 100%;
-  max-width: var(--shell-max);
-  margin-inline: auto;
-  padding-inline: var(--shell-gutter);
-}
+@layer components {
 
-.section {
-  padding-block: var(--t-espacio-seccion);
-  position: relative;
-}
+  /* ===========================================================================
+     LAYOUT
+     ======================================================================== */
+  .shell {
+    width: 100%;
+    max-width: var(--shell-max);
+    margin-inline: auto;
+    padding-inline: var(--shell-gutter);
+  }
 
-/* ===========================================================================
-   TIPOGRAFÍA DE MARCA
-   La combinación script + display en la misma frase es el rasgo más
-   reconocible de los folletos (docs/brand §4.3).
-   ======================================================================== */
-.t-script {
-  font-family: var(--t-fuente-script);
-  font-weight: 400;
-  line-height: 1;
-}
+  .section {
+    padding-block: var(--t-espacio-seccion);
+    position: relative;
+  }
 
-.t-display {
-  font-family: var(--t-fuente-display);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  line-height: 0.95;
-}
+  /* ===========================================================================
+     TIPOGRAFÍA DE MARCA
+     La combinación script + display en la misma frase es el rasgo más
+     reconocible de los folletos (docs/brand §4.3).
+     ======================================================================== */
+  .t-script {
+    font-family: var(--t-fuente-script);
+    font-weight: 400;
+    line-height: 1;
+  }
 
-.t-h1 {
-  font-size: var(--t-tamano-h1);
-}
-.t-h2 {
-  font-size: var(--t-tamano-h2);
-}
-.t-h3 {
-  font-size: var(--t-tamano-h3);
-}
+  .t-display {
+    font-family: var(--t-fuente-display);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 0.95;
+  }
 
-.t-lead {
-  font-size: var(--t-tamano-lead);
-  color: var(--t-tinta-suave);
-  line-height: 1.7;
-}
+  .t-h1 {
+    font-size: var(--t-tamano-h1);
+  }
+  .t-h2 {
+    font-size: var(--t-tamano-h2);
+  }
+  .t-h3 {
+    font-size: var(--t-tamano-h3);
+  }
 
-.t-etiqueta {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--t-estructural);
+  .t-lead {
+    font-size: var(--t-tamano-lead);
+    color: var(--t-tinta-suave);
+    line-height: 1.7;
+  }
+
+  .t-etiqueta {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--t-estructural);
+  }
+
+  .t-espaciado {
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+  }
+
+  /* ===========================================================================
+     MOTIVOS DE MARCA (docs/brand §2.2 y §7)
+     ----------------------------------------------------------------------------
+     Se dibujan con `mask-image` y un SVG en `data:`: la FORMA viene del SVG y el
+     COLOR del token (`background: var(--t-…)`). Así el brochazo amarillo del
+     folleto sigue siendo un token y cambiar la paleta no toca esta hoja.
+     `img-src data:` en la CSP cubre estas máscaras.
+     ======================================================================== */
+
+  /* Brochazo detrás de una palabra clave («que llevas», «DENTRO!», «3 AÑOS»). */
+  .marca-resaltado {
+    position: relative;
+    z-index: 0;
+    display: inline-block;
+    padding-inline: 0.28em;
+    --resalte: var(--t-accion);
+  }
+  .marca-resaltado::before {
+    content: '';
+    position: absolute;
+    inset: 6% -3% 0 -3%;
+    z-index: -1;
+    background: var(--resalte);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M4 12C30 4 80 6 120 5C150 4 180 3 197 8L194 18L199 26C170 34 120 36 80 35C50 35 22 38 3 33L7 24Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M4 12C30 4 80 6 120 5C150 4 180 3 197 8L194 18L199 26C170 34 120 36 80 35C50 35 22 38 3 33L7 24Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    transform: rotate(-1.2deg);
+  }
+  .marca-resaltado--azul {
+    --resalte: var(--t-estructural);
+    color: var(--t-sobre-estructural);
+  }
+  .marca-resaltado--vino {
+    --resalte: var(--t-cursos);
+    color: var(--t-sobre-cursos);
+  }
+
+  /* Subrayado en curva bajo los títulos en script («Somos?», «Cocina con Pasión»). */
+  .marca-subrayado {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 0.18em;
+  }
+  .marca-subrayado::after {
+    content: '';
+    position: absolute;
+    left: 4%;
+    right: -2%;
+    bottom: -0.08em;
+    height: 0.32em;
+    background: var(--t-accion);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M2 14C60 4 140 2 198 8L197 12C140 8 70 10 4 18Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M2 14C60 4 140 2 198 8L197 12C140 8 70 10 4 18Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  }
+
+  /* Rayas de brillo: tres trazos que irradian junto a títulos y al gorro. */
+  .marca-rayas {
+    display: inline-block;
+    width: 2.4rem;
+    height: 2.4rem;
+    flex: none;
+    background: var(--t-accion);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' fill='none' stroke='black' stroke-width='4.5' stroke-linecap='round'%3E%3Cpath d='M8 31L16 25M20 6L21 17M33 12L26 20'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40' fill='none' stroke='black' stroke-width='4.5' stroke-linecap='round'%3E%3Cpath d='M8 31L16 25M20 6L21 17M33 12L26 20'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .marca-rayas--espejo {
+    transform: scaleX(-1);
+  }
+
+  /* Fotos tipo polaroid del collage de estudiantes (folleto «Cocina con pasión»). */
+  .polaroid {
+    background: var(--t-tarjeta);
+    padding: 0.6rem 0.6rem 1.6rem;
+    box-shadow:
+      0 1px 2px rgb(21 25 54 / 0.12),
+      0 12px 28px -12px rgb(21 25 54 / 0.35);
+    border-radius: 4px;
+  }
+
+  /* Bloque desplazado detrás de una foto: el «Vibrant & Block-based» de la skill
+     ui-ux-pro-max, en los colores de la marca. */
+  .bloque-desplazado {
+    position: relative;
+    isolation: isolate;
+  }
+  .bloque-desplazado::before {
+    content: '';
+    position: absolute;
+    inset: 1.1rem -1.1rem -1.1rem 1.1rem;
+    z-index: -1;
+    border-radius: var(--t-radio-xl);
+    background: var(--desplazado, var(--t-accion));
+  }
+  .bloque-desplazado--azul {
+    --desplazado: var(--t-estructural);
+  }
+  .bloque-desplazado--vino {
+    --desplazado: var(--t-cursos);
+  }
+
+  /* Franja tricolor boliviana: microacento, nunca superficie (docs/brand §3.1). */
+  .franja-tricolor {
+    display: block;
+    height: 4px;
+    width: 5.5rem;
+    border-radius: 2px;
+    background: linear-gradient(
+      90deg,
+      var(--bolivia-rojo) 0 33.3%,
+      var(--bolivia-amarillo) 33.3% 66.6%,
+      var(--bolivia-verde) 66.6% 100%
+    );
+  }
+
+  /* Enlaces dentro de texto corrido: subrayados, no solo coloreados (WCAG 1.4.1). */
+  .enlace {
+    color: var(--t-estructural);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--t-accion-fuerte);
+    transition: text-decoration-color 0.2s ease;
+  }
+  .enlace:hover {
+    text-decoration-color: var(--t-estructural);
+  }
+
+  /* El panel del menú móvil y el botón de WhatsApp usan <details>: sin el
+     marcador del navegador. */
+  .sin-marcador > summary {
+    list-style: none;
+  }
+  .sin-marcador > summary::-webkit-details-marker {
+    display: none;
+  }
+
 }

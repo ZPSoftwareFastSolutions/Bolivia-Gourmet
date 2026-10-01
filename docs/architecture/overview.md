@@ -26,11 +26,11 @@ arquitectura CLEAN, sus convenciones y su tooling, **no** su capa de tenants
 
 | Capa | Tecnología | Versión | Por qué |
 |---|---|---|---|
-| Framework web | Next.js (App Router) | 16.3.4 | El mismo de los proyectos anteriores del equipo; Server Components; prerenderizado del sitio público; Server Actions para el panel |
+| Framework web | Next.js (App Router) | 16.3.8 | El mismo de los proyectos anteriores del equipo; Server Components; prerenderizado del sitio público; Server Actions para el panel |
 | UI | React | 19.1.1 | |
 | Lenguaje | TypeScript estricto | 5.9.3 | `strict` + `noUncheckedIndexedAccess` |
 | Estilos | Tailwind CSS v4 | 4.1.14 | Tokens semánticos en `globals.css`; ningún color literal en componentes |
-| Identidad y datos | Supabase (Auth + PostgreSQL + Storage) | pendiente de proyecto | RLS como garantía de autorización; sin backend propio (ADR 0002) |
+| Identidad y datos | Supabase (Auth + PostgreSQL) · `@supabase/ssr` 0.12.7, `supabase-js` 2.117.2 | proyecto `Bolivia-Gourmet` (sa-east-1) | RLS como garantía de autorización; sin backend propio (ADR 0002, 0005) |
 | Despliegue | Vercel | — | Como los proyectos anteriores; región `gru1` |
 | Pruebas | `node --test` (dominio) + SQL con sesión simulada (RLS) | Node 24 | Sin framework de pruebas ni navegador para el dominio |
 | Gestor de paquetes | npm | 11 | `package-lock.json` versionado; versiones **exactas** |
@@ -155,8 +155,8 @@ Principios heredados de GYM PLATFORM, sin la parte multi-tenant:
 9. **`service_role` jamás** en el repositorio, el navegador ni `NEXT_PUBLIC_*`.
 10. Usuario → Rol → Permiso en tablas.
 
-Sin proyecto Supabase todavía: **no se asumen credenciales**. Crear el
-proyecto es una acción externa que decide el usuario (ver `TASKS.md`).
+Proyecto creado el 2026-10-01 (`supabase/migrations/README.md`). Seguridad de
+la web y del portal: `docs/architecture/seguridad.md`.
 
 ## 6. Renderizado
 
@@ -178,6 +178,7 @@ un valor por defecto); `npm audit` limpio antes de desplegar.
 
 ```text
 Fase 0  ✅  Análisis, arquitectura, documentación, estructura base, dominio inicial con pruebas
+Entrega 2 ✅ GitHub, Supabase con RLS, aclaraciones, web pública y portal de estudiantes con CSP estricta (ADR 0005, 0006)
 Fase 1      Sistema interno · base: proyecto Supabase, identidad y permisos, sedes, migraciones iniciales
 Fase 2      Sistema interno · inventario: artículos, variantes, movimientos, stock, entregas
 Fase 3      Sistema interno · estudiantes: estudiantes, cohortes, inscripciones, requisitos

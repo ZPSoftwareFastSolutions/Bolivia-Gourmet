@@ -32,6 +32,16 @@ el panel crece, se evalúa Playwright para los tres flujos críticos
 | `tests/estudiantes.test.ts` | `validarEstudiante` (nombres obligatorios, teléfono boliviano, correo); reglas de inscripción (no duplicar cohorte) |
 | `tests/casos-de-uso.test.ts` | `registrarMovimiento` con repositorio falso: guarda cuando la regla pasa, no guarda cuando falla, devuelve `Resultado` |
 
+| `tests/base-de-datos.test.ts` | Coherencia SQL ↔ catálogo; toda tabla con RLS y permisos por defecto retirados; funciones DEFINER en `app` con `search_path` fijo; el alta nunca lee el rol |
+| `tests/portal.test.ts` | Validación de solicitudes contra las opciones de cada programa; credenciales; roles; traducción de errores; casos de uso de acceso y solicitudes con dobles |
+| `tests/seguridad.test.ts` | CSP de producción sin `unsafe-*`; nonce; política de archivos; redirecciones seguras; sin `style` ni `next/image`; sin secretos; sin Supabase en componentes de cliente; cookies endurecidas; matcher del proxy |
+
+Herramientas añadidas en la entrega 2: batería RLS en una transacción que se
+revierte (`docs/runbooks/pruebas-rls-entrega2.sql`, 39 pruebas), `curl -I`
+sobre el servidor de producción, y `apps/web/scripts/capturar-pagina.mjs`
+(capturas de página completa con emulación de dispositivo; informa
+desbordamiento horizontal y errores de consola).
+
 ## 3. Antes de cada commit relevante
 
 ```bash

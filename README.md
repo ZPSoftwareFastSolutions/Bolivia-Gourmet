@@ -1,31 +1,28 @@
 # Sistemas web — Corporación Bolivia Gourmet
 
-Dos sistemas para el **Instituto Técnico Nacional de la Integración Boliviana /
-Corporación Bolivia Gourmet / Bolivia Gastronómica** (La Paz y El Alto,
-Bolivia), sobre una misma base de código con arquitectura CLEAN:
+Dos sistemas para **Corporación Bolivia Gourmet**, área de gastronomía del
+**TEC-NIB** (Instituto Técnico Nacional de la Integración Boliviana), y su
+instituto **Bolivia Gastronómica** (La Paz y El Alto, Bolivia), sobre una
+misma base de código con arquitectura CLEAN:
 
-1. **Sistema interno de gestión** (prioritario): inventario de utensilios,
-   insumos y uniformes; estudiantes e inscripciones por cohorte; entregas con
-   trazabilidad; ingresos y gastos; tablero.
-2. **Página web informativa**: institución, carrera técnica, cursos,
-   convenios, beneficios, requisitos, contacto y sedes, fiel a la identidad
-   visual de los folletos.
+1. **Página web** con **portal de estudiantes**: institución, carrera técnica
+   en Gastronomía, cursos, convenios, emprende, contacto; registro, solicitud
+   de inscripción y de renovación, estado de solicitudes y pago por QR.
+2. **Sistema interno de gestión** (en desarrollo): recepción y administración,
+   inventario, inscripciones y contabilidad.
 
-> **Estado: fase 0 completa** (2026-09-30). Hay análisis, arquitectura,
-> documentación, dominio con pruebas y estructura base. **No hay base de datos,
-> ni sesión, ni pantallas reales todavía.** Ver [`CLAUDE.md`](CLAUDE.md) §0 y
-> [`TASKS.md`](TASKS.md).
+> **Estado (2026-10-01):** web y portal completos y verificados en local en la
+> rama `feat/pagina-web`; base de datos Supabase con RLS; sin desplegar.
+> Ver [`CLAUDE.md`](CLAUDE.md) §0 y §9, y [`TASKS.md`](TASKS.md).
 
 ## Arranque rápido
 
 ```bash
 cd apps/web
+cp .env.example .env.local   # y completar con la URL y la clave publicable de Supabase
 npm install
 npm run dev
 ```
-
-Abre http://localhost:3000. No hace falta ninguna variable de entorno en esta
-fase.
 
 ### Verificación antes de commitear
 
@@ -37,38 +34,36 @@ npm run build
 npm audit
 ```
 
-Más comprobaciones (Dependency Rule, colores literales, voseo) en
+Más comprobaciones (capas, colores, voseo, secretos, cabeceras, RLS) en
 [`CLAUDE.md`](CLAUDE.md) §8.
 
 ## Estructura
 
 ```text
-CLAUDE.md                   Contexto técnico principal (leer primero)
-TASKS.md                    Panel de tareas
-INFORMACION-INSTITUTO.md    Fuente institucional (no se inventa nada que no esté aquí)
-FOTOS-GASTRO/               Referencia visual (12 fotografías de los folletos)
+CLAUDE.md · TASKS.md            Contexto técnico y panel de tareas
+INFORMACION-INSTITUTO.md        Fuente institucional del cliente (no se edita)
+FOTOS-GASTRO/ · FOTOS-WEB/      Folletos (referencia) y recursos oficiales (logotipos, fotos)
 docs/
-  brand/identidad-visual.md            Análisis visual y tokens
-  analisis/analisis-informacion-instituto.md
-  architecture/overview.md · adr/      Arquitectura y decisiones
-  domain/modelo-de-dominio.md          Entidades, relaciones y reglas
-  testing/estrategia-de-pruebas.md
-  git/estrategia-de-ramas.md
-apps/web/                   La aplicación (Next.js 16 · TypeScript · Tailwind v4)
-  contenido/                Contenido institucional estático
-  src/core/domain           Reglas puras (sin framework)
-  src/core/application      Casos de uso y puertos
-  src/infrastructure        Adaptadores y composition root
-  src/app · src/presentation   Rutas y UI
-  tests/                    node --test
-supabase/migrations/        SQL versionado (vacío hasta crear el proyecto)
+  analisis/                     Análisis del documento y aclaraciones del 2026-10-01
+  brand/identidad-visual.md     Identidad visual, logotipos medidos, aporte de las skills
+  architecture/                 Visión general, seguridad, ADR 0001–0006
+  domain/ · testing/ · git/     Modelo de dominio, estrategia de pruebas y de ramas
+  runbooks/                     Batería de pruebas RLS
+supabase/migrations/            SQL aplicado en el proyecto Bolivia-Gourmet
+apps/web/                       Next.js 16 · TypeScript · Tailwind v4 · Supabase
+  contenido/                    Contenido institucional, convenios, textos alternativos
+  src/core/                     Dominio y casos de uso (sin framework)
+  src/infrastructure/           Catálogo, Supabase, composition root
+  src/app · src/presentation    Rutas, portal y UI
+  scripts/                      Optimización de imágenes y capturas por CDP
+  tests/                        node --test
 ```
 
 ## Fuentes de verdad
 
-- Datos: `INFORMACION-INSTITUTO.md`. Lo que dice `[Consultar]` es
-  **pendiente** en el código y «Consultar» en pantalla.
-- Identidad: `FOTOS-GASTRO/` y `docs/brand/identidad-visual.md`.
+- Datos: `INFORMACION-INSTITUTO.md` y `docs/analisis/aclaraciones-2026-10-01.md`.
+  Lo no definido es **pendiente** en el código y «Consultar» en pantalla.
+- Identidad: folletos, logotipos oficiales y `docs/brand/identidad-visual.md`.
 - Decisiones: `docs/architecture/adr/`.
 
 Si un documento contradice a `CLAUDE.md`, manda `CLAUDE.md`.
