@@ -362,7 +362,7 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 
 | # | Qué | Cómo |
 |---|---|---|
-| E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
+| E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio. Estado real (2026-10-01): confirmación de correo activada, registro abierto, solo proveedor de correo | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
 | E2.D3 | **Hacer push** de los commits locales | `git push origin main feat/sistema-interno feat/pagina-web` desde una terminal propia (el gestor de credenciales pedirá iniciar sesión en GitHub) |
 | — | Promover al primer administrador cuando exista su cuenta | SQL de §4 |
 | — | Desplegar en Vercel | Cuando el usuario lo pida |
@@ -436,6 +436,7 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 | Subrayado script a todo el ancho | `block` anulaba el `inline-block` del subrayado | Span en línea dentro de un bloque |
 | Capturas móviles recortadas | Edge sin interfaz impone ~500 px de ancho | Emulación de dispositivo por CDP |
 | Favicon con trazo negro | El trazo de la «G» cruza los pétalos | Píxeles oscuros a transparentes en el script |
+| La página podía leer el token viejo tras una renovación | El proxy clonaba las cabeceras antes de actualizar la cookie | Copiar la cookie renovada a las cabeceras que siguen hacia la página |
 
 ---
 

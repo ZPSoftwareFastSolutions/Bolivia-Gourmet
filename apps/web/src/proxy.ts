@@ -49,6 +49,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
         },
         setAll(cookiesNuevas) {
           for (const { name, value } of cookiesNuevas) request.cookies.set(name, value);
+          // `cabeceras` se clonó ANTES de renovar el token: sin copiar la cookie
+          // actualizada, la página de esta misma petición leería el token viejo
+          // (el `middleware.ts` del proyecto anterior pasaba la petición mutada
+          // justo por esto).
+          cabeceras.set('cookie', request.headers.get('cookie') ?? '');
           respuesta = NextResponse.next({ request: { headers: cabeceras } });
           for (const { name, value, options } of cookiesNuevas) {
             // Mismo endurecimiento que en el cliente de servidor: si el proxy

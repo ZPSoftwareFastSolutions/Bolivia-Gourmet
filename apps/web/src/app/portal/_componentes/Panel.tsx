@@ -114,21 +114,23 @@ export function TarjetaDePago({ carrera }: { readonly carrera: Programa | null }
         Cuando recepción apruebe tu solicitud, realizas el pago escaneando el QR del instituto en tu sede. Pronto podrás hacerlo desde aquí.
       </p>
       {carrera && precios.length > 0 ? (
-        <dl className="mt-5 grid gap-2 rounded-md bg-sobre-estructural/10 p-4">
+        <div className="mt-5 rounded-md bg-sobre-estructural/10 p-4">
           <p className="t-etiqueta text-accion">Carrera de {carrera.nombre}</p>
-          {precios.map((p) => (
-            <div key={p.etiqueta} className="flex justify-between gap-3">
-              <dt>{p.etiqueta}</dt>
-              <dd className="font-bold">{formatearMonto(p.monto)}</dd>
-            </div>
-          ))}
-          {!esPendiente(carrera.uniforme) ? (
-            <div className="flex justify-between gap-3">
-              <dt>{carrera.uniforme.etiqueta}</dt>
-              <dd className="font-bold">{formatearMonto(carrera.uniforme.monto)}</dd>
-            </div>
-          ) : null}
-        </dl>
+          <dl className="mt-2 grid gap-2">
+            {precios.map((p) => (
+              <div key={p.etiqueta} className="flex justify-between gap-3">
+                <dt>{p.etiqueta}</dt>
+                <dd className="font-bold">{formatearMonto(p.monto)}</dd>
+              </div>
+            ))}
+            {!esPendiente(carrera.uniforme) ? (
+              <div className="flex justify-between gap-3">
+                <dt>{carrera.uniforme.etiqueta}</dt>
+                <dd className="font-bold">{formatearMonto(carrera.uniforme.monto)}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
       ) : null}
       <p className="mt-4 text-sm text-sobre-estructural/75">Cursos cortos: el costo se confirma en cada apertura.</p>
     </section>

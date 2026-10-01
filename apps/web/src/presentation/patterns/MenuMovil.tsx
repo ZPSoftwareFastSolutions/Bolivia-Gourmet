@@ -12,7 +12,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NAVEGACION, RUTAS } from '@/lib/rutas';
 import { cn } from '@/lib/cn';
 import { Icono } from '../icons/Icono';
@@ -20,16 +20,17 @@ import { Icono } from '../icons/Icono';
 export function MenuMovil() {
   const ruta = usePathname();
   const menu = useRef<HTMLDetailsElement>(null);
+  const [abierto, setAbierto] = useState(false);
 
   useEffect(() => {
     if (menu.current) menu.current.open = false;
   }, [ruta]);
 
   return (
-    <details ref={menu} className="sin-marcador group xl:hidden">
+    <details ref={menu} onToggle={(e) => setAbierto(e.currentTarget.open)} className="sin-marcador group xl:hidden">
       <summary
         className="inline-grid size-11 place-items-center rounded-md text-estructural hover:bg-superficie-alterna"
-        aria-label="Abrir el menú"
+        aria-label={abierto ? 'Cerrar el menú' : 'Abrir el menú'}
       >
         <Icono nombre="menu" className="group-open:hidden" />
         <Icono nombre="cerrar" className="hidden group-open:block" />
