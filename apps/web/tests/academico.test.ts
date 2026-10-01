@@ -9,14 +9,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { ALIADOS, UNIVERSIDADES } from '../contenido/convenios.ts';
 import {
   describirDuracion,
+  formatearMonto,
   validarCohorte,
   validarPrograma,
   type DatosDeCohorte,
   type Programa,
 } from '../src/core/domain/academico/programa.ts';
-import { esPendiente, PENDIENTE, type FechaISO, type Id } from '../src/core/domain/shared/tipos-base.ts';
+import { esPendiente, PENDIENTE, type Centavos, type FechaISO, type Id } from '../src/core/domain/shared/tipos-base.ts';
 import { validarCatalogo } from '../src/infrastructure/catalogo/catalogo.validator.ts';
 import { PROGRAMAS, SEDE_LA_PAZ_ID, SEDES } from '../src/infrastructure/catalogo/oferta-academica.ts';
 
@@ -52,13 +54,64 @@ test('la carrera dura 3 años, con 22 materias en tres años y título de Técni
   assert.equal(carrera.requisitos.length, 5);
 });
 
-test('ningún costo ni uniforme del documento se ha inventado: todos siguen pendientes', () => {
-  for (const programa of PROGRAMAS) {
+test('la carrera publica solo los importes aclarados: Paquete Económico y uniforme a Bs 650', () => {
+  const carrera = porCodigo('gastronomia');
+  assert.ok(!esPendiente(carrera.costo));
+  assert.deepEqual(
+    carrera.costo.map((p) => [p.etiqueta, formatearMonto(p.monto)]),
+    [
+      ['Paquete Económico', 'Bs 650'],
+      ['Paquete Ahorrador', 'Consultar'],
+    ],
+  );
+  assert.ok(!esPendiente(carrera.uniforme));
+  assert.equal(formatearMonto(carrera.uniforme.monto), 'Bs 650');
+  // Sin periodicidad: no se aclaró si es mensual, por gestión o pago único.
+  assert.ok(carrera.costo.every((p) => p.periodicidad === undefined));
+});
+
+test('ningún costo ni uniforme de los cursos se ha inventado: siguen pendientes', () => {
+  for (const programa of PROGRAMAS.filter((p) => p.tipo !== 'carrera')) {
     assert.ok(esPendiente(programa.costo), `${programa.codigo}: costo`);
     assert.ok(esPendiente(programa.uniforme), `${programa.codigo}: uniforme`);
   }
   // Solo la carrera tiene inicio publicado.
   assert.equal(PROGRAMAS.filter((p) => !esPendiente(p.inicioPublicado)).length, 1);
+});
+
+test('formatearMonto usa el formato boliviano y nunca inventa un importe', () => {
+  assert.equal(formatearMonto(65_000 as Centavos), 'Bs 650');
+  assert.equal(formatearMonto(125_050 as Centavos), 'Bs 1.250,50');
+  assert.equal(formatearMonto(1_000_000_00 as Centavos), 'Bs 1.000.000');
+  assert.equal(formatearMonto(PENDIENTE), 'Consultar');
+});
+
+test('el validador rechaza precios sin etiqueta o con importes no enteros', () => {
+  const carrera = porCodigo('gastronomia');
+  const malo = { ...carrera, costo: [{ etiqueta: ' ', monto: 650.5 as Centavos }] };
+  const errores = validarPrograma(malo);
+  assert.ok(errores.some((e) => /sin etiqueta/.test(e)));
+  assert.ok(errores.some((e) => /entero positivo/.test(e)));
+  const uniformeMalo = { ...carrera, uniforme: { etiqueta: 'Uniforme', monto: 0 as Centavos } };
+  assert.ok(validarPrograma(uniformeMalo).some((e) => /entero positivo/.test(e)));
+});
+
+// ---------------------------------------------------------------- convenios
+
+test('convenios: 17 aliados y 4 universidades, sin nombres repetidos', () => {
+  assert.equal(ALIADOS.length, 17);
+  assert.equal(new Set(ALIADOS.map((a) => a.nombre)).size, 17);
+  assert.deepEqual(
+    UNIVERSIDADES.map((u) => u.sigla),
+    ['UNANDES', 'UNICEN', 'UB', 'UDI'],
+  );
+});
+
+test('las erratas del documento original no llegan a la web', () => {
+  const nombres = [...ALIADOS.map((a) => a.nombre), ...UNIVERSIDADES.map((u) => `${u.sigla} ${u.nombre}`)].join(' | ');
+  for (const errata of ['Alt Paocha', 'La Carindera', 'Auroras', 'UNIGEN']) {
+    assert.ok(!nombres.includes(errata), errata);
+  }
 });
 
 test('las duraciones de los cursos son las del documento', () => {

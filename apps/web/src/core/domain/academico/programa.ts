@@ -80,12 +80,25 @@ export interface BloqueDeContenido {
   readonly temas: readonly string[];
 }
 
-/** Precio publicado: una etiqueta y su importe. La carrera tendrá dos (paquetes). */
+/**
+ * Precio publicado: una etiqueta y su importe. La carrera tiene dos paquetes y
+ * cada uno puede conocerse por separado: el Económico tiene importe (Bs 650,
+ * aclaración del 2026-10-01) y el Ahorrador sigue pendiente.
+ */
 export interface PrecioPublicado {
   readonly etiqueta: string;
-  readonly monto: Centavos;
-  /** «por mes», «total», «por paquete»… */
+  readonly monto: Definido<Centavos>;
+  /** «por mes», «total», «por paquete»… Sin definir = la web no la inventa. */
   readonly periodicidad?: string;
+}
+
+/** «Bs 650», «Bs 1.250,50» o «Consultar». Formato boliviano: punto de miles, coma decimal. */
+export function formatearMonto(monto: Definido<Centavos>): string {
+  if (esPendiente(monto)) return 'Consultar';
+  const bolivianos = Math.floor(monto / 100);
+  const centavos = monto % 100;
+  const miles = String(bolivianos).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return centavos === 0 ? `Bs ${miles}` : `Bs ${miles},${String(centavos).padStart(2, '0')}`;
 }
 
 export interface Programa {
@@ -177,10 +190,23 @@ export function validarPrograma(programa: Programa): readonly string[] {
     }
   }
 
-  if (!esPendiente(programa.costo) && programa.costo.length === 0) {
-    errores.push(`${donde}: el costo definido no tiene precios; use PENDIENTE si no se conoce.`);
+  if (!esPendiente(programa.costo)) {
+    if (programa.costo.length === 0) {
+      errores.push(`${donde}: el costo definido no tiene precios; use PENDIENTE si no se conoce.`);
+    }
+    for (const precio of programa.costo) errores.push(...validarPrecio(donde, precio));
   }
+  if (!esPendiente(programa.uniforme)) errores.push(...validarPrecio(donde, programa.uniforme));
 
+  return errores;
+}
+
+function validarPrecio(donde: string, precio: PrecioPublicado): readonly string[] {
+  const errores: string[] = [];
+  if (precio.etiqueta.trim().length === 0) errores.push(`${donde}: hay un precio sin etiqueta.`);
+  if (!esPendiente(precio.monto) && (!Number.isInteger(precio.monto) || precio.monto <= 0)) {
+    errores.push(`${donde}: el precio "${precio.etiqueta}" debe ser un entero positivo en centavos.`);
+  }
   return errores;
 }
 

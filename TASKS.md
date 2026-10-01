@@ -29,13 +29,43 @@
 - [x] **0.14 Primera línea funcional (dominio de inventario + catálogo académico)** — `aplicarMovimiento`, `calcularStock`, `validarMovimiento`, `validarEntrega`, `validarCohorte`, `validarEstudiante`, `validarInscripcion`, caso de uso `registrarMovimiento` con puerto y doble en memoria, catálogo estático validado en el build, composition root. *Validación:* typecheck limpio · 73/73 pruebas · build OK · `npm audit` 0 · greps vacíos.
 - [x] **0.15 Página provisional con tokens de marca** — `/` lista oferta y sedes desde el composition root; `/_not-found`. *Validación:* build estático; vista previa en el navegador (fuentes y tokens cargan).
 
+## Entrega 2 — Configuración del proyecto y página web (2026-10-01)
+
+Objetivo: dejar el repositorio y la base de datos configurados, aplicar las
+aclaraciones del usuario y presentar la página web completa y funcional, con
+portal de estudiantes, cabeceras de seguridad y políticas RLS.
+
+### E2.A Configuración
+- [x] **E2.A1 Vincular el remoto y publicar ramas** — `origin` = `ZPSoftwareFastSolutions/Bolivia-Gourmet`; push de `main` y `feat/sistema-interno`. *Validación:* `git ls-remote --heads origin` muestra ambas en `0f30c29`.
+- [x] **E2.A2 Versionar `FOTOS-WEB`** (2 logotipos y 9 fotografías oficiales enviadas por el cliente). *Validación:* commit `0f30c29` en `main`.
+- [x] **E2.A3 Crear el proyecto Supabase gratuito** — `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, región `sa-east-1`, organización «Z&P Software Fast Solutions» (plan free, coste 0). *Validación:* `get_project` → `ACTIVE_HEALTHY`.
+- [x] **E2.A4 `.env.local`** con URL y clave publicable (ignorado por Git). *Validación:* `git check-ignore`.
+- [x] **E2.A5 Migraciones de base**: sedes, identidad (perfiles con rol `administrador`/`recepcion`/`estudiante`, permisos por rol), programas, solicitudes de inscripción y renovación; RLS en todo. *Validación:* 4 migraciones aplicadas; batería RLS 39/39 (`docs/runbooks/pruebas-rls-entrega2.sql`), todo revertido; `get_advisors(security)` sin avisos; 5/5 tablas con RLS, 11 políticas; prueba de coherencia SQL ↔ catálogo.
+
+### E2.B Aclaraciones del usuario
+- [x] **E2.B1 Registrar las aclaraciones** (jerarquía TEC-NIB → Bolivia Gourmet, roles, cobro por QR, paquete económico y uniforme a Bs 650, socios y universidades con su nombre completo) en `docs/analisis/aclaraciones-2026-10-01.md` y en los documentos afectados. ADR 0005 (tres roles y portal).
+- [x] **E2.B2 Catálogo y contenido** — costos de la carrera, convenios completos, jerarquía institucional. *Validación:* pruebas del catálogo reescritas (Bs 650 en carrera, cursos pendientes, 17 aliados, 4 universidades, erratas ausentes); 83/83.
+- [~] **E2.B3 Identidad con los logotipos oficiales** — colores medidos de los PNG oficiales; logotipos e imágenes optimizados. *Validación:* tamaño de cada recurso publicado.
+
+### E2.C Página web (rama `feat/pagina-web`)
+- [ ] **E2.C1 Escudos de seguridad** — CSP estricta con nonce (sin `'unsafe-inline'`), HSTS, `frame-ancestors 'none'`, cookies de sesión `HttpOnly`, `no-store` en páginas con sesión. *Validación:* `curl -I` en cada ruta.
+- [ ] **E2.C2 Sistema de diseño y componentes de marca** (skills ui-ux-pro-max, brand, design). *Validación:* contraste AA, foco visible, 44 px táctiles, sin atributos `style`.
+- [ ] **E2.C3 Páginas públicas** — inicio, nosotros, carrera, cursos (índice y uno por curso), convenios, emprende, contacto, privacidad, 404. *Validación:* capturas en móvil, tablet y escritorio.
+- [ ] **E2.C4 Portal de estudiantes** — registro, acceso, recuperación de clave, panel con solicitudes, nueva inscripción, renovación, cancelación, pago por QR (informativo). *Validación:* pruebas de dominio y casos de uso; flujo real pendiente de E2.D1.
+- [ ] **E2.C5 Calidad** — typecheck, pruebas, build, audit, greps de capas antes y después de cada cambio.
+- [ ] **E2.C6 Documentación** — `CLAUDE.md`, `TASKS.md`, ADR nuevos.
+
+### E2.D Pendiente del usuario o del cliente
+- [!] **E2.D1 Configurar URL del sitio en Supabase Auth** (Site URL y Redirect URLs) para que los correos de confirmación y recuperación vuelvan al sitio. Sin ese paso el registro crea la cuenta pero el enlace del correo apunta a `http://localhost:3000`. *Dependencia:* usuario (no hay herramienta para la configuración de Auth).
+- [!] **E2.D2 Recursos a pedir al cliente** — logotipos en blanco o SVG, QR bancario para cobros, fotos de cursos cortos, sede de El Alto, Chef Oscar Mora, logotipos de socios, enlaces de Facebook, YouTube y comunidad de WhatsApp.
+
 ## Bloqueadas (dependen del usuario o del cliente)
 
-- [!] **B1 Crear el repositorio remoto en GitHub y hacer push** — no hay `gh` ni token; el nombre no se asume. *Dependencia:* usuario. *Cómo:* `docs/git/estrategia-de-ramas.md` §3.
-- [!] **B2 Crear el proyecto Supabase** y entregar `NEXT_PUBLIC_SUPABASE_URL` y la clave publicable en `.env.local`. *Dependencia:* usuario (coste y credenciales).
-- [!] **B3 Respuestas del cliente P1–P12** (`docs/analisis` §6): uniformes y tallas, cuándo se entrega el uniforme, insumos, préstamo de utensilios, importes, paquetes, medios de cobro, gastos, roles, asistencia, fechas de cursos, dominio. *Dependencia:* cliente.
-- [!] **B4 Material de marca**: logotipos vectoriales, colores oficiales, fotografías propias, logotipos de socios con autorización, enlaces reales (redes, comunidad de WhatsApp). *Dependencia:* cliente.
-- [!] **B5 Confirmar denominaciones y discrepancias** (`docs/brand` §11). *Dependencia:* cliente.
+- [x] ~~**B1 Crear el repositorio remoto en GitHub y hacer push**~~ — resuelto en E2.A1.
+- [x] ~~**B2 Crear el proyecto Supabase**~~ — resuelto en E2.A3 y E2.A4.
+- [~] **B3 Respuestas del cliente P1–P12** (`docs/analisis` §6) — parcialmente resueltas por el usuario el 2026-10-01 (P5 parcial, P7, P9); el resto sigue abierto para la demostración. Ver `docs/analisis/aclaraciones-2026-10-01.md`.
+- [~] **B4 Material de marca** — recibidos 2 logotipos y 9 fotografías (`FOTOS-WEB`); faltan los de E2.D2.
+- [~] **B5 Confirmar denominaciones y discrepancias** — jerarquía aclarada (TEC-NIB → Bolivia Gourmet); queda el nombre exacto de la UB (ver aclaraciones).
 
 ## Fase 1 — Sistema interno · base (rama `feat/sistema-interno`)
 

@@ -123,7 +123,7 @@ autorización; hasta entonces se muestran como texto.
 | Rojo vino profundo | `#5A1420` | Degradados del folleto B | Hover / fondo oscuro de la línea Cursos |
 | Rojo vivo | `#D9262E` | Títulos de cursos («COCINA», «Tortas»), «MATRÍCULA GRATIS», pines | Títulos de cursos, promociones. En texto pequeño no cumple AA sobre blanco: solo en tamaños grandes o en negrita ≥ 18 px |
 | Rosa pálido | `#F3E2DE` | Tarjetas de los cuatro pilares | Fondo de tarjetas informativas suaves |
-| Tricolor Bolivia | `#D52B1E` · `#F9E300` · `#007934` | Franja del logotipo, isotipo | Solo como microacento (franja fina, isotipo). No se usa en superficies ni en botones |
+| Tricolor Bolivia | `#FF0025` · `#FFFF14` · `#00C12E` (**medidos** en el logotipo oficial, §14) | Franja del logotipo, isotipo | Solo como microacento (franja fina, isotipo). No se usa en superficies ni en botones |
 
 ### 3.2 Neutros
 
@@ -346,6 +346,38 @@ Nada de esto se publica sin confirmación del cliente. Fuente de verdad:
 - Confirmación de todos los puntos de §11.
 
 ---
+
+## 14. Logotipos oficiales recibidos (2026-10-01)
+
+El cliente envió los dos logotipos en PNG (`FOTOS-WEB/`). Medidos con `sharp`
+sobre los píxeles opacos:
+
+| Logotipo | Formato | Colores medidos | Notas |
+|---|---|---|---|
+| Corporación Bolivia Gourmet | PNG 3016×1191, **fondo transparente** | Letras `#000000`; «BOLIVIA» `#F80C34`; pétalos `#FE0527` · `#FFFF00` · `#00FC00` | El rojo de «BOLIVIA» es más carmesí que el del folleto impreso |
+| Bolivia Gastronómica | PNG 1200×678, **fondo transparente**, 11,6 MB | Letras `#000000`; franja `#FF0025` · `#FFFF14` · `#00C12E` | El peso se debe a metadatos; se publica optimizado |
+| Uniforme (foto `2.png`, delantal) | — | `#1E2132` en sombra | Confirma el azul marino estructural `#1F2447` |
+
+**Reglas de uso en la web** (skill `brand`, referencia *logo-usage-rules*):
+
+- Solo sobre **fondos claros** (blanco o gris cálido): las letras son negras y
+  **no hay versión en blanco**. El pie azul lleva una banda blanca para los
+  logotipos hasta recibir la versión invertida (pedida al cliente).
+- Nunca estirar, girar, recolorear, recortar ni añadir sombras o contornos.
+  Se publican recortados solo en su margen transparente (sin tocar el dibujo).
+- Tamaño mínimo en pantalla: 120 px de ancho para cada uno (por debajo, el
+  subtítulo «Instituto Técnico Bolivia Gastronómica» deja de leerse).
+- Los dos aparecen juntos, como en todo el material impreso.
+- Favicon: el isotipo de los tres pétalos, que el folleto ya usa como marca
+  independiente.
+
+## 15. Lo que aportaron las skills de diseño (2026-10-01)
+
+| Skill | Aporte aplicado | Lo que se descartó y por qué |
+|---|---|---|
+| `ui-ux-pro-max` | Patrón de página «Trust & Authority + Conversion» (hero con credibilidad → pruebas: cifras y convenios → oferta → CTA claro); estilo «Vibrant & Block-based» (bloques de color, alto contraste, títulos grandes, hover con cambio de color 150–300 ms); reglas de formularios (error bajo el campo con `aria-describedby`, resumen de errores enfocable, validar al salir del campo, etiquetas visibles); autenticación accesible (permitir pegar y gestores de contraseñas, botón para mostrar la clave); lista de entrega (sin emojis como iconos, cursor en todo lo pulsable, contraste 4.5:1, foco visible, `prefers-reduced-motion`, 375/768/1024/1440 px) | Su paleta (rojo apetitoso + dorado) y tipografías (Playfair Display SC + Karla): la marca ya tiene las suyas. Su recomendación de `next/image`: añade un atributo `style` que la CSP estricta bloquea (ADR 0006) |
+| `brand` | Reglas de uso de logotipos, medición de colores sobre los archivos oficiales, voz de marca cercana y en segunda persona («descubre», «aprende») como en el folleto | Sincronización automática a `design-tokens.*`: los tokens ya viven en `globals.css` y la herramienta se detiene ante ellos a propósito |
+| `design` | Reglas de iconografía: retícula 24×24, trazo de 2 px, `currentColor`, extremos redondeados, iconos de línea | Generación de logotipos o imágenes con IA: el proyecto usa solo material oficial del cliente |
 
 ## 13. Tokens propuestos
 

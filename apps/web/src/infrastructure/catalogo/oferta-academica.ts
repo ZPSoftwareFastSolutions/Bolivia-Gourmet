@@ -6,10 +6,10 @@
  * y la semilla del panel hasta que los programas vivan en la base.
  *
  * REGLA: lo que el documento marca como `[Consultar]` va como PENDIENTE.
- * Nunca se rellena con un valor inventado ni con cifras manuscritas de los
- * folletos (docs/brand/identidad-visual.md §11). Cuando el cliente confirme
- * un dato, se cambia AQUÍ y el validador del catálogo lo comprueba en el
- * build.
+ * Nunca se rellena con un valor inventado. Un dato pasa a definido solo
+ * cuando lo confirma el usuario o el cliente, y se anota de dónde salió
+ * (hoy: docs/analisis/aclaraciones-2026-10-01.md). El validador del catálogo
+ * lo comprueba en el build.
  *
  * Las erratas probables del documento («Trotas», «Buttercreem») se transcriben
  * tal cual hasta que el cliente confirme (docs/analisis §7).
@@ -17,7 +17,10 @@
 
 import type { Programa } from '@core/domain/academico/programa';
 import type { Sede } from '@core/domain/shared/sede';
-import { PENDIENTE, pendiente, type Id } from '@core/domain/shared/tipos-base';
+import { PENDIENTE, pendiente, type Centavos, type Id } from '@core/domain/shared/tipos-base';
+
+/** Bs 650 en centavos: Paquete Económico y uniforme de la carrera. */
+const BS_650 = 65_000 as Centavos;
 
 /** Ids estables de las sedes mientras no existan en la base. */
 export const SEDE_LA_PAZ_ID = 'sede-la-paz' as Id;
@@ -125,8 +128,14 @@ export const PROGRAMAS: readonly Programa[] = [
     ],
     requisitos: REQUISITOS_CARRERA,
     notas: [NOTA_INSUMOS_CARRERA],
-    costo: pendiente('Paquete Económico y Paquete Ahorrador: consultar'),
-    uniforme: pendiente('Costo a consultar'),
+    // Aclaración del 2026-10-01 (docs/analisis/aclaraciones-2026-10-01.md §4):
+    // Paquete Económico y uniforme a Bs 650. Sin periodicidad: no se indicó si
+    // es mensual, por gestión o pago único, y la web no la inventa.
+    costo: [
+      { etiqueta: 'Paquete Económico', monto: BS_650 },
+      { etiqueta: 'Paquete Ahorrador', monto: pendiente('Importe a consultar') },
+    ],
+    uniforme: { etiqueta: 'Uniforme', monto: BS_650 },
     inicioPublicado: 'Febrero 2027',
     activo: true,
   },
