@@ -144,7 +144,7 @@ export function TarjetaDePrograma({ programa, nivelDeTitulo = 3 }: { readonly pr
   const Titulo = nivelDeTitulo === 2 ? 'h2' : 'h3';
   const esCarrera = programa.tipo === 'carrera';
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta transition-shadow duration-300 hover:shadow-[0_22px_44px_-26px_var(--t-estructural)]">
+    <article className="group relative flex w-full flex-col overflow-hidden rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta transition-shadow duration-300 hover:shadow-[0_22px_44px_-26px_var(--t-estructural)]">
       <div className="relative overflow-hidden">
         <Foto
           nombre={aspecto.foto}
@@ -172,16 +172,19 @@ export function TarjetaDePrograma({ programa, nivelDeTitulo = 3 }: { readonly pr
             <Icono nombre="reloj" tamano={16} /> {textoDeDias(programa)}
           </li>
         </ul>
-        <div className="mt-auto flex flex-wrap gap-2 pt-5">
-          {programa.beneficios.slice(0, 2).map((b) =>
-            esCarrera ? null : (
-              <Etiqueta key={b} tono={b.toLowerCase().includes('gratis') ? 'promo' : 'suave'}>
-                {b}
-              </Etiqueta>
-            ),
-          )}
-          {esCarrera ? <Etiqueta tono="amarillo">Título en Provisión Nacional</Etiqueta> : null}
-        </div>
+        {/* Sin insignias que mostrar, el contenedor no se dibuja: dejaba un hueco al pie de la tarjeta. */}
+        {esCarrera || programa.beneficios.length > 0 ? (
+          <div className="mt-auto flex flex-wrap gap-2 pt-5">
+            {programa.beneficios.slice(0, 2).map((b) =>
+              esCarrera ? null : (
+                <Etiqueta key={b} tono={b.toLowerCase().includes('gratis') ? 'promo' : 'suave'}>
+                  {b}
+                </Etiqueta>
+              ),
+            )}
+            {esCarrera ? <Etiqueta tono="amarillo">Título en Provisión Nacional</Etiqueta> : null}
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -190,16 +193,16 @@ export function TarjetaDePrograma({ programa, nivelDeTitulo = 3 }: { readonly pr
 export function RejillaDeCursos({ programas, titulo = true }: { readonly programas: readonly Programa[]; readonly titulo?: boolean }) {
   const cursos = programas.filter((p) => p.activo && p.tipo !== 'carrera');
   return (
-    <section aria-labelledby={titulo ? 'cursos' : undefined} aria-label={titulo ? undefined : 'Cursos y especialidades'} className="section bg-superficie">
+    <section aria-labelledby={titulo ? 'cursos' : undefined} aria-label={titulo ? undefined : 'Cursos de capacitación'} className="section bg-superficie">
       <div className="shell">
         {titulo ? (
           <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
             <TituloDeSeccion
               id="cursos"
-              etiqueta="Cursos y especialidades"
+              etiqueta="Cursos de capacitación"
               script="Aprende y"
               display="emprende"
-              descripcion={<p>Cursos cortos, prácticos y con matrícula gratis. Elige la duración y el horario que se ajusten a ti.</p>}
+              descripcion={<p>Cursos cortos de capacitación, aparte de la carrera: prácticos y con matrícula gratis. Elige la duración y el horario que se ajusten a ti.</p>}
             />
             <EnlaceBoton href={RUTAS.cursos} variante="cursos" icono="flecha" iconoAlFinal className="self-start lg:self-end">
               Ver todos los cursos
@@ -222,6 +225,19 @@ export function RejillaDeCursos({ programas, titulo = true }: { readonly program
 export function ContenidoPorBloques({ programa }: { readonly programa: Programa }) {
   const bloques = programa.contenido ?? [];
   if (bloques.length === 0) return null;
+  const [unico] = bloques;
+  if (bloques.length === 1 && unico) {
+    // Un solo bloque en la rejilla de 3 columnas dejaba dos tercios de la sección vacíos.
+    return (
+      <section aria-label={unico.titulo} className="mx-auto max-w-4xl rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta p-6 sm:p-8">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-cursos">
+          <Icono nombre="check" tamano={18} />
+          {unico.titulo}
+        </h3>
+        <ListaConCheck variante="cursos" columnas={2} elementos={unico.temas} className="mt-4 text-tinta-suave" />
+      </section>
+    );
+  }
   return (
     <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
       {bloques.map((bloque) => (

@@ -77,7 +77,10 @@ export function Pie({ sedes }: { readonly sedes: readonly Sede[] }) {
         </div>
 
         <div className="bg-superficie text-tinta">
-          <div className="shell flex flex-col items-center justify-between gap-4 py-6 md:flex-row">
+          {/* El botón flotante de WhatsApp no debe tapar el copyright: en el móvil,
+              sitio libre debajo; en pantallas medianas, a la derecha (en las anchas ya
+              queda fuera del contenedor). */}
+          <div className="shell flex flex-col items-center justify-between gap-4 pt-6 pb-20 md:flex-row md:pb-6 md:max-[84rem]:pe-24">
             <Logos tamano="pie" />
             <div className="text-center text-sm text-tinta-suave md:text-end">
               <p>

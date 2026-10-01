@@ -35,6 +35,13 @@ export const SEDES: readonly Sede[] = [
     direccion: 'Calle Francisco de Miranda #1986 entre Villalobos y Díaz Romero',
     telefono: '77706890',
     activa: true,
+    // Enlace enviado por el usuario el 2026-10-01; coordenadas del lugar al que lleva.
+    ubicacion: {
+      enlace: 'https://maps.app.goo.gl/QK31bpHFF39UvxQs8',
+      lugar: 'Bolivia Gourmet Miraflores',
+      latitud: -16.5023223,
+      longitud: -68.1191543,
+    },
   },
   {
     id: SEDE_EL_ALTO_ID,
@@ -44,6 +51,13 @@ export const SEDES: readonly Sede[] = [
     direccion: 'Calle 4 esq. Jorge Carrasco, Edificio Kollasuyo #225 (5to piso)',
     telefono: '77708027',
     activa: true,
+    // Enlace enviado por el usuario el 2026-10-01; coordenadas del lugar al que lleva.
+    ubicacion: {
+      enlace: 'https://maps.app.goo.gl/EYi1qTQY7x5b1BSS7',
+      lugar: 'Instituto Bolivia Gastronómica El Alto',
+      latitud: -16.5087942,
+      longitud: -68.1637126,
+    },
   },
 ];
 

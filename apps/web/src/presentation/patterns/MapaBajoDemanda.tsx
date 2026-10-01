@@ -8,26 +8,54 @@
  * dirección, y la página no paga el peso del iframe. La CSP permite
  * `frame-src https://www.google.com` y nada más.
  *
- * La búsqueda es por dirección escrita: no hay coordenadas confirmadas de las
- * sedes y una coordenada inventada pondría el pin en otro edificio.
+ * Si la sede tiene ubicación confirmada (el lugar de Google Maps que publica
+ * el instituto), el mapa se centra en sus coordenadas y «Abrir en Google
+ * Maps» usa su enlace. Si no, se busca por la dirección escrita: nunca una
+ * coordenada inventada, que pondría el pin en otro edificio.
  */
 
 import { useState } from 'react';
+import type { UbicacionDeSede } from '@core/domain/shared/sede';
+import { direccionesDeMapa } from '@/lib/mapas';
 import { Icono } from '../icons/Icono';
 
-export function MapaBajoDemanda({ direccion, nombre }: { readonly direccion: string; readonly nombre: string }) {
+export function MapaBajoDemanda({
+  direccion,
+  nombre,
+  ubicacion,
+}: {
+  readonly direccion: string;
+  readonly nombre: string;
+  readonly ubicacion?: UbicacionDeSede;
+}) {
   const [visible, setVisible] = useState(false);
-  const consulta = encodeURIComponent(`${direccion}, Bolivia`);
+  const { incrustado, externo: enlaceExterno } = direccionesDeMapa(direccion, ubicacion);
+  // Sigue a mano después de cargar el mapa: el enlace del iframe abre unas
+  // coordenadas sueltas, este abre el lugar del instituto.
+  const abrirEnGoogleMaps = (
+    <a
+      href={enlaceExterno}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex min-h-11 items-center gap-2 rounded-md border-2 border-estructural px-4 font-semibold text-estructural hover:bg-estructural hover:text-sobre-estructural"
+    >
+      Abrir en Google Maps
+      <Icono nombre="externo" tamano={16} />
+    </a>
+  );
 
   if (visible) {
     return (
-      <iframe
-        title={`Mapa de la sede ${nombre}`}
-        src={`https://www.google.com/maps?q=${consulta}&output=embed`}
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        className="aspect-[4/3] w-full rounded-[var(--t-radio-md)] border-0"
-      />
+      <div>
+        <iframe
+          title={`Mapa de la sede ${nombre}`}
+          src={incrustado}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          className="aspect-[4/3] w-full rounded-[var(--t-radio-md)] border-0"
+        />
+        <div className="mt-3 flex justify-center">{abrirEnGoogleMaps}</div>
+      </div>
     );
   }
 
@@ -46,15 +74,7 @@ export function MapaBajoDemanda({ direccion, nombre }: { readonly direccion: str
           >
             Ver mapa
           </button>
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${consulta}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 rounded-md border-2 border-estructural px-4 font-semibold text-estructural hover:bg-estructural hover:text-sobre-estructural"
-          >
-            Abrir en Google Maps
-            <Icono nombre="externo" tamano={16} />
-          </a>
+          {abrirEnGoogleMaps}
         </div>
       </div>
     </div>

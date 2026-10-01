@@ -21,7 +21,7 @@ export default function NoEncontrado() {
           </Link>
         </div>
       </header>
-      <section className="shell section flex-1">
+      <section className="shell section flex flex-1 flex-col justify-center">
         <p className="t-etiqueta">Error 404</p>
         <h1 className="mt-3 text-estructural">
           <span className="t-script block text-4xl">¡Ups!</span>

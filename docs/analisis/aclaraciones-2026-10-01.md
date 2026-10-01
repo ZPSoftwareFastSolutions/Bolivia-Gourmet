@@ -77,6 +77,25 @@ otro recurso más por favor.»*
 Los logotipos no tienen versión en blanco: **solo se colocan sobre fondos
 claros**. El cliente ofreció enviar más recursos; ver §8.
 
+### 5.1 Segunda entrega (2026-10-01, tras la presentación)
+
+- `FOTOS-WEB/LOGOS-SOCIOS/`: **21 logotipos** (los 17 socios «durante 16 años»
+  y las 4 universidades), JPG/PNG cuadrados, cada uno sobre su propio color de
+  fondo. Se publican como hexágonos de panal (como el folleto) en el carrusel
+  de la portada y en la página de convenios. El envío del cliente para la web
+  se toma como autorización para publicarlos.
+- **Mapas de las sedes** (enlaces de Google Maps del usuario): Miraflores
+  `https://maps.app.goo.gl/QK31bpHFF39UvxQs8` → lugar «Bolivia Gourmet
+  Miraflores» (−16,5023223, −68,1191543); El Alto
+  `https://maps.app.goo.gl/EYi1qTQY7x5b1BSS7` → «Instituto Bolivia
+  Gastronomica El Alto» (−16,5087942, −68,1637126). Las coordenadas son las
+  del lugar al que lleva cada enlace.
+- El usuario precisó que **los cursos son de capacitación, aparte de la carrera
+  de 3 años**: cursos y «¿Sueñas emprender?» quedan en una sola página
+  (`/cursos`; `/emprende` redirige allí).
+- Precios y detalles de cursos y licenciatura: **pedidos de nuevo al cliente**;
+  hasta su respuesta siguen como «Consultar».
+
 ## 6. Convenios con su nombre completo
 
 **Durante 16 años trabajando con** (17):
@@ -139,7 +158,7 @@ UNICEN.
 3. Fotografías de los **cursos cortos** (polera beige y delantal negro), de
    productos (repostería, tortas, panadería) y de la **sede de El Alto**.
 4. Fotografía del **Chef Oscar Mora**.
-5. **Logotipos de los socios** y autorización para publicarlos.
+5. ~~**Logotipos de los socios**~~ — recibidos (§5.1).
 6. Enlaces exactos de **Facebook**, **YouTube** y de la **comunidad de
    WhatsApp** (Instagram y TikTok se derivan de sus usuarios).
 7. Confirmación del nombre de la UB y de si los Bs 650 son mensuales.

@@ -3,7 +3,8 @@
  *
  * Orden de secciones (skill ui-ux-pro-max, «Trust & Authority + Conversion»):
  * portada con la acción principal → cifras de credibilidad → quiénes somos →
- * carrera → cursos → galería → convenios (prueba social) → emprende →
+ * carrera → cursos de capacitación y «¿Sueñas emprender?» (juntos: son la
+ * misma línea, aparte de la carrera) → galería → convenios (prueba social) →
  * llamada final. La acción «Inscríbete» aparece arriba, a media página y al
  * final.
  */
@@ -39,9 +40,9 @@ export default async function Inicio({ searchParams }: { readonly searchParams: 
       <Pilares />
       {carrera ? <CarreraDestacada carrera={carrera} /> : null}
       <RejillaDeCursos programas={programas} />
+      <BandaEmprende />
       <GaleriaCocinaConPasion />
       <ConveniosResumen />
-      <BandaEmprende />
       <LlamadaInscripcion carrera={carrera} sedes={sedes.filter((s) => s.activa)} />
     </>
   );

@@ -10,7 +10,6 @@ export const RUTAS = {
   carrera: '/carrera',
   cursos: '/cursos',
   convenios: '/convenios',
-  emprende: '/emprende',
   contacto: '/contacto',
   privacidad: '/privacidad',
   portal: '/portal',
@@ -38,6 +37,5 @@ export const NAVEGACION: readonly EnlaceDeNavegacion[] = [
   { etiqueta: 'Carrera', href: RUTAS.carrera },
   { etiqueta: 'Cursos', href: RUTAS.cursos },
   { etiqueta: 'Convenios', href: RUTAS.convenios },
-  { etiqueta: 'Emprende', href: RUTAS.emprende },
   { etiqueta: 'Contacto', href: RUTAS.contacto },
 ];

@@ -428,4 +428,165 @@
     display: none;
   }
 
+  /* ===========================================================================
+     RITMO ENTRE SECCIONES
+     Dos secciones seguidas del mismo fondo sumaban su relleno (≈2× el espacio
+     normal, un hueco blanco evidente): la segunda pierde el de arriba. Y la
+     onda del pie toma el fondo de la última sección, para que no quede una
+     franja blanca entre el último color y el azul del pie.
+     ======================================================================== */
+  .section.bg-superficie + .section.bg-superficie,
+  .section.bg-superficie-alterna + .section.bg-superficie-alterna {
+    padding-top: 0;
+  }
+  main:has(> :last-child.bg-superficie-alterna) + footer {
+    background-color: var(--t-superficie-alterna);
+  }
+  main:has(> :last-child.fin-cursos) + footer {
+    background-color: var(--t-cursos);
+  }
+
+  /* ===========================================================================
+     PANAL DE LOGOTIPOS (folleto: «Durante 16 años trabajando con»)
+     ----------------------------------------------------------------------------
+     Hexágonos con vértice arriba (alto = ancho · 2/√3). Con un hueco `g` entre
+     bordes, dos celdas vecinas en diagonal están desplazadas (ancho + g)/2 en
+     horizontal y 0,75·alto + 0,866·g en vertical: así encajan como en el
+     folleto. Los hexágonos son imágenes horneadas con el fondo de cada
+     logotipo (scripts/optimizar-imagenes.mjs).
+     ======================================================================== */
+  .hex-sombra {
+    filter: drop-shadow(0 10px 14px color-mix(in srgb, var(--t-estructural) 20%, transparent));
+  }
+
+  .panal {
+    /* Tres hexágonos por fila caben siempre, también a 320 px (WCAG 1.4.10). */
+    --hex: min(6.6rem, calc((100vw - 2 * var(--shell-gutter) - 2 * var(--hueco)) / 3));
+    --hueco: 0.5rem;
+    --hex-alto: calc(var(--hex) * 1.1547);
+    width: fit-content;
+    margin-inline: auto;
+  }
+  @media (min-width: 48rem) {
+    .panal {
+      --hex: 8rem;
+    }
+  }
+  @media (min-width: 64rem) {
+    .panal {
+      --hex: 9.5rem;
+    }
+  }
+  @media (min-width: 80rem) {
+    .panal {
+      --hex: 10.5rem;
+    }
+  }
+  .panal__fila {
+    display: flex;
+    gap: var(--hueco);
+  }
+  .panal__fila--centrada {
+    justify-content: center;
+  }
+  .panal__fila + .panal__fila {
+    margin-top: calc(var(--hex-alto) * -0.25 + var(--hueco) * 0.866);
+  }
+  .panal__fila--desplazada {
+    margin-left: calc((var(--hex) + var(--hueco)) / 2);
+  }
+  .panal__celda {
+    flex: none;
+    width: var(--hex);
+    transition: transform 0.3s ease;
+  }
+  @media (hover: hover) {
+    .panal__celda:hover {
+      transform: translateY(-4px) scale(1.04);
+    }
+  }
+
+  /* Carrusel: una cinta de panal de dos filas (las celdas alternan arriba y
+     abajo) que se desplaza sola. Se detiene al pasar el puntero, al enfocar
+     el control y con «Pausar»; con movimiento reducido queda quieta y se
+     recorre con el desplazamiento horizontal. */
+  .carrusel-panal {
+    --hex: 7rem;
+    --hueco: 0.5rem;
+    --hex-alto: calc(var(--hex) * 1.1547);
+  }
+  @media (min-width: 40rem) {
+    .carrusel-panal {
+      --hex: 8.5rem;
+    }
+  }
+  @media (min-width: 64rem) {
+    .carrusel-panal {
+      --hex: 10rem;
+    }
+  }
+  .carrusel-panal__ventana {
+    overflow: hidden;
+    padding-block: 0.75rem 1.5rem;
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent);
+    mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent);
+  }
+  .carrusel-panal__pista {
+    display: flex;
+    width: max-content;
+    animation: desfile-panal 75s linear infinite;
+  }
+  .carrusel-panal__celda {
+    flex: none;
+    width: calc((var(--hex) + var(--hueco)) / 2);
+  }
+  .carrusel-panal__celda:nth-child(even) {
+    padding-top: calc(var(--hex-alto) * 0.75 + var(--hueco) * 0.866);
+  }
+  .carrusel-panal__logo {
+    width: var(--hex);
+  }
+  /* Pausa con la casilla o con el foco de TECLADO (:focus-visible): con
+     :focus-within, un clic dejaba el foco en la casilla y la cinta no se
+     reanudaba al desmarcarla. */
+  .carrusel-panal:has(.carrusel-panal__pausa:checked) .carrusel-panal__pista,
+  .carrusel-panal:has(.carrusel-panal__pausa:focus-visible) .carrusel-panal__pista {
+    animation-play-state: paused;
+  }
+  /* Solo con puntero real: en pantallas táctiles :hover se queda pegado tras
+     un toque y la cinta no volvería a moverse. */
+  @media (hover: hover) {
+    .carrusel-panal:hover .carrusel-panal__pista {
+      animation-play-state: paused;
+    }
+  }
+  .carrusel-panal__control:has(:focus-visible) {
+    outline: 3px solid var(--t-foco);
+    outline-offset: 3px;
+  }
+  @keyframes desfile-panal {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .carrusel-panal__pista {
+      animation-name: none;
+    }
+    .carrusel-panal__ventana {
+      overflow-x: auto;
+      -webkit-mask-image: none;
+      mask-image: none;
+    }
+    .carrusel-panal__celda[aria-hidden='true'] {
+      display: none;
+    }
+    .panal__celda {
+      transition: none;
+    }
+    .panal__celda:hover {
+      transform: none;
+    }
+  }
+
 }

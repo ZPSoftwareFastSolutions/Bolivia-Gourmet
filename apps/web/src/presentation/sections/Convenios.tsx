@@ -1,72 +1,123 @@
 /**
  * CAPA: Presentation / Sections
  *
- * Convenios y alianzas. El folleto los muestra en una retícula hexagonal de
- * logotipos; aquí van como tarjetas de TEXTO porque los logotipos de terceros
- * son marcas ajenas sin archivo ni autorización (docs/brand §2.3). Cuando el
- * cliente los envíe, se sustituye el contenido de cada tarjeta.
+ * Convenios y alianzas con los logotipos oficiales que envió el cliente
+ * (FOTOS-WEB/LOGOS-SOCIOS), horneados como hexágonos de panal:
+ *   - CarruselDeAliados: la portada. Cinta de panal que se desplaza sola, sin
+ *     flechas (pedido del usuario), con «Pausar» y quieta con movimiento
+ *     reducido (WCAG 2.2.2; skill ui-ux-pro-max: el carrusel de logotipos se
+ *     detiene al pasar el puntero, al enfocar y con movimiento reducido).
+ *   - PanalDeAliados: la página de convenios, con las filas del folleto.
+ *   - Universidades: convenios a nivel licenciatura, logotipo y nombre.
+ * Sin JavaScript: la pausa es una casilla y el CSS (`:has`) hace el resto.
  */
 
-import { ALIADOS, UNIVERSIDADES, type RubroDeAliado } from '@contenido/convenios';
+import { ALIADOS, UNIVERSIDADES } from '@contenido/convenios';
 import { INSTITUTO } from '@contenido/instituto';
 import { RUTAS } from '@/lib/rutas';
 import { cn } from '@/lib/cn';
-import { Icono, type NombreDeIcono } from '../icons/Icono';
+import { Icono } from '../icons/Icono';
 import { EnlaceBoton } from '../ui/Boton';
+import { LogoHexagonal } from '../ui/LogoHexagonal';
 import { TituloDeSeccion } from '../ui/Marca';
+import { celdasDelCarrusel, FILAS_DEL_FOLLETO, FILAS_MOVILES, repartirEnFilas } from './panal';
 
-const ICONO_DE_RUBRO: Record<RubroDeAliado, NombreDeIcono> = {
-  restaurante: 'cubiertos',
-  hotel: 'hotel',
-  pasteleria: 'torta',
-  escuela: 'gorro',
-  panaderia: 'trigo',
-  industria: 'tienda',
-};
+const textoAlternativo = (aliado: (typeof ALIADOS)[number]) => `${aliado.nombre} (${aliado.descripcion.toLowerCase()})`;
 
-export function MuroDeAliados({ compacto = false }: { readonly compacto?: boolean }) {
+// ---------------------------------------------------------------- Carrusel (portada)
+
+export function CarruselDeAliados() {
+  const celdas = celdasDelCarrusel(ALIADOS);
   return (
-    <ul className={cn('grid gap-3', compacto ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-2 lg:grid-cols-3')}>
-      {ALIADOS.map((aliado, i) => (
-        <li
-          key={aliado.nombre}
-          className={cn(
-            'flex items-center gap-3 rounded-[var(--t-radio-md)] border px-4',
-            compacto ? 'min-h-16 justify-center text-center' : 'min-h-20',
-            // Alterna blanco y azul como la retícula del folleto, sin volverla ilegible.
-            i % 5 === 2 ? 'border-estructural bg-estructural text-sobre-estructural' : 'border-linea bg-tarjeta text-tinta',
-          )}
-        >
-          {compacto ? null : (
-            <span className={cn('inline-grid size-10 flex-none place-items-center rounded-full', i % 5 === 2 ? 'bg-accion text-sobre-accion' : 'bg-superficie-alterna text-estructural')}>
-              <Icono nombre={ICONO_DE_RUBRO[aliado.rubro]} tamano={20} />
-            </span>
-          )}
-          <span>
-            <span className="block font-bold leading-tight">{aliado.nombre}</span>
-            {compacto ? null : <span className={cn('text-sm', i % 5 === 2 ? 'text-sobre-estructural/80' : 'text-tinta-suave')}>{aliado.descripcion}</span>}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="carrusel-panal">
+      <div className="carrusel-panal__ventana">
+        <ul className="carrusel-panal__pista" aria-label={`${ALIADOS.length} empresas con convenio`}>
+          {celdas.map(({ elemento: aliado, copia }) => (
+            // Las copias solo sirven para que la cinta no tenga fin: fuera del árbol de accesibilidad.
+            <li key={`${copia}-${aliado.logo}`} className="carrusel-panal__celda" aria-hidden={copia > 0 ? true : undefined}>
+              <div className="carrusel-panal__logo">
+                <LogoHexagonal
+                  logo={aliado.logo}
+                  alt={copia > 0 ? '' : textoAlternativo(aliado)}
+                  sizes="(min-width: 1024px) 160px, (min-width: 640px) 136px, 112px"
+                  diferida={false}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {/* El control se alinea con el contenido de la página, no con el borde de la ventana. */}
+      {/* Con movimiento reducido la cinta no se mueve: el control sobra (utilidad, para ganar a su inline-flex). */}
+      <div className="shell mt-2 flex justify-end motion-reduce:hidden">
+        {/* Interruptor: el texto no cambia (WCAG 2.5.3) y el estado activado se ve relleno en azul. */}
+        <label className="carrusel-panal__control inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border-2 border-linea bg-tarjeta px-4 text-sm font-semibold text-estructural transition-colors hover:border-estructural has-checked:border-estructural has-checked:bg-estructural has-checked:text-sobre-estructural">
+          <input type="checkbox" className="carrusel-panal__pausa sr-only" />
+          <Icono nombre="pausa" tamano={16} />
+          Pausar movimiento
+        </label>
+      </div>
+    </div>
   );
 }
 
-export function Universidades() {
+// ---------------------------------------------------------------- Panal (página de convenios)
+
+function FilasDePanal({ filas, className }: { readonly filas: readonly { readonly celdas: typeof ALIADOS; readonly desplazada?: boolean; readonly centrada?: boolean }[]; readonly className?: string }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div role="list" aria-label={`${ALIADOS.length} empresas con convenio`} className={cn('panal', className)}>
+      {filas.map((fila, i) => (
+        <div key={i} role="none" className={cn('panal__fila', fila.desplazada && 'panal__fila--desplazada', fila.centrada && 'panal__fila--centrada')}>
+          {fila.celdas.map((aliado) => (
+            <div key={aliado.logo} role="listitem" className="panal__celda">
+              <LogoHexagonal
+                logo={aliado.logo}
+                alt={textoAlternativo(aliado)}
+                sizes="(min-width: 1280px) 168px, (min-width: 1024px) 152px, (min-width: 768px) 128px, 106px"
+              />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function PanalDeAliados() {
+  const movil = repartirEnFilas(ALIADOS, FILAS_MOVILES).map((celdas) => ({ celdas, centrada: true }));
+  const folleto = repartirEnFilas(
+    ALIADOS,
+    FILAS_DEL_FOLLETO.map((f) => f.celdas),
+  ).map((celdas, i) => ({ celdas, desplazada: FILAS_DEL_FOLLETO[i]?.desplazada ?? false }));
+  return (
+    <>
+      {/* Dos maquetas del mismo panal: la oculta no se lee ni descarga sus imágenes (display: none + lazy). */}
+      <FilasDePanal filas={movil} className="md:hidden" />
+      <FilasDePanal filas={folleto} className="hidden md:block" />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- Universidades
+
+export function Universidades({ columnas = 4 }: { readonly columnas?: 2 | 4 }) {
+  return (
+    <ul className={cn('grid grid-cols-2 gap-x-6 gap-y-10', columnas === 4 && 'lg:grid-cols-4')}>
       {UNIVERSIDADES.map((u) => (
-        <li key={u.sigla} className="flex flex-col items-start gap-3 rounded-[var(--t-radio-lg)] border-2 border-estructural bg-tarjeta p-6">
-          <span className="inline-grid size-12 place-items-center rounded-full bg-estructural text-sobre-estructural">
-            <Icono nombre="graduacion" />
-          </span>
-          <span className="t-display text-3xl leading-none text-estructural">{u.sigla}</span>
-          <span className="text-sm font-semibold text-tinta-suave">{u.nombre}</span>
+        <li key={u.sigla} className="flex flex-col items-center text-center">
+          <div className="w-28 sm:w-32">
+            {/* El nombre va escrito debajo: el logotipo no lo repite al lector de pantalla. */}
+            <LogoHexagonal logo={u.logo} alt="" sizes="(min-width: 640px) 128px, 112px" />
+          </div>
+          <span className="t-display mt-4 text-3xl leading-none text-estructural">{u.sigla}</span>
+          {u.nombre !== u.sigla ? <span className="mt-1 max-w-56 text-sm font-semibold text-tinta-suave">{u.nombre}</span> : null}
         </li>
       ))}
     </ul>
   );
 }
+
+// ---------------------------------------------------------------- Resumen (portada)
 
 export function ConveniosResumen() {
   return (
@@ -80,12 +131,30 @@ export function ConveniosResumen() {
           alineacion="centro"
           descripcion={<p>Realiza tus prácticas en hoteles, restaurantes y escuelas de primer nivel, y continúa a la licenciatura.</p>}
         />
-        <div className="mt-12">
-          <MuroDeAliados compacto />
-        </div>
-        <h3 className="t-etiqueta mt-14 text-center">Convenios a nivel licenciatura</h3>
-        <div className="mt-6">
-          <Universidades />
+      </div>
+      {/* La cinta ocupa todo el ancho de la ventana: entra y sale por los bordes. */}
+      <div className="mt-10">
+        <CarruselDeAliados />
+      </div>
+      <div className="shell">
+        <div className="mt-12 grid gap-10 rounded-[var(--t-radio-xl)] border border-linea bg-tarjeta p-8 sm:p-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <p className="t-etiqueta flex items-center gap-2">
+              <Icono nombre="graduacion" tamano={18} />
+              Convalidación
+            </p>
+            <h3 className="t-h2 mt-3 text-estructural">
+              <span className="mb-1 block">
+                <span className="t-script marca-subrayado text-[0.9em] normal-case">Convenios a nivel</span>
+              </span>
+              <span className="t-display block">licenciatura</span>
+            </h3>
+            <p className="t-lead mt-5">
+              Al concluir la carrera de {INSTITUTO.tituloOtorgado.toLowerCase()} convalidas materias y sacas tu licenciatura en Gastronomía en
+              universidades con convenio.
+            </p>
+          </div>
+          <Universidades columnas={2} />
         </div>
         <div className="mt-10 text-center">
           <EnlaceBoton href={RUTAS.convenios} variante="contorno" icono="flecha" iconoAlFinal>

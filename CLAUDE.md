@@ -7,14 +7,15 @@
 > `docs/analisis/aclaraciones-2026-10-01.md` y `docs/`, sin depender del
 > historial de conversaciones.
 >
-> - **Última actualización:** 2026-10-01 (cierre de sesión, antes de
->   compactar) · **Entrega 2 cerrada**: repositorio en GitHub con las tres
->   ramas publicadas, proyecto Supabase con RLS (39 pruebas), aclaraciones del
->   usuario aplicadas, **página web completa y portal de estudiantes** con CSP
->   estricta, 115 pruebas. Contexto de la conversación que no está en otros
->   documentos: §15 y §16.
-> - **Rama de la web:** `feat/pagina-web` (sale de `main`, último commit
->   `91f0d6d`, publicada). **Rama del sistema interno:** `feat/sistema-interno`
+> - **Última actualización:** 2026-10-01 · **Entrega 3** (mejoras pedidas tras
+>   la presentación): logotipos de socios en carrusel (inicio) y panal
+>   (convenios), universidades con logotipo, cursos y emprende unidos en
+>   `/cursos`, mapas de las sedes con los enlaces del usuario y sin huecos entre
+>   secciones; 124 pruebas. Entrega 2: GitHub, Supabase con RLS (39 pruebas),
+>   web y portal con CSP estricta; cuentas de demostración cargadas y probadas.
+>   Contexto de la conversación que no está en otros documentos: §15 y §16.
+> - **Rama de la web:** `feat/pagina-web` (sale de `main`; ver §16.1 para el
+>   último commit y si está publicado). **Rama del sistema interno:** `feat/sistema-interno`
 >   (igual a `main` en `25500d8`, sin trabajo propio aún). **`feat/pagina-web`
 >   NO está fusionada con `main`**: espera la aprobación del usuario.
 > - **Regla de mantenimiento:** se actualiza al cerrar cada avance importante
@@ -32,9 +33,9 @@
 | **Stack** | Next.js 16.3.8 · React 19.1 · TypeScript 5.9 estricto · Tailwind v4 · Supabase (`@supabase/ssr` 0.12.7, `supabase-js` 2.117.2) · `node --test` |
 | **Repositorio** | https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet |
 | **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 5 tablas, todas con RLS |
-| **Estado** | Web pública (9 páginas + 5 de cursos) y portal (7 páginas) **funcionando en local**, verificados. Sin desplegar. Sistema interno: solo dominio, sin pantallas |
+| **Estado** | Web pública (8 páginas + 5 de cursos; `/emprende` redirige a `/cursos`) y portal (7 páginas) **funcionando en local**, verificados. Cuentas de demostración cargadas (§4). Sin desplegar. Sistema interno: solo dominio, sin pantallas |
 | **Fuentes de verdad** | `INFORMACION-INSTITUTO.md` + `docs/analisis/aclaraciones-2026-10-01.md` (datos), `FOTOS-GASTRO/` + `FOTOS-WEB/` + `docs/brand/identidad-visual.md` (identidad), `docs/domain/modelo-de-dominio.md` (reglas), `docs/architecture/` (decisiones), `TASKS.md` (avance) |
-| **Siguiente** | 0) Que el usuario cargue las cuentas de demostración (§4, E2.D4), las pruebe y hable de recursos y cambios de diseño · 1) Que configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Que confirme las decisiones de §16.3 · 3) Pedir al cliente los recursos de `aclaraciones §8` · 4) Aprobar la web y fusionar `feat/pagina-web` en `main` · 5) Desplegar en Vercel cuando el usuario lo pida · 6) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
+| **Siguiente** | 0) Esperar la respuesta del cliente sobre precios y detalles de cursos y licenciatura (pedida por correo); el usuario avisará para seguir con el portal · 1) Que configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Que confirme las decisiones de §16.3 · 3) Pedir al cliente los recursos de `aclaraciones §8` · 4) Aprobar la web y fusionar `feat/pagina-web` en `main` · 5) Desplegar en Vercel cuando el usuario lo pida · 6) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
 
 **Antes de tocar nada, léase:** §2 (reglas), §3 (arquitectura), §4 (base de
 datos), §9 (pendientes) y §11 (ambigüedades).
@@ -63,7 +64,7 @@ datos), §9 (pendientes) y §11 (ambigüedades).
 
 | Sistema | Objetivo | Estado |
 |---|---|---|
-| **Página web** | Presentación institucional, carrera, cursos, convenios, emprende, contacto, sedes y redes, fiel a la identidad del folleto | ✅ Completa en `feat/pagina-web`, verificada en escritorio y móvil |
+| **Página web** | Presentación institucional, carrera, cursos de capacitación (con «¿Sueñas emprender?»), convenios con logotipos (carrusel y panal), contacto con mapas, sedes y redes, fiel a la identidad del folleto | ✅ Completa en `feat/pagina-web`, verificada en escritorio y móvil |
 | **Portal de estudiantes** (parte de la web) | Registro, acceso, recuperación de clave, solicitud de inscripción, solicitud de renovación, estado de solicitudes, información de pago por QR | ✅ Implementado y probado hasta donde no exige crear cuentas reales (§9) |
 | **Sistema interno** | Recepción (informar oferta, cupos, precios; inscribir; inventario) y administración (todo + contabilidad) | Dominio de inventario, académico y estudiantes con pruebas; tablas de identidad listas; sin pantallas |
 
@@ -199,18 +200,18 @@ usuario lo pide. Detalle: `docs/git/estrategia-de-ramas.md`.
 ```text
 contenido/
   instituto.ts            TEC-NIB, nombres, lema y lemas secundarios, pilares, emprende, redes, pago (QR)
-  convenios.ts            17 aliados y 4 universidades (nombres del usuario, sin erratas)
+  convenios.ts            17 aliados y 4 universidades (nombres del usuario, orden del folleto, logotipo de cada uno)
   imagenes.ts             texto alternativo de cada foto oficial
-  imagenes.generadas.ts   dimensiones (lo escribe `npm run imagenes`)
-public/img/               WebP optimizados de FOTOS-WEB (1,2 MB en total) + og.jpg
-scripts/optimizar-imagenes.mjs
+  imagenes.generadas.ts   dimensiones de fotos y de los hexágonos de socios (lo escribe `npm run imagenes`)
+public/img/               WebP optimizados de FOTOS-WEB + og.jpg + socio-<logo>-{200,400}.webp (hexágonos)
+scripts/                  optimizar-imagenes.mjs · capturar-pagina.mjs · auditar-espacios.mjs (huecos entre secciones)
 src/
   proxy.ts                CSP con nonce + renovación de sesión (no autoriza)
   app/
     layout.tsx            fuentes, metadatos, noindex, connection() (todo dinámico)
     not-found.tsx · robots.ts · icon.png · apple-icon.png
-    (publico)/            layout (cabecera, pie, WhatsApp) · inicio · nosotros · carrera · cursos · cursos/[codigo]
-                          · convenios · emprende · contacto · privacidad
+    (publico)/            layout (cabecera, pie, WhatsApp) · inicio · nosotros · carrera · cursos (+ emprende) · cursos/[codigo]
+                          · convenios · contacto · privacidad   (/emprende → 308 a /cursos)
     portal/               layout · page (panel) · acceso · registro · recuperar · nueva-clave · solicitud · renovacion
       actions.ts          Server Actions (cada una vuelve a exigir sesión)
       _sesion.ts          exigirSesion / salirSiHaySesion (React cache)
@@ -225,11 +226,11 @@ src/
     catalogo/             oferta académica validada en el build
     supabase/             configuracion · cookies · cliente-servidor · autenticacion · portal · errores · tipos generados
   presentation/
-    icons/Icono.tsx · ui/ (Boton, Foto, Logos, Marca) · patterns/ (Cabecera, Pie, menús, mapa, redes, WhatsApp)
-    sections/ (Hero, Institucion, Oferta, Convenios, Llamadas) · formularios/ (Campos, Interactivos, estado) · programas.ts
+    icons/Icono.tsx · ui/ (Boton, Foto, Logos, LogoHexagonal, Marca) · patterns/ (Cabecera, Pie, menús, mapa, redes, WhatsApp)
+    sections/ (Hero, Institucion, Oferta, Convenios [carrusel, panal, universidades], panal.ts, Llamadas) · formularios/ · programas.ts
   lib/                    cn · rutas · redirecciones · politica-de-contenido · fechas · marca
   styles/globals.css      tokens de marca y semánticos; @layer base y @layer components
-tests/                    115 pruebas (node --test)
+tests/                    124 pruebas (node --test)
 ```
 
 ### 3.3 Flujos del portal
@@ -327,7 +328,7 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 |---|---|
 | Paleta | Azul marino `#1F2447` (estructural) + amarillo lima `#E4E03A` (acción) + blanco; rojo vino `#7A1F2D` para la línea de cursos; tricolor medido en el logotipo (`#FF0025` · `#FFFF14` · `#00C12E`) solo como microacento |
 | Tipografía | Kaushan Script + Bebas Neue + Montserrat (autoalojadas) |
-| Motivos | `.marca-resaltado` (brochazo), `.marca-subrayado`, `.marca-rayas`, `.polaroid`, `.bloque-desplazado`, `.franja-tricolor`, `SeparadorOndulado`, `Insignia`, `ListaConCheck`, `TituloDeSeccion` (script + display) |
+| Motivos | Panal hexagonal de logotipos (`.panal`, `.carrusel-panal`, docs/brand §16), `.marca-resaltado` (brochazo), `.marca-subrayado`, `.marca-rayas`, `.polaroid`, `.bloque-desplazado`, `.franja-tricolor`, `SeparadorOndulado`, `Insignia`, `ListaConCheck`, `TituloDeSeccion` (script + display) |
 | Patrón de página | «Trust & Authority + Conversion»: credibilidad → pruebas → oferta → acción repetida |
 
 ---
@@ -341,7 +342,7 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 | Variables | `apps/web/.env.local` (no versionado) con `NEXT_PUBLIC_SUPABASE_URL=https://bnobhnmurzsnffdrxeck.supabase.co` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (empieza por `sb_publishable_`; se obtiene con el conector `get_publishable_keys`). Plantilla en `.env.example`. `NEXT_PUBLIC_SITE_URL` obligatoria al desplegar. **Cuidado:** copiar la plantilla encima deja valores de ejemplo (`https://<ref>.supabase.co`) y el portal deja de conectar; `configuracionSupabase()` los rechaza y falla cerrado. Pasó una vez el 2026-10-01 y se restauró |
 | Arranque | `cd apps/web && npm install && npm run dev`. Producción local: `npm run build && npm run start` |
 | Vista previa del asistente | `.claude/launch.json`: `web` (dev) y `web-produccion` (start), con puerto automático (el 3000 lo usa Docker) |
-| Capturas reales | `node scripts/capturar-pagina.mjs <url> <ancho> <salida.png> [movil]` (desde `apps/web`): Edge por CDP con emulación de dispositivo; informa desbordamiento y errores de consola. Edge sin interfaz «normal» impone ~500 px y recorta |
+| Capturas reales | `node scripts/capturar-pagina.mjs <url> <ancho> <salida.png> [movil]` (desde `apps/web`): Edge por CDP con emulación de dispositivo; informa desbordamiento y errores de consola. Edge sin interfaz «normal» impone ~500 px y recorta. **Huecos entre secciones:** `node scripts/auditar-espacios.mjs <url> <ancho> movil/- [captura.png]` (tramos vacíos; `fondoUniforme: true` = hueco visible). Ambos cierran Edge por CDP y borran su perfil temporal: un script propio que lance Edge debe hacer lo mismo (el 2026-10-01 quedaron 417 procesos y el disco C: casi lleno) |
 | Vercel | Sin proyecto. Desplegar solo cuando el usuario lo pida (`regions: ["gru1"]`, variables de entorno de Supabase y `NEXT_PUBLIC_SITE_URL`) |
 
 ---
@@ -351,7 +352,7 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 ```bash
 cd apps/web
 npm run typecheck     # tsc --noEmit
-npm test              # 115 pruebas: dominio, catálogo, casos de uso, portal, seguridad, coherencia SQL
+npm test              # 124 pruebas: dominio, catálogo, casos de uso, portal, convenios, seguridad, coherencia SQL
 npm run build         # todas las páginas dinámicas + proxy
 npm audit             # 0
 ```
@@ -365,7 +366,7 @@ grep -rnE "(pagás|tenés|querés|podés|hacés|necesitás|preferís|contanos|\b
 grep -rnE "service_role.*=.*ey|sb_secret_|eyJhbGciOi" apps/web/src apps/web/contenido supabase docs
 ```
 
-Tras desplegar o cambiar seguridad: `curl -I` de cada ruta (tabla en
+Tras cambiar la maquetación: `scripts/auditar-espacios.mjs` en cada ruta a 1440 y 375 (ningún tramo con `fondoUniforme: true` entre secciones). Tras desplegar o cambiar seguridad: `curl -I` de cada ruta (tabla en
 `docs/architecture/seguridad.md` §2–3). Tras cambiar la base: batería RLS y
 `get_advisors(security)` y `(performance)`.
 
@@ -382,7 +383,11 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 - Fase 0 (análisis, arquitectura, dominio).
 - Entrega 2: remoto GitHub; `FOTOS-WEB` versionado y optimizado; Supabase
   creado con 4 migraciones y RLS; aclaraciones aplicadas al catálogo y al
-  contenido; web pública y portal; escudos de seguridad; ADR 0005 y 0006.
+  contenido; web pública y portal; escudos de seguridad; ADR 0005 y 0006;
+  cuentas de demostración cargadas y probadas por el usuario (E2.D4).
+- Entrega 3 (TASKS.md): logotipos de socios y universidades, carrusel y
+  panal, cursos + emprende en `/cursos`, mapas con los enlaces del usuario,
+  auditoría y corrección de huecos entre secciones.
 
 ### Pendiente del usuario
 
@@ -391,18 +396,20 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 | E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio. Estado real (2026-10-01): confirmación de correo activada, registro abierto, solo proveedor de correo | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
 | E2.D3 | ~~Push de los commits locales~~ | **Hecho** por el usuario el 2026-10-01: las tres ramas están en GitHub con los mismos commits que en local |
 | — | Aprobar la web y fusionar | `git checkout main && git merge feat/pagina-web` (y luego actualizar `feat/sistema-interno` desde `main`) |
-| E2.D4 | Cargar las cuentas de demostración | Pegar `supabase/seed/datos-demo.local.sql` en el editor SQL (§4). El asistente lo dejó ensayado; luego lo comprueba por SQL. **Borrarlas antes de producción** |
-| E2.D5 | Push de `a06f492` y siguientes | `git push origin feat/pagina-web` (en GitHub la rama sigue en `91f0d6d`) |
+| E2.D4 | ~~Cargar las cuentas de demostración~~ | **Hecho**: 5 cuentas cargadas; Camila, Diego y Valeria ya iniciaron sesión. **Borrarlas antes de producción** (`borrar-datos-demo.sql`) |
+| — | Respuesta del cliente sobre precios y detalles de cursos y licenciatura | Pedida por correo el 2026-10-01; el usuario avisa. Hasta entonces, «Consultar» |
+| — | Push de los commits de la entrega 3 | `git push origin feat/pagina-web` (§16.1) |
 | — | Desactivar las claves API heredadas (JWT `anon`/`service_role`) | Una `service_role` se pegó en el chat el 2026-10-01: darla por filtrada. Project Settings → API Keys → Legacy API keys. La web solo usa la clave publicable, no se ve afectada |
 | — | Promover al primer administrador real cuando exista su cuenta | SQL de §4 |
 | — | Desplegar en Vercel | Cuando el usuario lo pida |
 
 ### Pendiente del cliente (`docs/analisis/aclaraciones-2026-10-01.md` §8)
 
-Logotipos en blanco o SVG · QR bancario · fotos de cursos cortos, productos y
-sede de El Alto · foto del Chef Oscar Mora · logotipos de socios con
-autorización · enlaces de Facebook, YouTube y comunidad de WhatsApp ·
-confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
+Precios y detalles de cursos y licenciatura (pedidos el 2026-10-01) ·
+logotipos en blanco o SVG · QR bancario · fotos de cursos cortos, productos y
+sede de El Alto · foto del Chef Oscar Mora · enlaces de Facebook, YouTube y
+comunidad de WhatsApp · confirmar «UB = Unión Bolivariana» y si los Bs 650
+son mensuales. (Logotipos de socios: recibidos.)
 
 ### Siguiente trabajo técnico
 
@@ -418,7 +425,9 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 - Sin CI ni ESLint (comprobaciones a mano, §8).
 - Catálogo académico en archivo estático (la tabla `programas` solo es referencia).
 - Aviso de privacidad en borrador, a revisar por el cliente.
-- Los logotipos de socios se muestran como texto.
+- A 320 px la portada desborda 14 px por la sección de cifras y el botón
+  flotante de WhatsApp abierto mide más que la pantalla (anterior a la
+  entrega 3; no se tocó por estar fuera del pedido).
 
 ---
 
@@ -435,7 +444,11 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 | Sin formulario de contacto anónimo (WhatsApp por sede) | ADR 0006 §8 |
 | Bs 650 sin periodicidad hasta que se aclare | aclaraciones §4 |
 | «Universidad Unión Bolivariana» (logotipo y documento) frente a «Unión Boliviana» (mensaje del usuario) | aclaraciones §6 |
-| Mapa de Google solo al pulsar | `MapaBajoDemanda` |
+| Mapa de Google solo al pulsar, centrado en el lugar de Google Maps de cada sede (enlaces del usuario) | `MapaBajoDemanda`, `Sede.ubicacion` |
+| Cursos de capacitación y «¿Sueñas emprender?» en una sola página (`/cursos`); `/emprende` redirige | Pedido del usuario 2026-10-01 (son aparte de la carrera) |
+| Logotipos de socios publicados como hexágonos horneados (sin color por socio en CSS) | docs/brand §16 |
+| Carrusel sin flechas pero con «Pausar movimiento» (WCAG 2.2.2) | Pedido del usuario + skill ui-ux-pro-max |
+| Dos secciones seguidas del mismo fondo: la segunda sin relleno superior (regla global) | `globals.css` «Ritmo entre secciones» |
 
 ---
 
@@ -468,6 +481,10 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 | Capturas móviles recortadas | Edge sin interfaz impone ~500 px de ancho | Emulación de dispositivo por CDP |
 | Favicon con trazo negro | El trazo de la «G» cruza los pétalos | Píxeles oscuros a transparentes en el script |
 | La página podía leer el token viejo tras una renovación | El proxy clonaba las cabeceras antes de actualizar la cookie | Copiar la cookie renovada a las cabeceras que siguen hacia la página |
+| Huecos blancos de ~225 px entre secciones | Dos `.section` seguidas del mismo fondo suman su relleno | Regla global: la segunda pierde el relleno superior |
+| Franja blanca entre una onda y el pie | La onda SVG es transparente y deja ver el blanco del `body` | El pie toma el fondo de la última sección (`main:has(...)+footer`); `BandaEmprende final` |
+| Disco C: casi lleno y cientos de `msedge.exe` | Los scripts de captura mataban solo el proceso lanzado; Edge seguía en otros y el perfil quedaba en %TEMP% | Cerrar por CDP (`Browser.close`) y borrar el perfil |
+| Logotipo de Fusión Gourmet cortado en el hexágono | Su fondo es un degradado: no se puede recortar el margen | `aclararFondo`: grises claros a blanco antes de recortar |
 
 ---
 
@@ -479,7 +496,8 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 | 2026-10-01 | `main` | Remoto GitHub; `FOTOS-WEB`; Supabase con 4 migraciones y RLS 39/39; aclaraciones; ADR 0005; catálogo con Bs 650; 83 pruebas |
 | 2026-10-01 | `feat/pagina-web` | Web pública (14 rutas) y portal de estudiantes (7 páginas + confirmación); CSP con nonce y cabeceras; ADR 0006; 115 pruebas; verificado en escritorio y móvil (`85cab90`) |
 | 2026-10-01 | `feat/pagina-web` | Cookie renovada propagada en el proxy; HTML válido en la tarjeta de pago; etiqueta del menú móvil; fotos verticales en el portal (`978cdbc`, `91f0d6d`). Push de las tres ramas hecho por el usuario |
-| 2026-10-01 | `feat/pagina-web` | Cuentas y datos de demostración en `supabase/seed/` (5 cuentas `.test`, historial de 3 gestiones), ensayados y revertidos; contraseña fuera del repositorio |
+| 2026-10-01 | `feat/pagina-web` | Cuentas y datos de demostración en `supabase/seed/` (5 cuentas `.test`, historial de 3 gestiones), ensayados y revertidos; contraseña fuera del repositorio. El usuario los cargó y probó el acceso |
+| 2026-10-01 | `feat/pagina-web` | Entrega 3: logotipos de socios horneados como hexágonos; carrusel automático sin flechas (inicio); panel de universidades; panal del folleto (convenios); cursos + emprende en `/cursos` (308 desde `/emprende`); mapas con los enlaces del usuario; ritmo entre secciones y ondas del pie; `auditar-espacios.mjs`; fuga de procesos de Edge corregida. Auditoría base y revisión con 4 revisores + verificadores; 11 defectos confirmados y corregidos; 124 pruebas |
 
 ---
 
@@ -560,33 +578,42 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
 
 ---
 
-## 16. Estado exacto al compactar la sesión (2026-10-01)
+## 16. Estado exacto al cierre de la entrega 3 (2026-10-01)
 
 ### 16.1 Repositorio y entorno
 
 | | |
 |---|---|
-| Rama activa | `feat/pagina-web` en `91f0d6d`, igual que `origin/feat/pagina-web` |
-| `main` y `feat/sistema-interno` | `25500d8`, igual que en GitHub |
-| Árbol de trabajo | Limpio tras el commit de cierre de sesión («Contexto de cierre…») |
-| `.env.local` | Restaurado con los valores reales del proyecto (§7) |
-| Servidor de vista previa | `web-produccion` (`npm run start`) arrancado por el asistente en un puerto automático (el último fue 52058; el 3100 quedó ocupado por un proceso anterior). Es efímero: en otra sesión, volver a arrancarlo con `.claude/launch.json` |
-| Capturas de verificación | En el scratchpad de la sesión (efímero). Para regenerarlas: `node apps/web/scripts/capturar-pagina.mjs` |
+| Rama activa | `feat/pagina-web`: commit de la entrega 3 sobre `2ffbd35` (que ya está en GitHub). El de la entrega 3 queda **solo en local** hasta que el usuario haga `git push origin feat/pagina-web` |
+| `main` y `feat/sistema-interno` | `25500d8`, igual que en GitHub; `feat/pagina-web` sin fusionar |
+| `.env.local` | Con los valores reales del proyecto (§7) |
+| Base de datos | 5 cuentas de demostración cargadas por el usuario (§4); Valeria tiene una solicitud creada desde el portal |
+| Servidor de vista previa | `web-produccion` (`npm run start`, puerto 3100) arrancado por el asistente; efímero |
+| Capturas e informes de revisión | En el scratchpad de la sesión (efímero). Herramientas reproducibles: `scripts/capturar-pagina.mjs` y `scripts/auditar-espacios.mjs` |
 | HawkScan | No ejecutado: la máquina no tiene `HAWK_API_KEY`. El gancho de sesión lo pide tras cada commit; se ignora mientras falte la clave |
 
 ### 16.2 Lo verificado y lo no verificado
 
-- **Verificado:** 115 pruebas; RLS 39/39; 23 rutas con su código esperado;
-  CSP con nonce en cada respuesta y 0 atributos `style`; 375, 768, 1024 y
-  1440 px sin desbordamiento; consola sin errores; API REST con clave pública
-  (solo sedes y programas legibles); formulario de registro con datos
-  inválidos en el navegador; menú móvil (abre, cambia su etiqueta, se cierra
-  al navegar).
-- **No verificado:** el recorrido real de registro → correo → confirmación →
-  solicitud → cancelación. El asistente no crea cuentas en servicios remotos;
-  lo prueba el usuario tras E2.D1. Estado real de Auth leído de
-  `/auth/v1/settings`: confirmación de correo activada, registro abierto, solo
-  proveedor de correo; el correo gratuito solo llega a miembros del equipo.
+- **Verificado (entrega 3):** 124 pruebas; tipos; build; audit 0; greps de
+  §8 vacíos; 0 atributos `style` en el HTML servido. Auditoría de huecos en
+  las rutas públicas a 1440 y 375 (antes y después). Revisión independiente
+  con 4 revisores y verificadores escépticos:
+  - panal con la geometría exacta (hueco de 8 px en horizontal y en diagonal,
+    filas 4/4/5/4 en el orden del folleto);
+  - carrusel en bucle sin salto (68 celdas, periodo 34) y 68/68 imágenes
+    cargadas;
+  - pausa con ratón, teclado, botón y movimiento reducido; árbol de
+    accesibilidad (17 logotipos con nombre y copias ocultas);
+  - mapas con las coordenadas de los enlaces del usuario y sin violaciones de
+    CSP; `/emprende` responde 308.
+  
+  Los 11 defectos que encontró se corrigieron y se volvieron a verificar
+  (TASKS.md, entrega 3).
+- **Verificado (entrega 2):** RLS 39/39; 23 rutas con su código esperado; CSP
+  con nonce; API REST con clave pública (solo sedes y programas). Inicio de
+  sesión real con las cuentas de demostración (hecho por el usuario).
+- **No verificado:** registro → correo → confirmación con un correo real
+  (depende de E2.D1: SMTP o desactivar *Confirm email*).
 
 ### 16.3 Decisiones tomadas que el usuario debe confirmar
 
@@ -603,6 +630,20 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
    confirme (no están en el documento).
 7. Las fotos de la carrera ilustran también los cursos cortos (no hay fotos
    propias de cursos).
+8. Cursos y «¿Sueñas emprender?» unidos en **`/cursos`** (el usuario dio a
+   elegir entre Emprendimiento y Cursos). El menú dice «Cursos». Cambiarlo a
+   `/emprende` es invertir una redirección.
+9. El carrusel no tiene flechas, como se pidió, pero sí un botón «Pausar
+   movimiento». Es obligatorio por accesibilidad (WCAG 2.2.2) y la skill
+   `ui-ux-pro-max` lo exige para carruseles de logotipos.
+10. Ajustes de orden fuera de lo pedido literalmente, hechos al validar los
+    espacios:
+    - el contenido de un solo bloque (Cocina, Coctelería) se centra en dos
+      columnas;
+    - el pie deja sitio al botón flotante de WhatsApp;
+    - la 404 se centra;
+    - la caja amarilla de contacto tiene margen en móvil;
+    - los requisitos se alinean con la ficha.
 
 ### 16.4 Ideas de siguiente paso ya conversadas
 

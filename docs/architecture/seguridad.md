@@ -39,12 +39,13 @@ sin violaciones de CSP ni errores en escritorio y en móvil emulado.
 
 | Ruta | Sin sesión |
 |---|---|
-| Páginas públicas (9) | 200 |
+| Páginas públicas (8; Emprende se unió a Cursos el 2026-10-01) | 200 |
 | `/cursos/no-existe`, rutas inexistentes | 404 real |
 | `/portal`, `/portal/solicitud`, `/portal/renovacion` | 307 → `/portal/acceso?siguiente=…` |
 | `/portal/acceso`, `/registro`, `/recuperar`, `/nueva-clave` | 200 |
 | `/auth/confirmar?code=falso&siguiente=https://malicioso.com` | 307 → `/portal/acceso?aviso=enlace` (no sale del sitio) |
 | `/favicon.ico` | 308 → `/icon.png` |
+| `/emprende` | 308 → `/cursos` |
 
 ## 4. RLS vista desde fuera (API REST con la clave publicable)
 

@@ -20,6 +20,7 @@ import {
 } from '../src/core/domain/academico/programa.ts';
 import { esPendiente, PENDIENTE, type Centavos, type FechaISO, type Id } from '../src/core/domain/shared/tipos-base.ts';
 import { validarCatalogo } from '../src/infrastructure/catalogo/catalogo.validator.ts';
+import { direccionesDeMapa } from '../src/lib/mapas.ts';
 import { PROGRAMAS, SEDE_LA_PAZ_ID, SEDES } from '../src/infrastructure/catalogo/oferta-academica.ts';
 
 const porCodigo = (codigo: string): Programa => {
@@ -103,7 +104,7 @@ test('convenios: 17 aliados y 4 universidades, sin nombres repetidos', () => {
   assert.equal(new Set(ALIADOS.map((a) => a.nombre)).size, 17);
   assert.deepEqual(
     UNIVERSIDADES.map((u) => u.sigla),
-    ['UNANDES', 'UNICEN', 'UB', 'UDI'],
+    ['UNANDES', 'UDI', 'UB', 'UNICEN'],
   );
 });
 
@@ -167,6 +168,41 @@ test('el validador del catálogo atrapa códigos repetidos y programas incoheren
 test('el validador rechaza una sede con teléfono no boliviano', () => {
   const sedes = [{ ...SEDES[0]!, telefono: '12345' }];
   assert.ok(validarCatalogo(PROGRAMAS, sedes).some((e) => /celular boliviano/.test(e)));
+});
+
+test('las sedes apuntan al lugar de Google Maps que envió el usuario', () => {
+  assert.deepEqual(
+    SEDES.map((s) => [s.codigo, s.ubicacion?.enlace]),
+    [
+      ['la-paz', 'https://maps.app.goo.gl/QK31bpHFF39UvxQs8'],
+      ['el-alto', 'https://maps.app.goo.gl/EYi1qTQY7x5b1BSS7'],
+    ],
+  );
+  // Las dos sedes están en el área metropolitana de La Paz y El Alto, y no en el mismo punto.
+  for (const sede of SEDES) {
+    assert.ok(sede.ubicacion);
+    assert.ok(Math.abs(sede.ubicacion.latitud - -16.5) < 0.1 && Math.abs(sede.ubicacion.longitud - -68.15) < 0.1, sede.codigo);
+  }
+  assert.notEqual(SEDES[0]!.ubicacion?.longitud, SEDES[1]!.ubicacion?.longitud);
+});
+
+test('el mapa se centra en el lugar de la sede y el enlace es el que envió el usuario', () => {
+  const miraflores = SEDES.find((s) => s.codigo === 'la-paz')!;
+  const { incrustado, externo } = direccionesDeMapa(miraflores.direccion, miraflores.ubicacion);
+  assert.equal(incrustado, 'https://www.google.com/maps?q=-16.5023223,-68.1191543&z=18&output=embed');
+  assert.equal(externo, 'https://maps.app.goo.gl/QK31bpHFF39UvxQs8');
+  // Sin ubicación confirmada se busca por la dirección escrita (www.google.com: lo que permite la CSP).
+  const sinUbicacion = direccionesDeMapa('Calle 4, El Alto');
+  assert.equal(sinUbicacion.incrustado, 'https://www.google.com/maps?q=Calle%204%2C%20El%20Alto%2C%20Bolivia&output=embed');
+  assert.match(sinUbicacion.externo, /query=Calle%204/);
+});
+
+test('el validador rechaza una ubicación fuera de Bolivia o un enlace que no es de Google Maps', () => {
+  const base = SEDES[0]!;
+  const fuera = [{ ...base, ubicacion: { ...base.ubicacion!, latitud: 40.4, longitud: -3.7 } }];
+  assert.ok(validarCatalogo(PROGRAMAS, fuera).some((e) => /ubicación/.test(e)));
+  const ajeno = [{ ...base, ubicacion: { ...base.ubicacion!, enlace: 'https://ejemplo.com/mapa' } }];
+  assert.ok(validarCatalogo(PROGRAMAS, ajeno).some((e) => /ubicación/.test(e)));
 });
 
 // ---------------------------------------------------------------- cohortes

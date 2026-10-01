@@ -4,8 +4,8 @@
 // Edge sin interfaz impone ~500 px de ancho mínimo de ventana y recorta;
 // con Emulation.setDeviceMetricsOverride el diseño se calcula al ancho real.
 // Imprime ancho, alto, si desborda y los errores de consola (CSP incluida).
-import { spawn } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { setTimeout as esperar } from 'node:timers/promises';
 
 const [url, anchoTxt, salida, movil] = process.argv.slice(2);
@@ -66,5 +66,21 @@ writeFileSync(salida, Buffer.from(foto.result.data, 'base64'));
 const errores = eventos.filter((e) => (e.method === 'Log.entryAdded' && ['error', 'warning'].includes(e.params.entry.level)) || e.method === 'Runtime.exceptionThrown').map((e) => e.params.entry?.text ?? e.params.exceptionDetails?.text);
 console.log(JSON.stringify({ url, ancho, scrollWidth: sw, clientWidth: cw, alto: h, desborda: sw > cw, errores }));
 ws.close();
-edge.kill();
+// Edge deja procesos hijos vivos si solo se mata el principal: se cierra el
+// árbol entero y se borra el perfil temporal (si no, llenan el disco).
+// El proceso lanzado por spawn termina enseguida y Edge sigue en otros: se
+// le pide al navegador que se cierre por CDP (cierra todos sus procesos).
+try {
+  const { webSocketDebuggerUrl } = await (await fetch(`http://127.0.0.1:${PUERTO}/json/version`)).json();
+  const navegador = new WebSocket(webSocketDebuggerUrl);
+  await new Promise((r) => navegador.addEventListener('open', r, { once: true }));
+  navegador.send(JSON.stringify({ id: 1, method: 'Browser.close' }));
+  await esperar(1500);
+} catch {}
+if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(edge.pid), '/T', '/F'], { stdio: 'ignore' });
+else edge.kill('SIGKILL');
+await esperar(800);
+try {
+  rmSync(perfil, { recursive: true, force: true });
+} catch {}
 process.exit(0);

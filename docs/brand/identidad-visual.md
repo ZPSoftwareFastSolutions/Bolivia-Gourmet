@@ -341,7 +341,7 @@ Nada de esto se publica sin confirmación del cliente. Fuente de verdad:
 - Logotipos en vectorial (SVG/AI/PDF) de ambas marcas, con versión en blanco.
 - Códigos de color oficiales (Pantone/hex) si existen.
 - Fotografías originales en alta resolución (estudiantes, aulas, platos).
-- Logotipos de socios y autorización para publicarlos.
+- ~~Logotipos de socios~~ — recibidos (§16).
 - Enlaces reales: comunidad de WhatsApp, TikTok, Facebook, Instagram, YouTube.
 - Confirmación de todos los puntos de §11.
 
@@ -378,6 +378,30 @@ sobre los píxeles opacos:
 | `ui-ux-pro-max` | Patrón de página «Trust & Authority + Conversion» (hero con credibilidad → pruebas: cifras y convenios → oferta → CTA claro); estilo «Vibrant & Block-based» (bloques de color, alto contraste, títulos grandes, hover con cambio de color 150–300 ms); reglas de formularios (error bajo el campo con `aria-describedby`, resumen de errores enfocable, validar al salir del campo, etiquetas visibles); autenticación accesible (permitir pegar y gestores de contraseñas, botón para mostrar la clave); lista de entrega (sin emojis como iconos, cursor en todo lo pulsable, contraste 4.5:1, foco visible, `prefers-reduced-motion`, 375/768/1024/1440 px) | Su paleta (rojo apetitoso + dorado) y tipografías (Playfair Display SC + Karla): la marca ya tiene las suyas. Su recomendación de `next/image`: añade un atributo `style` que la CSP estricta bloquea (ADR 0006) |
 | `brand` | Reglas de uso de logotipos, medición de colores sobre los archivos oficiales, voz de marca cercana y en segunda persona («descubre», «aprende») como en el folleto | Sincronización automática a `design-tokens.*`: los tokens ya viven en `globals.css` y la herramienta se detiene ante ellos a propósito |
 | `design` | Reglas de iconografía: retícula 24×24, trazo de 2 px, `currentColor`, extremos redondeados, iconos de línea | Generación de logotipos o imágenes con IA: el proyecto usa solo material oficial del cliente |
+
+## 16. Logotipos de socios y universidades (2026-10-01)
+
+El cliente envió los 21 logotipos (`FOTOS-WEB/LOGOS-SOCIOS`): cuadrados,
+cada uno sobre su color de fondo (blanco, negro, azul de La Boliviana, lila de
+La Cordobesa, rojo de la UDI, azul de UNANDES; Fusión Gourmet sobre un
+degradado gris). Se usan como en el folleto: **hexágonos con vértice arriba**.
+
+- `npm run imagenes` los hornea: recorta el margen del color de fondo, coloca
+  el dibujo en el mayor rectángulo que cabe en el hexágono (con respiro),
+  rellena el hexágono con el fondo del propio logotipo y añade un contorno
+  `--t-linea` a los claros. Así el CSS no necesita un color por socio y no
+  hay atributos `style` (CSP). El dibujo no se recolorea ni se deforma.
+- **Panal** (página de convenios): filas 4 / 4 desplazada / 5 / 4 desplazada,
+  en el orden del folleto; en móvil, filas de 2 y 3 alternas.
+- **Carrusel** (portada): la misma retícula como cinta de dos filas que se
+  desplaza sola, sin flechas; pausa con el puntero, el foco y el botón
+  «Pausar movimiento»; quieta con movimiento reducido (skill `ui-ux-pro-max`:
+  «Provide pause/stop and stop the logo carousel on focus, hover, and reduced
+  motion»). Las flechas que también sugiere la skill no se ponen por pedido
+  expreso del usuario: todos los logotipos están además en la página de
+  convenios.
+- **Universidades**: hexágono, sigla y nombre completo, en un panel blanco
+  con el texto de convalidación.
 
 ## 13. Tokens propuestos
 

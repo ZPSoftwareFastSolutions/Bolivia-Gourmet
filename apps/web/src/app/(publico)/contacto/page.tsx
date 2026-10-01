@@ -66,7 +66,7 @@ export default async function Contacto() {
                       Llamar
                     </EnlaceBoton>
                   </div>
-                  <MapaBajoDemanda direccion={`${sede.direccion}, ${sede.nombre}`} nombre={sede.nombre} />
+                  <MapaBajoDemanda direccion={`${sede.direccion}, ${sede.nombre}`} nombre={sede.nombre} ubicacion={sede.ubicacion} />
                 </div>
               </li>
             ))}
@@ -88,16 +88,18 @@ export default async function Contacto() {
       </section>
 
       <section aria-labelledby="portal" className="section bg-superficie">
-        <div className="shell flex flex-col items-start gap-6 rounded-[var(--t-radio-xl)] bg-accion p-8 text-sobre-accion sm:p-12 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 id="portal" className="t-display t-h2">
-              ¿Listo para inscribirte?
-            </h2>
-            <p className="mt-2 max-w-xl text-lg">Crea tu cuenta, envía tu solicitud y sigue su estado desde el portal de estudiantes.</p>
+        <div className="shell">
+          <div className="flex flex-col items-start gap-6 rounded-[var(--t-radio-xl)] bg-accion p-8 text-sobre-accion sm:p-12 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 id="portal" className="t-display t-h2">
+                ¿Listo para inscribirte?
+              </h2>
+              <p className="mt-2 max-w-xl text-lg">Crea tu cuenta, envía tu solicitud y sigue su estado desde el portal de estudiantes.</p>
+            </div>
+            <EnlaceBoton href={RUTAS.registro} variante="secundario" tamano="lg" icono="flecha" iconoAlFinal>
+              Crear mi cuenta
+            </EnlaceBoton>
           </div>
-          <EnlaceBoton href={RUTAS.registro} variante="secundario" tamano="lg" icono="flecha" iconoAlFinal>
-            Crear mi cuenta
-          </EnlaceBoton>
         </div>
       </section>
     </>

@@ -6,8 +6,9 @@ instituto **Bolivia Gastronómica** (La Paz y El Alto, Bolivia), sobre una
 misma base de código con arquitectura CLEAN:
 
 1. **Página web** con **portal de estudiantes**: institución, carrera técnica
-   en Gastronomía, cursos, convenios, emprende, contacto; registro, solicitud
-   de inscripción y de renovación, estado de solicitudes y pago por QR.
+   en Gastronomía, cursos de capacitación (con «¿Sueñas emprender?»), convenios,
+   contacto; registro, solicitud de inscripción y de renovación, estado de
+   solicitudes y pago por QR.
 2. **Sistema interno de gestión** (en desarrollo): recepción y administración,
    inventario, inscripciones y contabilidad.
 

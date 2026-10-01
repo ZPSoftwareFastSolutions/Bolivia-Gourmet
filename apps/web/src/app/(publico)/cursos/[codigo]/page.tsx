@@ -128,7 +128,7 @@ export default async function DetalleDeCurso({ params }: Parametros) {
 
       {curso.requisitos.length > 0 ? (
         <section aria-labelledby="requisitos-curso" className="section bg-superficie">
-          <div className="shell max-w-3xl">
+          <div className="shell">
             <TituloDeSeccion id="requisitos-curso" etiqueta="Requisitos" display="Para inscribirte" />
             <ListaConCheck variante="cursos" className="mt-8 text-lg" elementos={curso.requisitos.map((r) => r.descripcion)} />
           </div>

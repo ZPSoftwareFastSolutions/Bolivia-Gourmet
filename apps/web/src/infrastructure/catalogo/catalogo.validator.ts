@@ -8,7 +8,7 @@
  */
 
 import { validarPrograma, type Programa } from '@core/domain/academico/programa';
-import { esCelularBoliviano, type Sede } from '@core/domain/shared/sede';
+import { esCelularBoliviano, esUbicacionValida, type Sede } from '@core/domain/shared/sede';
 
 export function validarCatalogo(programas: readonly Programa[], sedes: readonly Sede[]): readonly string[] {
   const errores: string[] = [];
@@ -26,6 +26,9 @@ export function validarCatalogo(programas: readonly Programa[], sedes: readonly 
     if (sede.nombre.trim().length === 0) errores.push('Hay una sede sin nombre.');
     if (sede.direccion.trim().length === 0) errores.push(`Sede "${sede.nombre}": la dirección es obligatoria.`);
     if (!esCelularBoliviano(sede.telefono)) errores.push(`Sede "${sede.nombre}": el teléfono "${sede.telefono}" no es un celular boliviano.`);
+    if (sede.ubicacion && !esUbicacionValida(sede.ubicacion)) {
+      errores.push(`Sede "${sede.nombre}": la ubicación debe ser un enlace de maps.app.goo.gl con coordenadas dentro de Bolivia.`);
+    }
   }
   if (sedes.filter((s) => s.activa).length === 0) errores.push('Debe haber al menos una sede activa.');
 

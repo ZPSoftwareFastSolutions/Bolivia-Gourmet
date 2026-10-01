@@ -277,6 +277,12 @@ const TRAZOS = {
       <path d="M12 5v14" />
     </>
   ),
+  pausa: (
+    <>
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+    </>
+  ),
   externo: (
     <>
       <path d="M15 3h6v6" />

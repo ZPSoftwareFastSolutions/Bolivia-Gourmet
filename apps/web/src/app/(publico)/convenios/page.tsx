@@ -8,7 +8,7 @@ import { ALIADOS, UNIVERSIDADES } from '@contenido/convenios';
 import { INSTITUTO } from '@contenido/instituto';
 import { EnlaceBoton } from '@ui/Boton';
 import { TituloDeSeccion } from '@ui/Marca';
-import { MuroDeAliados, Universidades } from '@sections/Convenios';
+import { PanalDeAliados, Universidades } from '@sections/Convenios';
 import { EncabezadoDePagina } from '@sections/Hero';
 
 export const metadata: Metadata = {
@@ -39,7 +39,7 @@ export default function Convenios() {
             descripcion={<p>Empresas con las que el instituto trabaja para que practiques donde se cocina en serio.</p>}
           />
           <div className="mt-12">
-            <MuroDeAliados />
+            <PanalDeAliados />
           </div>
         </div>
       </section>

@@ -50,8 +50,13 @@ const nextConfig: NextConfig = {
   },
 
   async redirects() {
-    // Los navegadores piden /favicon.ico por su cuenta; el icono vive en /icon.png.
-    return [{ source: '/favicon.ico', destination: '/icon.png', permanent: true }];
+    return [
+      // Los navegadores piden /favicon.ico por su cuenta; el icono vive en /icon.png.
+      { source: '/favicon.ico', destination: '/icon.png', permanent: true },
+      // Los cursos de capacitación y «Aprende y emprende» son una sola página
+      // (pedido del usuario): quien tenga guardado /emprende llega a /cursos.
+      { source: '/emprende', destination: '/cursos', permanent: true },
+    ];
   },
 };
 

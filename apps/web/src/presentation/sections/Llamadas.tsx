@@ -11,6 +11,7 @@ import type { Programa } from '@core/domain/academico/programa';
 import { esPendiente } from '@core/domain/shared/tipos-base';
 import { enlaceDeWhatsApp, type Sede } from '@core/domain/shared/sede';
 import { RUTAS } from '@/lib/rutas';
+import { cn } from '@/lib/cn';
 import { INSTITUTO } from '@contenido/instituto';
 import type { NombreDeImagen } from '@contenido/imagenes.generadas';
 import { Icono } from '../icons/Icono';
@@ -59,9 +60,15 @@ export function GaleriaCocinaConPasion() {
   );
 }
 
-export function BandaEmprende({ conEnlace = true }: { readonly conEnlace?: boolean }) {
+/**
+ * `conEnlace`: el botón a los cursos (no en la propia página de cursos).
+ * `final`: es la última sección de la página; no dibuja la onda de cierre y
+ * deja que la onda del pie se apoye en el rojo vino (`.fin-cursos`, globals.css)
+ * en lugar de dejar una franja blanca entre las dos ondas.
+ */
+export function BandaEmprende({ conEnlace = true, final = false }: { readonly conEnlace?: boolean; readonly final?: boolean }) {
   return (
-    <section aria-labelledby="emprende" className="relative">
+    <section aria-labelledby="emprende" className={cn('relative', final && 'fin-cursos')}>
       <SeparadorOndulado className="text-cursos" />
       <div className="bg-cursos text-sobre-cursos">
         <div className="shell grid gap-12 pt-6 pb-16 lg:grid-cols-[1fr_1.1fr] lg:items-center">
@@ -72,11 +79,8 @@ export function BandaEmprende({ conEnlace = true }: { readonly conEnlace?: boole
             <p className="t-lead mt-5 text-sobre-cursos/90">{INSTITUTO.emprende.texto}</p>
             {conEnlace ? (
               <div className="mt-8 flex flex-wrap gap-3">
-                <EnlaceBoton href={RUTAS.emprende} variante="primario" icono="flecha" iconoAlFinal>
+                <EnlaceBoton href={RUTAS.cursos} variante="primario" icono="flecha" iconoAlFinal>
                   Quiero emprender
-                </EnlaceBoton>
-                <EnlaceBoton href={RUTAS.cursos} variante="claro">
-                  Ver cursos
                 </EnlaceBoton>
               </div>
             ) : null}
@@ -91,7 +95,7 @@ export function BandaEmprende({ conEnlace = true }: { readonly conEnlace?: boole
           </ul>
         </div>
       </div>
-      <SeparadorOndulado className="text-cursos" invertido />
+      {final ? null : <SeparadorOndulado className="text-cursos" invertido />}
     </section>
   );
 }
