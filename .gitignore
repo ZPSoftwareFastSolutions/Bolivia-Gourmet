@@ -48,3 +48,8 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+
+# ============================================================
+# Datos de demostración con contraseña (copia local para pegar en Supabase)
+# ============================================================
+supabase/seed/*.local.sql

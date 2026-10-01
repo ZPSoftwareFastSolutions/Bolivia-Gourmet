@@ -36,6 +36,16 @@ seguridad en `get_advisors`.
    RLS, revocación de permisos, funciones DEFINER y que los programas
    sembrados coincidan con el catálogo.
 
+## Datos de demostración (no son migraciones)
+
+`supabase/seed/` guarda scripts que se ejecutan a mano en el editor SQL y
+**nunca** en producción:
+
+- `datos-demo.sql`: cinco cuentas ficticias `@boliviagourmet.test` (administración,
+  recepción y tres estudiantes) con su historial. Plantilla sin contraseña; la
+  copia lista para pegar es `datos-demo.local.sql`, ignorada por git.
+- `borrar-datos-demo.sql`: las borra con todo lo suyo. Obligatorio antes de producción.
+
 ## Pendientes previstas
 
 | Fase | Migraciones |

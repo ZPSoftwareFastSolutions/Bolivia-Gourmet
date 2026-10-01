@@ -34,7 +34,7 @@
 | **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 5 tablas, todas con RLS |
 | **Estado** | Web pública (9 páginas + 5 de cursos) y portal (7 páginas) **funcionando en local**, verificados. Sin desplegar. Sistema interno: solo dominio, sin pantallas |
 | **Fuentes de verdad** | `INFORMACION-INSTITUTO.md` + `docs/analisis/aclaraciones-2026-10-01.md` (datos), `FOTOS-GASTRO/` + `FOTOS-WEB/` + `docs/brand/identidad-visual.md` (identidad), `docs/domain/modelo-de-dominio.md` (reglas), `docs/architecture/` (decisiones), `TASKS.md` (avance) |
-| **Siguiente** | 1) Que el usuario configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Que confirme las decisiones de §16.3 · 3) Pedir al cliente los recursos de `aclaraciones §8` · 4) Aprobar la web y fusionar `feat/pagina-web` en `main` · 5) Desplegar en Vercel cuando el usuario lo pida · 6) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
+| **Siguiente** | 0) Que el usuario cargue las cuentas de demostración (§4, E2.D4), las pruebe y hable de recursos y cambios de diseño · 1) Que configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Que confirme las decisiones de §16.3 · 3) Pedir al cliente los recursos de `aclaraciones §8` · 4) Aprobar la web y fusionar `feat/pagina-web` en `main` · 5) Desplegar en Vercel cuando el usuario lo pida · 6) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
 
 **Antes de tocar nada, léase:** §2 (reglas), §3 (arquitectura), §4 (base de
 datos), §9 (pendientes) y §11 (ambigüedades).
@@ -278,6 +278,28 @@ update public.perfiles set rol = 'administrador'
 where id = (select id from auth.users where email = 'correo-del-administrador@ejemplo.com');
 ```
 
+### Cuentas de demostración (`supabase/seed/`, no son migraciones)
+
+| Cuenta | Correo | Rol | Escenario |
+|---|---|---|---|
+| Carla Gutiérrez | `carla.gutierrez@boliviagourmet.test` | administrador | Aprobó las tres gestiones de Camila |
+| Rosa Condori | `rosa.condori@boliviagourmet.test` | recepcion | Aprobó la inscripción de Diego |
+| Valeria Choque | `valeria.choque@boliviagourmet.test` | estudiante | Nueva: panel vacío |
+| Diego Mamani | `diego.mamani@boliviagourmet.test` | estudiante | 1.er año (2026) aprobado; pide su renovación |
+| Camila Quispe | `camila.quispe@boliviagourmet.test` | estudiante | 3.er año: inscripción 2024 + renovaciones 2025 y 2026 |
+
+- Contraseña común: **no se versiona** (el repositorio es público). Está en
+  `supabase/seed/datos-demo.local.sql` (ignorado por git) y la tiene el usuario.
+- Cargar: pegar `datos-demo.local.sql` en el editor SQL de Supabase. Ensayar
+  antes con `c_simular := true` (lo revierte todo). Es idempotente.
+- Reiniciar la demo: `borrar-datos-demo.sql` y volver a cargar.
+- El dominio `.test` no recibe correo: «recuperar contraseña» no sirve con
+  estas cuentas.
+- Las cuentas del personal entran al portal y ven el aviso de «panel en
+  construcción»: el sistema interno aún no tiene pantallas.
+- **Antes de producción, borrarlas** (`borrar-datos-demo.sql`): la cuenta de
+  administración tiene una contraseña conocida.
+
 ---
 
 ## 5. Dominio y reglas de negocio
@@ -369,7 +391,10 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 | E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio. Estado real (2026-10-01): confirmación de correo activada, registro abierto, solo proveedor de correo | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
 | E2.D3 | ~~Push de los commits locales~~ | **Hecho** por el usuario el 2026-10-01: las tres ramas están en GitHub con los mismos commits que en local |
 | — | Aprobar la web y fusionar | `git checkout main && git merge feat/pagina-web` (y luego actualizar `feat/sistema-interno` desde `main`) |
-| — | Promover al primer administrador cuando exista su cuenta | SQL de §4 |
+| E2.D4 | Cargar las cuentas de demostración | Pegar `supabase/seed/datos-demo.local.sql` en el editor SQL (§4). El asistente lo dejó ensayado; luego lo comprueba por SQL. **Borrarlas antes de producción** |
+| E2.D5 | Push de `a06f492` y siguientes | `git push origin feat/pagina-web` (en GitHub la rama sigue en `91f0d6d`) |
+| — | Desactivar las claves API heredadas (JWT `anon`/`service_role`) | Una `service_role` se pegó en el chat el 2026-10-01: darla por filtrada. Project Settings → API Keys → Legacy API keys. La web solo usa la clave publicable, no se ve afectada |
+| — | Promover al primer administrador real cuando exista su cuenta | SQL de §4 |
 | — | Desplegar en Vercel | Cuando el usuario lo pida |
 
 ### Pendiente del cliente (`docs/analisis/aclaraciones-2026-10-01.md` §8)
@@ -454,6 +479,7 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 | 2026-10-01 | `main` | Remoto GitHub; `FOTOS-WEB`; Supabase con 4 migraciones y RLS 39/39; aclaraciones; ADR 0005; catálogo con Bs 650; 83 pruebas |
 | 2026-10-01 | `feat/pagina-web` | Web pública (14 rutas) y portal de estudiantes (7 páginas + confirmación); CSP con nonce y cabeceras; ADR 0006; 115 pruebas; verificado en escritorio y móvil (`85cab90`) |
 | 2026-10-01 | `feat/pagina-web` | Cookie renovada propagada en el proxy; HTML válido en la tarjeta de pago; etiqueta del menú móvil; fotos verticales en el portal (`978cdbc`, `91f0d6d`). Push de las tres ramas hecho por el usuario |
+| 2026-10-01 | `feat/pagina-web` | Cuentas y datos de demostración en `supabase/seed/` (5 cuentas `.test`, historial de 3 gestiones), ensayados y revertidos; contraseña fuera del repositorio |
 
 ---
 
