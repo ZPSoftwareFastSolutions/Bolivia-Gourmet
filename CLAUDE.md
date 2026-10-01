@@ -7,12 +7,16 @@
 > `docs/analisis/aclaraciones-2026-10-01.md` y `docs/`, sin depender del
 > historial de conversaciones.
 >
-> - **Última actualización:** 2026-10-01 · **Entrega 2**: repositorio en
->   GitHub, proyecto Supabase con RLS (39 pruebas), aclaraciones del usuario
->   aplicadas, **página web completa y portal de estudiantes** con CSP
->   estricta, 115 pruebas.
-> - **Rama de la web:** `feat/pagina-web` (sale de `main`). **Rama del sistema
->   interno:** `feat/sistema-interno` (igual a `main`, sin trabajo propio aún).
+> - **Última actualización:** 2026-10-01 (cierre de sesión, antes de
+>   compactar) · **Entrega 2 cerrada**: repositorio en GitHub con las tres
+>   ramas publicadas, proyecto Supabase con RLS (39 pruebas), aclaraciones del
+>   usuario aplicadas, **página web completa y portal de estudiantes** con CSP
+>   estricta, 115 pruebas. Contexto de la conversación que no está en otros
+>   documentos: §15 y §16.
+> - **Rama de la web:** `feat/pagina-web` (sale de `main`, último commit
+>   `91f0d6d`, publicada). **Rama del sistema interno:** `feat/sistema-interno`
+>   (igual a `main` en `25500d8`, sin trabajo propio aún). **`feat/pagina-web`
+>   NO está fusionada con `main`**: espera la aprobación del usuario.
 > - **Regla de mantenimiento:** se actualiza al cerrar cada avance importante
 >   y al final de cada sesión. Cambian sobre todo §9 (estado y pendientes) y
 >   §13 (historial).
@@ -30,7 +34,7 @@
 | **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 5 tablas, todas con RLS |
 | **Estado** | Web pública (9 páginas + 5 de cursos) y portal (7 páginas) **funcionando en local**, verificados. Sin desplegar. Sistema interno: solo dominio, sin pantallas |
 | **Fuentes de verdad** | `INFORMACION-INSTITUTO.md` + `docs/analisis/aclaraciones-2026-10-01.md` (datos), `FOTOS-GASTRO/` + `FOTOS-WEB/` + `docs/brand/identidad-visual.md` (identidad), `docs/domain/modelo-de-dominio.md` (reglas), `docs/architecture/` (decisiones), `TASKS.md` (avance) |
-| **Siguiente** | 1) Que el usuario configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Pedir al cliente los recursos de `aclaraciones §8` · 3) Revisar y aprobar la web; merge a `main` · 4) Desplegar en Vercel cuando el usuario lo pida · 5) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
+| **Siguiente** | 1) Que el usuario configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Que confirme las decisiones de §16.3 · 3) Pedir al cliente los recursos de `aclaraciones §8` · 4) Aprobar la web y fusionar `feat/pagina-web` en `main` · 5) Desplegar en Vercel cuando el usuario lo pida · 6) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
 
 **Antes de tocar nada, léase:** §2 (reglas), §3 (arquitectura), §4 (base de
 datos), §9 (pendientes) y §11 (ambigüedades).
@@ -311,8 +315,8 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 | | |
 |---|---|
 | Máquina | Windows 11, Git Bash, PowerShell, Node 24.10, npm 11.11, Docker 29, Edge. **Sin** Python (las skills que lo piden se ejecutan con `docker run python:3.12-alpine`), sin `gh`, sin CLI de Supabase |
-| Git | `ZPSoftwareFastSolutions`. Remoto `origin` = GitHub. **El push necesita la cuenta de GitHub del Git Credential Manager de Windows**: en esta sesión el primer push funcionó y los siguientes pidieron credenciales interactivas que el asistente no puede dar; ver §9 |
-| Variables | `apps/web/.env.local` (no versionado) con `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; plantilla en `.env.example`; `NEXT_PUBLIC_SITE_URL` obligatoria al desplegar |
+| Git | `ZPSoftwareFastSolutions`. Remoto `origin` = https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet.git; las tres ramas siguen a su rama remota. **El push depende del Git Credential Manager de Windows**: a veces pide iniciar sesión con una ventana que el asistente no puede usar. Si un push falla por credenciales (`could not read Username`), no insistir: pedir al usuario que ejecute `git push` en su terminal. Leer (`ls-remote`, `fetch`) sí funciona. Comprobar `git ls-remote --heads origin` antes de afirmar que algo no está publicado |
+| Variables | `apps/web/.env.local` (no versionado) con `NEXT_PUBLIC_SUPABASE_URL=https://bnobhnmurzsnffdrxeck.supabase.co` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (empieza por `sb_publishable_`; se obtiene con el conector `get_publishable_keys`). Plantilla en `.env.example`. `NEXT_PUBLIC_SITE_URL` obligatoria al desplegar. **Cuidado:** copiar la plantilla encima deja valores de ejemplo (`https://<ref>.supabase.co`) y el portal deja de conectar; `configuracionSupabase()` los rechaza y falla cerrado. Pasó una vez el 2026-10-01 y se restauró |
 | Arranque | `cd apps/web && npm install && npm run dev`. Producción local: `npm run build && npm run start` |
 | Vista previa del asistente | `.claude/launch.json`: `web` (dev) y `web-produccion` (start), con puerto automático (el 3000 lo usa Docker) |
 | Capturas reales | `node scripts/capturar-pagina.mjs <url> <ancho> <salida.png> [movil]` (desde `apps/web`): Edge por CDP con emulación de dispositivo; informa desbordamiento y errores de consola. Edge sin interfaz «normal» impone ~500 px y recorta |
@@ -363,7 +367,8 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 | # | Qué | Cómo |
 |---|---|---|
 | E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio. Estado real (2026-10-01): confirmación de correo activada, registro abierto, solo proveedor de correo | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
-| E2.D3 | **Hacer push** de los commits locales | `git push origin main feat/sistema-interno feat/pagina-web` desde una terminal propia (el gestor de credenciales pedirá iniciar sesión en GitHub) |
+| E2.D3 | ~~Push de los commits locales~~ | **Hecho** por el usuario el 2026-10-01: las tres ramas están en GitHub con los mismos commits que en local |
+| — | Aprobar la web y fusionar | `git checkout main && git merge feat/pagina-web` (y luego actualizar `feat/sistema-interno` desde `main`) |
 | — | Promover al primer administrador cuando exista su cuenta | SQL de §4 |
 | — | Desplegar en Vercel | Cuando el usuario lo pida |
 
@@ -429,7 +434,8 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 | Heredocs de Bash fallaban | El envoltorio no tolera apóstrofos | Escribir archivos con la herramienta de escritura |
 | CVE crítica en Next 16.3.4 | GHSA-vcvr-r3jv-pc5j | Next 16.3.8 |
 | Pruebas no cargaban una clase | «Parameter properties» no admitidas por Node | Campos declarados y asignados |
-| Push colgado | El gestor de credenciales de Windows pidió una ventana interactiva | Push pendiente del usuario (E2.D3) |
+| Push colgado | El gestor de credenciales de Windows pidió una ventana interactiva | El usuario hizo el push desde su terminal (E2.D3, resuelto) |
+| `.env.local` con valores de ejemplo | Se copió `.env.example` encima | Restaurado con los valores reales; el README usa `cp -n` |
 | Política de programas para `anon` llamaba a una función privada | Una política compartida obliga a evaluar `app.tiene_permiso` | Políticas separadas por rol |
 | `.t-lead` no aceptaba `text-*` | Clases propias fuera de capa ganan a las utilidades | `@layer components` |
 | Cabecera desbordaba en 375 px | `hidden` en un `EnlaceBoton` perdía contra su `inline-flex` | Contenedor `hidden sm:contents` + alturas de logo responsivas |
@@ -446,16 +452,137 @@ confirmar «UB = Unión Bolivariana» y si los Bs 650 son mensuales.
 |---|---|---|
 | 2026-09-30 | `main` | Fase 0: análisis, arquitectura (ADR 0001–0004), dominio con 73 pruebas |
 | 2026-10-01 | `main` | Remoto GitHub; `FOTOS-WEB`; Supabase con 4 migraciones y RLS 39/39; aclaraciones; ADR 0005; catálogo con Bs 650; 83 pruebas |
-| 2026-10-01 | `feat/pagina-web` | Web pública (14 rutas) y portal de estudiantes (7 páginas + confirmación); CSP con nonce y cabeceras; ADR 0006; 115 pruebas; verificado en escritorio y móvil |
+| 2026-10-01 | `feat/pagina-web` | Web pública (14 rutas) y portal de estudiantes (7 páginas + confirmación); CSP con nonce y cabeceras; ADR 0006; 115 pruebas; verificado en escritorio y móvil (`85cab90`) |
+| 2026-10-01 | `feat/pagina-web` | Cookie renovada propagada en el proxy; HTML válido en la tarjeta de pago; etiqueta del menú móvil; fotos verticales en el portal (`978cdbc`, `91f0d6d`). Push de las tres ramas hecho por el usuario |
 
 ---
 
 ## 14. Cómo continuar en la próxima sesión
 
-1. Leer §0, §9 y `TASKS.md`.
-2. `git status`, `git branch -vv`; comprobar si E2.D3 (push) ya se hizo.
-3. `cd apps/web && npm install && npm run typecheck && npm test && npm run build && npm audit`.
-4. Si hay respuestas o recursos del cliente: actualizar `contenido/`,
+1. Leer §0, §9, §15, §16 y `TASKS.md`.
+2. `git status`, `git branch -vv`, `git ls-remote --heads origin`.
+3. Comprobar que `apps/web/.env.local` tiene la URL real del proyecto (§7).
+4. `cd apps/web && npm install && npm run typecheck && npm test && npm run build && npm audit`.
+5. Si hay respuestas o recursos del cliente: actualizar `contenido/`,
    `oferta-academica.ts`, `npm run imagenes`, y los documentos.
-5. Web: seguir en `feat/pagina-web`. Sistema interno: `git checkout feat/sistema-interno && git merge main` (o rebase) y empezar la fase 1 (§9).
-6. Al cerrar: `TASKS.md` con validaciones y este archivo (§9, §13).
+6. Web: seguir en `feat/pagina-web`. Sistema interno: `git checkout feat/sistema-interno && git merge main` (o rebase; si la web ya se fusionó, traerá también la capa Supabase y el portal) y empezar la fase 1 (§9).
+7. Al cerrar: `TASKS.md` con validaciones y este archivo (§9, §13).
+
+---
+
+## 15. Instrucciones permanentes del usuario
+
+Lo que pidió en sus mensajes y sigue vigente en todas las sesiones. Si algo
+de aquí choca con otra sección, manda lo que el usuario dijo.
+
+### 15.1 Del encargo inicial (2026-09-30)
+
+- **Actuar como arquitecto y desarrollador responsable**, no como generador de
+  código: analizar, razonar, verificar, documentar, implementar, probar,
+  validar.
+- **Arquitectura CLEAN** como en sus proyectos anteriores (GYM PLATFORM en
+  `F:\Proyectos\GoldGym\SoftwareGym` y `F:\Proyectos\SoftwareGym\MiticoFitness`):
+  nada de lógica de negocio en la interfaz, acceso a datos centralizado,
+  dependencias sustituibles.
+- **No inventar información institucional.** `[Consultar]` se documenta y se
+  modela como pendiente; valores temporales solo si son técnicamente
+  necesarios y marcados como tales.
+- **La web debe sentirse como una digitalización profesional de la identidad
+  existente**, no como una plantilla genérica de instituto gastronómico.
+- **Dashboard del sistema interno:** solo información importante y
+  accionable; nada de tarjetas redundantes ni gráficos decorativos.
+  Operatividad antes que decoración en el panel.
+- **Ramas por línea de trabajo**, nunca una por botón o formulario. Commits
+  organizados; no mezclar desarrollos no relacionados.
+- **Una tarea solo es `[x]`** si está implementada, revisada, probada, sin
+  errores críticos, documentada y validada.
+- **Documentar todo en `CLAUDE.md`** (este archivo) y mantener `TASKS.md`
+  como panel con estados `[ ]` `[~]` `[x]` `[!]`. No depender del historial.
+- **Revisar nombres, credenciales, repositorios y servicios** antes de tocar
+  nada; no confundir las tres denominaciones institucionales; nunca exponer
+  secretos.
+
+### 15.2 De las aclaraciones (2026-10-01)
+
+- **Es una demostración escalable**: se trabaja con los requerimientos base;
+  si el cliente pide quitar o cambiar algo, se cambia. Ante un hueco, elegir
+  la opción más simple que el modelo soporte y anotarla como supuesto.
+- **Roles sin complicarse**: administrador y recepción (sistema interno),
+  estudiante (portal web). Recepción informa oferta, cupos, precios y planes
+  a quien llega en persona, y opera inventario. Administración hace todo,
+  incluida la **contabilidad**, que es un módulo importante.
+- **Cobro por QR**, como en proyectos anteriores. Paquete Económico y
+  uniforme a Bs 650.
+- **El cliente abrió la puerta a pedir más recursos**: pedirlos (lista en
+  `aclaraciones §8`) en lugar de sustituirlos por imágenes de banco.
+- **Diseño a la altura del renombre del instituto**, usando las skills
+  `ui-ux-pro-max:ui-ux-pro-max`, `ui-ux-pro-max:brand` y
+  `ui-ux-pro-max:design` cuando se trabaje la interfaz (sus scripts Python se
+  ejecutan con `docker run --rm -v "<skill>:/skill:ro" python:3.12-alpine
+  python /skill/scripts/search.py …`, porque la máquina no tiene Python).
+- **Establecer objetivos y subtareas e ir marcándolos** en `TASKS.md` para que
+  el avance se vea.
+- **Pruebas de calidad siempre, antes y después de cada cambio** (§8).
+- **Respetar el flujo y la arquitectura establecidos.**
+
+### 15.3 Preferencias de trabajo observadas
+
+- Escribe en español y espera respuestas y documentación en español.
+- Hace él mismo las acciones que necesitan sus credenciales (push a GitHub,
+  configuración del panel de Supabase) cuando se le indica el comando o los
+  pasos exactos.
+
+---
+
+## 16. Estado exacto al compactar la sesión (2026-10-01)
+
+### 16.1 Repositorio y entorno
+
+| | |
+|---|---|
+| Rama activa | `feat/pagina-web` en `91f0d6d`, igual que `origin/feat/pagina-web` |
+| `main` y `feat/sistema-interno` | `25500d8`, igual que en GitHub |
+| Árbol de trabajo | Limpio tras el commit de cierre de sesión («Contexto de cierre…») |
+| `.env.local` | Restaurado con los valores reales del proyecto (§7) |
+| Servidor de vista previa | `web-produccion` (`npm run start`) arrancado por el asistente en un puerto automático (el último fue 52058; el 3100 quedó ocupado por un proceso anterior). Es efímero: en otra sesión, volver a arrancarlo con `.claude/launch.json` |
+| Capturas de verificación | En el scratchpad de la sesión (efímero). Para regenerarlas: `node apps/web/scripts/capturar-pagina.mjs` |
+| HawkScan | No ejecutado: la máquina no tiene `HAWK_API_KEY`. El gancho de sesión lo pide tras cada commit; se ignora mientras falte la clave |
+
+### 16.2 Lo verificado y lo no verificado
+
+- **Verificado:** 115 pruebas; RLS 39/39; 23 rutas con su código esperado;
+  CSP con nonce en cada respuesta y 0 atributos `style`; 375, 768, 1024 y
+  1440 px sin desbordamiento; consola sin errores; API REST con clave pública
+  (solo sedes y programas legibles); formulario de registro con datos
+  inválidos en el navegador; menú móvil (abre, cambia su etiqueta, se cierra
+  al navegar).
+- **No verificado:** el recorrido real de registro → correo → confirmación →
+  solicitud → cancelación. El asistente no crea cuentas en servicios remotos;
+  lo prueba el usuario tras E2.D1. Estado real de Auth leído de
+  `/auth/v1/settings`: confirmación de correo activada, registro abierto, solo
+  proveedor de correo; el correo gratuito solo llega a miembros del equipo.
+
+### 16.3 Decisiones tomadas que el usuario debe confirmar
+
+1. «Universidad **Unión Bolivariana**» (logotipo y documento) en lugar de
+   «Unión Boliviana» (su mensaje).
+2. Bs 650 mostrados **sin periodicidad** (no se dijo si son mensuales).
+3. El precio del uniforme (Bs 650) aplicado **solo a la carrera**; cursos
+   cortos siguen en «Consultar».
+4. **Sin formulario de contacto anónimo**: contacto por WhatsApp a cada sede;
+   las solicitudes exigen cuenta.
+5. Sitio con **`noindex`** y sin desplegar hasta tener dominio.
+6. «800 profesionales formados», «+16 áreas de formación» y los convenios
+   BTH/Técnico Medio del folleto **no se publican** hasta que el cliente los
+   confirme (no están en el documento).
+7. Las fotos de la carrera ilustran también los cursos cortos (no hay fotos
+   propias de cursos).
+
+### 16.4 Ideas de siguiente paso ya conversadas
+
+- Sistema interno, fase 1: login del personal y bandeja de solicitudes para
+  recepción (aprobar, rechazar, poner en revisión con respuesta), sobre los
+  permisos `solicitudes.leer` y `solicitudes.gestionar` que ya existen.
+- Contabilidad con pagos por QR (módulo importante para administración).
+- Al llegar el QR bancario: mostrarlo en la tarjeta de pago del portal
+  (`INSTITUTO.pago.qrDisponible`).

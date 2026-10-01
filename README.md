@@ -19,7 +19,8 @@ misma base de código con arquitectura CLEAN:
 
 ```bash
 cd apps/web
-cp .env.example .env.local   # y completar con la URL y la clave publicable de Supabase
+cp -n .env.example .env.local   # -n: NO sobrescribe un .env.local que ya exista
+# Completar en .env.local la URL y la clave publicable reales de Supabase (CLAUDE.md §7)
 npm install
 npm run dev
 ```
