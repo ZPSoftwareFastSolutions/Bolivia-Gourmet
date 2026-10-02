@@ -17,6 +17,7 @@
 
 import type { AlumnosPort } from '@core/application/ports/alumnos.port';
 import type { AutenticacionPort } from '@core/application/ports/autenticacion.port';
+import type { CajaPort } from '@core/application/ports/caja.port';
 import type { CatalogoAcademicoPort } from '@core/application/ports/catalogo-academico.port';
 import type { PanelPort } from '@core/application/ports/panel.port';
 import type { PortalRepositoryPort } from '@core/application/ports/portal-repository.port';
@@ -57,6 +58,15 @@ export async function alumnosRepository(): Promise<AlumnosPort> {
     import('../supabase/panel-alumnos.supabase'),
   ]);
   return new PanelAlumnosSupabase(await crearClienteDeServidor());
+}
+
+/** Caja del panel (cobros, arqueos, anulaciones, gastos), con la sesión de ESTA petición. */
+export async function cajaRepository(): Promise<CajaPort> {
+  const [{ crearClienteDeServidor }, { PanelCajaSupabase }] = await Promise.all([
+    import('../supabase/cliente-servidor'),
+    import('../supabase/panel-caja.supabase'),
+  ]);
+  return new PanelCajaSupabase(await crearClienteDeServidor());
 }
 
 /** Contexto del panel interno (quién, qué permisos, qué sedes) de ESTA petición. */

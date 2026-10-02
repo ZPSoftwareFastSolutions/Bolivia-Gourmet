@@ -62,6 +62,31 @@ export const MENSAJES_DE_PANEL: Readonly<Record<string, (detalle: Detalle) => st
   motivo_requerido: () => 'Escribe el motivo: queda registrado.',
   solicitud_no_encontrada: () => 'No encontramos esa solicitud. Vuelve a la bandeja.',
   solicitud_cerrada: () => 'Esa solicitud ya fue atendida. Vuelve a la bandeja para ver las pendientes.',
+
+  // Caja (R3)
+  referencia_requerida: () => 'Escribe el número de operación que aparece en el comprobante del QR o de la transferencia.',
+  referencia_repetida: (d) =>
+    `Ese número de operación ya se registró${typeof d.recibo === 'string' ? ` en el recibo ${d.recibo}` : ''}. Revisa que no sea el mismo pago.`,
+  cargo_de_otro_alumno: () => 'Uno de los cargos no es de este alumno. Vuelve a abrir su cuenta.',
+  cargo_anulado: () => 'Uno de los cargos ya fue anulado. Vuelve a abrir la cuenta del alumno.',
+  aplicacion_excede_saldo: (d) =>
+    `No puedes cobrar más de lo que se debe${typeof d.pendiente === 'number' ? ` (Bs ${(d.pendiente / 100).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ''}.`,
+  cobro_sin_aplicar: () => 'No hay nada que cobrar: elige al menos un cargo o registra una venta.',
+  monto_invalido: () => 'Revisa el monto: debe ser mayor que cero.',
+  concepto_no_es_gasto: () => 'Ese concepto no es de gasto. Elige uno de la lista.',
+  detalle_requerido: () => 'Escribe qué es (al menos 3 letras).',
+  fecha_invalida: () => 'Revisa la fecha: un gasto en efectivo es de hoy; por banco, hasta 30 días atrás.',
+  inscripcion_de_otro_alumno: () => 'Esa inscripción no es de este alumno.',
+  nada_que_arquear: () => 'No hay movimientos de dinero desde el último cierre.',
+  observacion_requerida: () => 'La caja no cuadra: escribe qué pasó antes de cerrar.',
+  retiro_excede: () => 'No puedes retirar más de lo que contaste.',
+  saldo_inicial_no_admitido: () => 'El saldo inicial solo se escribe en el primer cierre de la sede.',
+  documento_no_encontrado: () => 'No encontramos ese documento. Vuelve a la lista.',
+  ya_anulado: () => 'Eso ya estaba anulado.',
+  cargo_con_cobros: () => 'Este cargo ya tiene cobros. Anula primero el cobro.',
+  sin_plan_de_pagos: () => 'Este grupo aún no tiene precio. Defínelo primero.',
+  plan_congelado: () => 'Este precio ya tiene cuotas cargadas y no se puede cambiar. Si hace falta, anula las cuotas primero.',
+  libro_inmutable: () => 'Ese registro no se puede cambiar: si algo quedó mal, anúlalo y regístralo de nuevo.',
 };
 
 const GENERICO = 'No pudimos guardar. Revisa tu conexión e inténtalo otra vez. Si se repite, avisa a administración.';

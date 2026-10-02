@@ -485,6 +485,296 @@ begin
     v_ok := v_ok + 1;
   end;
 
+
+  -- ============================================================ R3 · caja
+  declare
+    v_g uuid;
+    v_g_sin uuid;
+    v_x uuid;
+    v_y uuid;
+    v_z uuid;
+    v_ins_x uuid;
+    v_ins_y uuid;
+    v_ins_z uuid;
+    v_c1 uuid;
+    v_c2 uuid;
+    v_pago_efectivo uuid;
+    v_recibo text;
+    v_numero_1 integer;
+    v_numero_2 integer;
+    v_clave_cobro uuid := gen_random_uuid();
+    v_caja jsonb;
+    v_n integer;
+    v_texto text;
+    v_concepto_luz uuid;
+    v_otro_ingreso uuid;
+  begin
+    select id into v_concepto_luz from public.conceptos where codigo = 'servicios-basicos';
+
+    -- Grupo de Cocina en La Paz con plan de 2 cuotas de Bs 300 (la 1.ª ya venció).
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, 2026, 'sab', 2, app.hoy() - 20, 'en_curso') returning id into v_g;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g, 30000, 2, app.hoy() - 10, 1);
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('tortas', v_la_paz, 2026, 'sab', 2, app.hoy(), 'abierto') returning id into v_g_sin;
+    execute 'reset role';
+
+    -- N30 · inscribir genera las cuotas del plan; los saldos las suman
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Xime","apellidos":"Caja Uno"}'::jsonb, v_g, null, null, null, null, null);
+    v_x := (v_res ->> 'estudiante')::uuid;
+    v_ins_x := (v_res ->> 'inscripcion')::uuid;
+    if (v_res ->> 'cuotas')::int <> 2 or (v_res ->> 'sin_plan')::boolean then raise exception 'FALLO N30a: %', v_res; end if;
+    select id into v_c1 from public.cargos where inscripcion_id = v_ins_x and numero_de_cuota = 1;
+    select id into v_c2 from public.cargos where inscripcion_id = v_ins_x and numero_de_cuota = 2;
+    select total_pendiente::text || '|' || total_vencido::text into v_texto from public.v_saldos_de_alumno where estudiante_id = v_x;
+    if v_texto <> '60000|30000' then raise exception 'FALLO N30b: saldos %', v_texto; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N31 · con cargos, el precio del grupo queda congelado
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      update public.planes_de_pago set monto_cuota = 1 where cohorte_id = v_g;
+      raise exception 'FALLO N31: se cambió un precio con cuotas';
+    exception when others then
+      if sqlerrm <> 'plan_congelado' then raise exception 'FALLO N31: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+
+    -- N32 · no se cobra más de lo que se debe en un cargo
+    begin
+      perform public.registrar_cobro(gen_random_uuid(), v_la_paz, v_x, 'efectivo', null,
+        jsonb_build_array(jsonb_build_object('cargo', v_c1, 'monto', 40000)), null, null, null);
+      raise exception 'FALLO N32: cobró de más';
+    exception when others then
+      if sqlerrm <> 'aplicacion_excede_saldo' then raise exception 'FALLO N32: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N33 · sin cargos indicados, del más antiguo al más nuevo; recibo LP-AAAA-NNNNNN
+    v_res := public.registrar_cobro(v_clave_cobro, v_la_paz, v_x, 'efectivo', null, null, 40000, null, null);
+    v_pago_efectivo := (v_res ->> 'pago')::uuid;
+    v_recibo := v_res ->> 'recibo';
+    if v_recibo !~ '^LP-[0-9]{4}-[0-9]{6}$' or (v_res ->> 'saldo_pendiente')::bigint <> 20000 then
+      raise exception 'FALLO N33a: %', v_res;
+    end if;
+    if (select pendiente from public.v_saldos_de_cargo where id = v_c1) <> 0 or (select pendiente from public.v_saldos_de_cargo where id = v_c2) <> 20000 then
+      raise exception 'FALLO N33b: la aplicación no siguió el orden de vencimiento';
+    end if;
+    select numero into v_numero_1 from public.pagos where id = v_pago_efectivo;
+    v_ok := v_ok + 1;
+
+    -- N34 · el mismo envío no cobra dos veces
+    v_res := public.registrar_cobro(v_clave_cobro, v_la_paz, v_x, 'efectivo', null, null, 40000, null, null);
+    if v_res ->> 'recibo' <> v_recibo or not (v_res ->> 'repetida')::boolean then raise exception 'FALLO N34: %', v_res; end if;
+    select count(*) into v_n from public.pagos where estudiante_id = v_x;
+    if v_n <> 1 then raise exception 'FALLO N34b: hay % cobros', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N35 · QR: número de operación obligatorio y no repetido; recibo correlativo sin huecos
+    begin
+      perform public.registrar_cobro(gen_random_uuid(), v_la_paz, v_x, 'qr', '  ', null, 20000, null, null);
+      raise exception 'FALLO N35a: QR sin número de operación';
+    exception when others then
+      if sqlerrm <> 'referencia_requerida' then raise exception 'FALLO N35a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_res := public.registrar_cobro(gen_random_uuid(), v_la_paz, v_x, 'qr', 'op-998877', null, 20000, null, null);
+    select numero into v_numero_2 from public.pagos where id = (v_res ->> 'pago')::uuid;
+    if v_numero_2 <> v_numero_1 + 1 then raise exception 'FALLO N35b: recibo % tras %', v_numero_2, v_numero_1; end if;
+    v_ok := v_ok + 1;
+    begin
+      perform public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'qr', 'OP-998877', null, null,
+        '{"concepto":"otro-ingreso","descripcion":"Prueba","monto":100,"cliente":"Alguien"}'::jsonb, null);
+      raise exception 'FALLO N35c: número de operación repetido';
+    exception when others then
+      if sqlerrm <> 'referencia_repetida' then raise exception 'FALLO N35c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N36 · nadie escribe la caja por la API, ni anula desde recepción
+    begin
+      update public.pagos set monto = 1 where id = v_pago_efectivo;
+      raise exception 'FALLO N36a: recepción editó un cobro';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.anular(gen_random_uuid(), 'cobro', v_pago_efectivo, 'Prueba');
+      raise exception 'FALLO N36b: recepción anuló un cobro';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.registrar_gasto(gen_random_uuid(), v_la_paz, null, v_concepto_luz, 'Luz', 100, 'efectivo', null, null, null, null);
+      raise exception 'FALLO N36c: recepción registró un gasto';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+
+    -- N37 · venta directa a alguien de fuera, con su propio recibo
+    v_res := public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'efectivo', null, null, null,
+      '{"concepto":"otro-ingreso","descripcion":"Recetario de cocina","monto":5000,"cliente":"Juan Pérez"}'::jsonb, null);
+    select p.cliente || '|' || p.monto into v_texto from public.pagos p where p.id = (v_res ->> 'pago')::uuid;
+    if v_texto <> 'Juan Pérez|5000' then raise exception 'FALLO N37: %', v_texto; end if;
+    v_ok := v_ok + 1;
+
+    -- N38 · lo que hay por arquear es la misma cuenta que hace el cierre
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    if (v_caja ->> 'entradas_efectivo')::bigint <> 45000 or (v_caja ->> 'cobros_qr')::bigint <> 20000
+       or (v_caja ->> 'esperado')::bigint <> (v_caja ->> 'saldo_inicial')::bigint + 45000 then
+      raise exception 'FALLO N38: %', v_caja;
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N39 · si no cuadra, se explica; el arqueo marca lo contado
+    begin
+      perform public.cerrar_caja(gen_random_uuid(), v_la_paz, (v_caja ->> 'esperado')::bigint - 500, 0, null,
+        case when (v_caja ->> 'primer_arqueo')::boolean then 0 end);
+      raise exception 'FALLO N39a: cerró sin explicar la diferencia';
+    exception when others then
+      if sqlerrm <> 'observacion_requerida' then raise exception 'FALLO N39a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_res := public.cerrar_caja(gen_random_uuid(), v_la_paz, (v_caja ->> 'esperado')::bigint - 500, 10000, 'Faltó cambio',
+      case when (v_caja ->> 'primer_arqueo')::boolean then 0 end);
+    if (v_res ->> 'diferencia')::bigint <> -500 or (v_res ->> 'queda')::bigint <> (v_res ->> 'contado')::bigint - 10000 then
+      raise exception 'FALLO N39b: %', v_res;
+    end if;
+    if exists (select 1 from public.pagos where sede_id = v_la_paz and cierre_id is null) then
+      raise exception 'FALLO N39c: quedaron cobros sin marcar';
+    end if;
+    begin
+      perform public.cerrar_caja(gen_random_uuid(), v_la_paz, 0, 0, null, null);
+      raise exception 'FALLO N39d: cerró sin movimientos';
+    exception when others then
+      if sqlerrm <> 'nada_que_arquear' then raise exception 'FALLO N39d: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N40 · administración anula un cobro en efectivo ya arqueado: sale en el arqueo siguiente
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.anular(gen_random_uuid(), 'cobro', v_pago_efectivo, 'Se devolvió el dinero');
+    if v_res ->> 'recibo' <> v_recibo then raise exception 'FALLO N40a: %', v_res; end if;
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    if (v_caja ->> 'salidas_efectivo')::bigint <> 40000 or (v_caja ->> 'registros')::int <> 1 then
+      raise exception 'FALLO N40b: %', v_caja;
+    end if;
+    if (select pendiente from public.v_saldos_de_cargo where id = v_c1) <> 30000 then raise exception 'FALLO N40c: la cuota no volvió a quedar pendiente'; end if;
+    begin
+      perform public.anular(gen_random_uuid(), 'cobro', v_pago_efectivo, 'Otra vez');
+      raise exception 'FALLO N40d: anuló dos veces';
+    exception when others then
+      if sqlerrm <> 'ya_anulado' then raise exception 'FALLO N40d: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+
+    -- N41 · un cargo con cobros vigentes no se anula; uno sin cobros, sí
+    begin
+      perform public.anular(gen_random_uuid(), 'cargo', v_c2, 'Prueba');
+      raise exception 'FALLO N41a: anuló un cargo cobrado';
+    exception when others then
+      if sqlerrm <> 'cargo_con_cobros' then raise exception 'FALLO N41a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    perform public.anular(gen_random_uuid(), 'cargo', v_c1, 'Beca de la primera cuota');
+    v_ok := v_ok + 1;
+
+    -- N42 · gasto en efectivo de administración: sale del cajón de hoy
+    v_res := public.registrar_gasto(gen_random_uuid(), v_la_paz, null, v_concepto_luz, 'Luz de septiembre', 5000, 'efectivo', null, 'factura', '123', 'DELAPAZ');
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    if (v_caja ->> 'salidas_efectivo')::bigint <> 45000 then raise exception 'FALLO N42: %', v_caja; end if;
+    begin
+      perform public.registrar_gasto(gen_random_uuid(), v_la_paz, app.hoy() - 3, v_concepto_luz, 'Agua', 100, 'efectivo', null, null, null, null);
+      raise exception 'FALLO N42b: gasto en efectivo con fecha pasada';
+    exception when others then
+      if sqlerrm <> 'fecha_invalida' then raise exception 'FALLO N42b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+
+    -- N43 · crear las cuotas de un grupo que ya tenía alumnos sin precio
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Zoe","apellidos":"Caja Tres"}'::jsonb, v_g_sin, null, null, null, null, null);
+    v_ins_z := (v_res ->> 'inscripcion')::uuid;
+    if not (v_res ->> 'sin_plan')::boolean then raise exception 'FALLO N43a: %', v_res; end if;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento) values (v_g_sin, 25000, 3, app.hoy());
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g_sin);
+    if (v_res ->> 'inscripciones')::int <> 1 or (v_res ->> 'cuotas')::int <> 3 then raise exception 'FALLO N43b: %', v_res; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N44 · retirar anula las cuotas que aún no vencen y no tienen cobros
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Yago","apellidos":"Caja Dos"}'::jsonb, v_g, null, null, null, null, null);
+    v_ins_y := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.cambiar_estado_de_inscripcion(gen_random_uuid(), v_ins_y, 'retirado', 'Cambio de horario');
+    if (v_res ->> 'cuotas_anuladas')::int <> 1 then raise exception 'FALLO N44: %', v_res; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N45 · el libro no se edita ni por el motor (fuera del modo mantenimiento)
+    begin
+      update public.pago_aplicaciones set monto = monto where pago_id = v_pago_efectivo;
+      raise exception 'FALLO N45a: se editó una aplicación';
+    exception when others then
+      if sqlerrm <> 'libro_inmutable' then raise exception 'FALLO N45a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      update public.pagos set monto = monto + 1 where id = v_pago_efectivo;
+      raise exception 'FALLO N45b: se editó un cobro';
+    exception when others then
+      if sqlerrm <> 'libro_inmutable' then raise exception 'FALLO N45b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N46 · invariante: cada cobro reparte exactamente su monto
+    select count(*) into v_n from public.pagos p
+     where p.monto <> (select coalesce(sum(pa.monto), 0) from public.pago_aplicaciones pa where pa.pago_id = p.id);
+    if v_n <> 0 then raise exception 'FALLO N46: % cobros no cuadran con sus aplicaciones', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N47 · el estudiante no ve la caja ni cobra; anon no llega
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    select (select count(*) from public.cargos) + (select count(*) from public.pagos) + (select count(*) from public.v_saldos_de_alumno)
+      into v_n;
+    if v_n <> 0 then raise exception 'FALLO N47a: el estudiante ve % filas de caja', v_n; end if;
+    begin
+      perform public.caja_por_cerrar(v_la_paz);
+      raise exception 'FALLO N47b: el estudiante vio la caja';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+    execute 'set local role anon';
+    begin
+      perform public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'efectivo', null, null, 1, null, null);
+      raise exception 'FALLO N47c: anon cobró';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+    v_ok := v_ok + 1;
+  end;
+
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
 $$;
