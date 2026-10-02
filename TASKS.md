@@ -7,7 +7,7 @@
 > críticos conocidos, con la documentación actualizada y con la validación
 > anotada en la propia tarea. Escribir el código no es terminar la tarea.
 >
-> Última actualización: 2026-10-01 (entrega 3).
+> Última actualización: 2026-10-02 (entrega 4 en curso).
 
 ---
 
@@ -88,35 +88,35 @@ El portal de estudiantes y los precios esperan la respuesta del cliente.
 - [~] **B4 Material de marca** — recibidos 2 logotipos y 9 fotografías (`FOTOS-WEB`); faltan los de E2.D2.
 - [~] **B5 Confirmar denominaciones y discrepancias** — jerarquía aclarada (TEC-NIB → Bolivia Gourmet); queda el nombre exacto de la UB (ver aclaraciones).
 
-## Fase 1 — Sistema interno · base (rama `feat/sistema-interno`)
+## Entrega 4 — Sistema interno v1 (2026-10-02, rama `feat/sistema-interno` → `v1`)
 
-- [ ] **1.1 Cliente Supabase de servidor** — `@supabase/ssr` + `@supabase/supabase-js` exactas; cookie `HttpOnly`; validación de variables **al usar**, no al importar. *Dependencia:* B2.
-- [ ] **1.2 Migración: sedes** — tabla `sedes` con semilla La Paz y El Alto; RLS. *Dependencia:* B2.
-- [ ] **1.3 Migración: identidad y permisos** — `app_users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `user_sedes`; funciones `app.current_app_user_id`, `app.has_permission`, `app.puede_operar_sede`; disparador de alta; semilla de roles provisional (administrador, secretaría, almacén, dirección) hasta P9. *Dependencia:* B2.
-- [ ] **1.4 Batería RLS con sesión simulada** — `docs/runbooks/pruebas-rls-fase1.sql`. *Validación:* cada rol ve y escribe solo lo suyo; una cuenta sin sede no opera en ella.
-- [ ] **1.5 Login y guardas** — `/panel/acceso`, `exigirPermiso`, `contextoDeAccion`, cabecera del panel con tokens de marca. *Validación:* códigos HTTP con `curl` (sin sesión → redirección; sin permiso → 403).
-- [ ] **1.6 Actualizar `CLAUDE.md` §4 y §9, `TASKS.md`**.
+Pedido del usuario: avanzar el sistema interno mientras llega la información
+del cliente. Tableros atractivos y no saturados para personas con poca
+experiencia en informática; insumos con **PEPS**; el resto con el método que
+mejor convenga; administración gestiona inventarios y alumnos (carrera y
+capacitación); contabilidad básica comprensible; iconos, imágenes y botones
+intuitivos; la esencia de la marca; animaciones que confirman cada cambio; al
+terminar, rama **v1**. Base de prueba: libertad para modificarla.
 
-## Fase 2 — Sistema interno · inventario
+Diseño: `docs/sistema-interno/especificacion-v1.md` (3 propuestas
+independientes unidas en una), `critica-de-la-especificacion.md` (43 puntos)
+y `enmiendas-v1.md` (alcance real y resoluciones; **manda**).
 
-- [ ] **2.1 Migraciones** — `categorias`, `articulos`, `variantes`, `movimientos` (sin UPDATE/DELETE), `entregas`; vista `v_stock`; `CHECK`/disparador de stock ≥ 0; RLS por permiso y sede. *Validación:* batería RLS + medición con 50 000 movimientos en transacción revertida.
-- [ ] **2.2 Repositorio Supabase** que implemente `InventarioRepositoryPort` (creado por petición). *Validación:* casos de uso contra la base con sesión de prueba.
-- [ ] **2.3 Pantallas** — artículos y variantes (alta, edición, inactivar), movimientos (entrada, salida, ajuste con motivo, baja con motivo), existencias por sede, bajo mínimo. *Validación:* flujo manual completo; responsive móvil; estados vacíos; errores legibles.
-- [ ] **2.4 Entregas a estudiantes** — con contexto explícito; devolución. *Dependencia:* fase 3 (inscripciones) para elegir a quién. *Regla I7 pendiente de P2.*
-- [ ] **2.5 Documentación y `TASKS.md`**.
+- [x] **E4.0 Diseño y alcance** — tres propuestas (datos y control, facilidad de uso, contabilidad e inventario), síntesis, crítica de completitud y enmiendas. *Validación:* las 43 observaciones de la crítica tienen resolución o pasan a la v1.1 (enmiendas §A.2 y §B).
+- [ ] **E4.R0 Dominio puro** — valuación PEPS y promedio con milésimas enteras y remanente exacto; movimientos, artículos, préstamos, inscripciones, grupos (incluidos los de temporada), planes y cuotas, caja (cargo, cobro, arqueo, monto en letras), resumen contable. *Validación prevista:* ejemplos de la especificación §5.8 + enmiendas B.5 y B.6 al centavo.
+- [ ] **E4.R1 Núcleo de base y esqueleto del panel** — permisos, `app.*`, idempotencia, `mi_contexto`; `/panel` con guardas, navegación, iconos, animaciones, confirmaciones y traducción de errores. *Validación prevista:* `curl` (sin sesión 307, estudiante → portal, personal 200), RLS 39/39 de la entrega 2, CSP sin violaciones.
+- [ ] **E4.R2 Alumnos y grupos** — fichas, grupos y cupos, planes de pago, inscribir, renovar, retirar, cerrar grupo, bandeja de solicitudes con «Aprobar e inscribir».
+- [ ] **E4.R3 Caja** — cuotas y cargos, cobros (efectivo, QR, transferencia), recibo sin huecos, lo que deben, gasto, cierre de caja, anulaciones.
+- [ ] **E4.R4 Inventario** — motor PEPS (insumos) y promedio (resto), saldo inicial, compra, uso en clase, baja, conteo físico, anulación, existencias y kárdex.
+- [ ] **E4.R5 Uniformes y utensilios** — entrega con cargo o cobro, cambio de talla, devolución, préstamo y devolución con pérdidas.
+- [ ] **E4.R6 Contabilidad** — resumen del mes, dinero que entró y salió, gastos, compras, inventario valorizado, tarjeta kárdex PEPS, cuadre.
+- [ ] **E4.R7 Tableros** — recepción y administración, pocas tarjetas con acción, gráfico SVG, estados vacíos con la marca.
+- [ ] **E4.R8 Datos de demostración** — semilla con fecha simulada que pasa por las RPC reales; borrado ampliado.
+- [ ] **E4.R9 Revisión y entrega** — revisión independiente, documentación, rama `v1` y push.
 
-## Fase 3 — Sistema interno · estudiantes
+### Pasa a la v1.1 (enmiendas §A.2)
 
-- [ ] **3.1 Migraciones** — `programas` (desde el catálogo), `cohortes`, `estudiantes`, `inscripciones` (+ documentos entregados). *Validación:* batería RLS; `CHECK` de opciones de cohorte.
-- [ ] **3.2 Sustituir el catálogo estático por la base** — solo cambia el composition root. *Validación:* pruebas del puerto con ambas implementaciones.
-- [ ] **3.3 Pantallas** — estudiantes (ficha, alta, archivar), cohortes (abrir con opciones del programa, costo congelado), inscripciones (checklist de requisitos, paquete solo en carrera). *Validación:* flujos manuales; búsqueda paginada en la base.
-- [ ] **3.4 Documentación y `TASKS.md`**.
-
-## Fase 4 — Sistema interno · administración
-
-- [ ] **4.1 Migraciones** — `pagos` (inmutables), `gastos`; vistas por período en `America/La_Paz`. *Dependencia:* P5–P8.
-- [ ] **4.2 Pantallas** — registrar pago / gasto, anulación por asiento inverso, tablero (6 indicadores), reportes con CSV. *Validación:* cifras cuadradas contra consultas SQL directas.
-- [ ] **4.3 Documentación y `TASKS.md`**.
+- [ ] Cierre y reapertura de mes · auditoría · verificación de QR y revisión de arqueos · pantalla de conceptos · devolver sobrantes de insumos a sus lotes · ajuste de valor · prueba de uso con adultos reales (pendiente del usuario).
 
 ## Fase 5 — Página web informativa (rama `feat/pagina-web`)
 
