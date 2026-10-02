@@ -56,6 +56,20 @@ export function rutaDeSolicitudDelPanel(id: string): string {
   return `${RUTAS_ALUMNOS.solicitudes}/${encodeURIComponent(id)}`;
 }
 
+/** Caja del panel: por cerrar, cobrar, lo que deben, recibos y arqueos. */
+export const RUTAS_CAJA = {
+  inicio: '/panel/caja',
+  cobrar: '/panel/caja/cobrar',
+  deben: '/panel/caja/deben',
+  recibos: '/panel/caja/recibos',
+  cerrar: '/panel/caja/cerrar',
+  arqueos: '/panel/caja/arqueos',
+} as const;
+
+export function rutaDeRecibo(id: string): string {
+  return `${RUTAS_CAJA.recibos}/${encodeURIComponent(id)}`;
+}
+
 /** La carrera tiene página propia; los cursos cuelgan de /cursos. */
 export function rutaDePrograma(codigo: string): string {
   return codigo === 'gastronomia' ? RUTAS.carrera : `${RUTAS.cursos}/${codigo}`;

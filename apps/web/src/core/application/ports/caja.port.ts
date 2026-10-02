@@ -70,7 +70,7 @@ export interface Recibo {
   readonly sedeNombre: string;
   readonly fecha: FechaISO;
   readonly registradoEn: string;
-  readonly alumno: { readonly codigo: string; readonly nombre: string } | null;
+  readonly alumno: { readonly id: Id; readonly codigo: string; readonly nombre: string } | null;
   readonly cliente: string | null;
   readonly monto: Centavos;
   readonly medio: MedioDePago;

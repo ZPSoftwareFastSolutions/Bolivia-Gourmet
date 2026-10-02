@@ -11,7 +11,7 @@ import type { Metadata } from 'next';
 import { saludoSegunHora, sedeDeTrabajo, tienePermiso, type ContextoDePanel, type Permiso } from '@core/domain/identidad/contexto-de-panel';
 import { ETIQUETA_DE_ROL } from '@core/domain/identidad/rol';
 import { formatearDiaLargo, horaEnBolivia } from '@/lib/fechas';
-import { RUTAS_ALUMNOS, RUTAS_PANEL } from '@/lib/rutas';
+import { RUTAS_ALUMNOS, RUTAS_CAJA, RUTAS_PANEL } from '@/lib/rutas';
 import { Aviso } from '@/presentation/formularios/Campos';
 import { Icono, type NombreDeIcono } from '@/presentation/icons/Icono';
 import { EncabezadoDePanel, Mosaico } from '@/presentation/panel/Piezas';
@@ -32,7 +32,7 @@ interface Accion {
 
 /** En orden de frecuencia en recepción; se muestran las cuatro primeras permitidas. */
 const ACCIONES: readonly Accion[] = [
-  { href: RUTAS_PANEL.caja, icono: 'monedas', titulo: 'Cobrar', detalle: 'Cuotas, uniformes y ventas', permiso: 'caja.cobrar', tono: 'amarillo' },
+  { href: RUTAS_CAJA.cobrar, icono: 'monedas', titulo: 'Cobrar', detalle: 'Cuotas, uniformes y ventas', permiso: 'caja.cobrar', tono: 'amarillo' },
   { href: RUTAS_ALUMNOS.inscribir, icono: 'graduacion', titulo: 'Inscribir', detalle: 'Nuevos alumnos y renovaciones', permiso: 'inscripciones.gestionar' },
   { href: RUTAS_PANEL.inventario, icono: 'paquete', titulo: 'Entregar o usar', detalle: 'Uniformes, utensilios e insumos', permiso: 'inventario.operar' },
   { href: RUTAS_PANEL.contabilidad, icono: 'libro', titulo: 'Ver el mes', detalle: 'Ingresos, gastos y resultado', permiso: 'contabilidad.leer', tono: 'vino' },

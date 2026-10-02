@@ -147,7 +147,7 @@ export class PanelCajaSupabase implements CajaPort {
     const { data: p, error } = await this.cliente
       .from('pagos')
       .select(
-        'id, sede_id, fecha, anio, numero, cliente, monto, medio, referencia, nota, registrado_en, anulado_el, anulacion_motivo, sedes(codigo, nombre), estudiantes(codigo, nombres, apellidos), cobrador:perfiles!pagos_registrado_por_fkey(nombres, apellidos), anulador:perfiles!pagos_anulado_por_fkey(nombres)',
+        'id, sede_id, fecha, anio, numero, cliente, monto, medio, referencia, nota, registrado_en, anulado_el, anulacion_motivo, sedes(codigo, nombre), estudiantes(id, codigo, nombres, apellidos), cobrador:perfiles!pagos_registrado_por_fkey(nombres, apellidos), anulador:perfiles!pagos_anulado_por_fkey(nombres)',
       )
       .eq('id', id)
       .maybeSingle();
@@ -162,7 +162,7 @@ export class PanelCajaSupabase implements CajaPort {
       sedeNombre: p.sedes?.nombre ?? '',
       fecha: p.fecha as FechaISO,
       registradoEn: p.registrado_en,
-      alumno: p.estudiantes ? { codigo: p.estudiantes.codigo, nombre: `${p.estudiantes.nombres} ${p.estudiantes.apellidos}` } : null,
+      alumno: p.estudiantes ? { id: p.estudiantes.id as Id, codigo: p.estudiantes.codigo, nombre: `${p.estudiantes.nombres} ${p.estudiantes.apellidos}` } : null,
       cliente: p.cliente,
       monto: p.monto as Centavos,
       medio: p.medio as MedioDePago,

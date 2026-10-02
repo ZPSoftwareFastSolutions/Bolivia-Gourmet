@@ -14,7 +14,7 @@ import { notFound } from 'next/navigation';
 import { randomUUID } from 'node:crypto';
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import type { InscripcionDeAlumno } from '@core/application/ports/alumnos.port';
-import { alumnosRepository, catalogoAcademico } from '@infra/config/composition-root';
+import { alumnosRepository, cajaRepository, catalogoAcademico } from '@infra/config/composition-root';
 import { formatearFecha } from '@/lib/fechas';
 import { RUTAS_ALUMNOS, RUTAS_PANEL, rutaDeAlumno, rutaDeGrupo } from '@/lib/rutas';
 import { AreaDeTexto, Aviso } from '@/presentation/formularios/Campos';
@@ -24,6 +24,7 @@ import { Chip, Confirmacion, Dato, Desplegable, EncabezadoDePanel, Iniciales } f
 import { exigirPermiso, exigirPersonal } from '../../_sesion';
 import { archivarAlumnoAccion, cambiarEstadoAccion, guardarRequisitosAccion } from '../actions';
 import { CasillasDeRequisitos, ChipDeInscripcion, ETIQUETA_DE_PAQUETE, parametro, type Parametros } from '../_componentes';
+import { CuentaDelAlumno } from './_cuenta';
 
 export const metadata: Metadata = { title: 'Ficha del alumno' };
 
@@ -51,7 +52,12 @@ export default async function FichaDelAlumno({ params, searchParams }: Props) {
   const a = ficha.valor;
   if (!a) notFound();
 
-  const programas = await catalogoAcademico().listarProgramas();
+  const caja = tienePermiso(ctx, 'caja.leer') ? await cajaRepository() : null;
+  const [programas, cuenta, conceptos] = await Promise.all([
+    catalogoAcademico().listarProgramas(),
+    caja ? caja.cuentaDeAlumno(a.id) : Promise.resolve(null),
+    caja && tienePermiso(ctx, 'contabilidad.gestionar') ? caja.conceptos('ingreso') : Promise.resolve(null),
+  ]);
   const requisitosDe = (codigoPrograma: string) => programas.find((p) => p.codigo === codigoPrograma)?.requisitos ?? [];
   const puedeInscribir = tienePermiso(ctx, 'inscripciones.gestionar');
   const puedeEditar = tienePermiso(ctx, 'estudiantes.gestionar');
@@ -119,6 +125,10 @@ export default async function FichaDelAlumno({ params, searchParams }: Props) {
       {parametro(valores, 'creado') ? <Confirmacion palabra="¡Listo!" titulo={`Ficha creada: ${a.codigo}`} cerrarHref={aqui} /> : null}
       {parametro(valores, 'editado') ? <Confirmacion palabra="¡Guardado!" titulo="Los datos de la ficha se actualizaron" cerrarHref={aqui} /> : null}
       {parametro(valores, 'requisitos') ? <Confirmacion palabra="¡Guardado!" titulo="Requisitos actualizados" cerrarHref={aqui} /> : null}
+      {parametro(valores, 'cargo') === 'creado' ? <Confirmacion palabra="¡Listo!" titulo="Se agregó el cargo a la cuenta" cerrarHref={aqui} /> : null}
+      {parametro(valores, 'cargo') === 'anulado' ? (
+        <Confirmacion palabra="Listo" titulo="El cargo quedó anulado" cerrarHref={aqui} cambios={[{ etiqueta: 'Cargo', antes: 'Pendiente', despues: 'Anulado' }]} />
+      ) : null}
       {parametro(valores, 'archivado') ? (
         <Confirmacion palabra="Listo" titulo="La ficha quedó archivada" cerrarHref={aqui} cambios={[{ etiqueta: 'Ficha', antes: 'Activa', despues: 'Archivada' }]} />
       ) : null}
@@ -169,6 +179,14 @@ export default async function FichaDelAlumno({ params, searchParams }: Props) {
       {a.archivadoEn ? (
         <Aviso tono="info" titulo="Ficha archivada">
           <p>{a.archivadoMotivo ?? 'Sin motivo registrado.'} No se puede inscribir mientras siga archivada.</p>
+        </Aviso>
+      ) : null}
+
+      {cuenta && cuenta.exito && cuenta.valor ? (
+        <CuentaDelAlumno ctx={ctx} cuenta={cuenta.valor} conceptos={conceptos && conceptos.exito ? conceptos.valor : []} vigentes={vigentes} />
+      ) : cuenta && !cuenta.exito ? (
+        <Aviso tono="error" titulo="No pudimos cargar la cuenta">
+          <p>{cuenta.error}</p>
         </Aviso>
       ) : null}
 

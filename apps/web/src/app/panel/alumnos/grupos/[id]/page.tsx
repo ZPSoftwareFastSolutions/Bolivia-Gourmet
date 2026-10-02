@@ -23,6 +23,7 @@ import { BotonGuardar, FormularioDelPanel } from '@/presentation/panel/Formulari
 import { BarraDeCupos, Confirmacion, Dato, Desplegable, EncabezadoDePanel, Iniciales } from '@/presentation/panel/Piezas';
 import { exigirPermiso, exigirPersonal } from '../../../_sesion';
 import { cerrarGrupoAccion } from '../../actions';
+import { generarCuotasAccion } from '../../../caja/actions';
 import { ChipDeGrupo, ChipDeInscripcion, ETIQUETA_DE_PAQUETE, parametro, PrecioDelGrupo, type Parametros } from '../../_componentes';
 
 export const metadata: Metadata = { title: 'Grupo' };
@@ -63,6 +64,13 @@ export default async function FichaDelGrupo({ params, searchParams }: { readonly
       {parametro(valores, 'editado') ? <Confirmacion palabra="¡Guardado!" titulo="Los datos del grupo se actualizaron" cerrarHref={aqui} /> : null}
       {parametro(valores, 'precio') === '1' ? <Confirmacion palabra="¡Guardado!" titulo="El precio del grupo quedó definido" cerrarHref={aqui} /> : null}
       {parametro(valores, 'precio') === 'borrado' ? <Confirmacion palabra="Listo" titulo="Se quitó ese precio" cerrarHref={aqui} /> : null}
+      {parametro(valores, 'cuotas') ? (
+        <Confirmacion
+          palabra="¡Listo!"
+          titulo={parametro(valores, 'cuotas') === '0' ? 'Todos los alumnos ya tenían sus cuotas' : `Se cargaron ${parametro(valores, 'cuotas')} cuotas a ${parametro(valores, 'alumnos')} alumnos`}
+          cerrarHref={aqui}
+        />
+      ) : null}
       {cerrado ? (
         <Confirmacion
           palabra="¡Concluido!"
@@ -110,6 +118,16 @@ export default async function FichaDelGrupo({ params, searchParams }: { readonly
             <p className="t-etiqueta mb-1">Precio</p>
             <PrecioDelGrupo precios={g.precios} />
           </div>
+          {ponePrecio && g.estado !== 'cerrado' && g.precios.length > 0 && vigentes.length > 0 ? (
+            <FormularioDelPanel accion={generarCuotasAccion} etiqueta="Crear cuotas pendientes">
+              <input type="hidden" name="clave" value={randomUUID()} />
+              <input type="hidden" name="grupo" value={g.id} />
+              <BotonGuardar variante="secundario" icono="monedas" enviando="Creando…" className="justify-self-start">
+                Crear cuotas pendientes
+              </BotonGuardar>
+              <p className="text-sm text-tinta-suave">Para alumnos que se inscribieron antes de que el grupo tuviera precio.</p>
+            </FormularioDelPanel>
+          ) : null}
           {ponePrecio && g.estado !== 'cerrado' ? (
             <Link href={`${aqui}/precio`} className="inline-flex min-h-11 items-center gap-2 justify-self-start rounded-md px-3 font-semibold text-estructural hover:bg-superficie-alterna">
               <Icono nombre="monedas" tamano={18} />
