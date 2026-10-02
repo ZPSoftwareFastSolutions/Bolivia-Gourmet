@@ -32,3 +32,22 @@ export function formatearDiaLargo(fecha: string): string {
 export function horaEnBolivia(ahora: Date = new Date()): number {
   return Number(HORA.format(ahora));
 }
+
+const DIA_BOLIVIA = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: ZONA });
+
+/** Fecha de calendario de La Paz (AAAA-MM-DD) de un instante. */
+export function diaEnBolivia(instante: Date): string {
+  return DIA_BOLIVIA.format(instante);
+}
+
+/** «hoy», «ayer», «hace 3 días», «hace 2 semanas», «hace 3 meses» (días de calendario de La Paz). */
+export function haceCuanto(iso: string, ahora: Date = new Date()): string {
+  const momento = new Date(iso);
+  if (Number.isNaN(momento.getTime())) return '—';
+  const dias = Math.round((Date.parse(diaEnBolivia(ahora)) - Date.parse(diaEnBolivia(momento))) / 86_400_000);
+  if (dias <= 0) return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 14) return `hace ${dias} días`;
+  if (dias < 60) return `hace ${Math.floor(dias / 7)} semanas`;
+  return `hace ${Math.floor(dias / 30)} meses`;
+}

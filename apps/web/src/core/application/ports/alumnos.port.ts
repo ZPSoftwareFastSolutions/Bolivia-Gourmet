@@ -107,6 +107,15 @@ export interface GrupoEnLista {
   readonly nombre: string;
   readonly inscritos: number;
   readonly planes: number;
+  /** Precio para informar: una línea por paquete (carrera) o una sola (cursos). */
+  readonly precios: readonly PrecioDeGrupo[];
+}
+
+export interface PrecioDeGrupo {
+  readonly paquete: Paquete | null;
+  readonly montoCuota: Centavos;
+  readonly cuotas: number;
+  readonly cadaMeses: number;
 }
 
 export interface PlanDeGrupo {
@@ -123,7 +132,8 @@ export interface InscritoEnGrupo {
   readonly inscripcionId: Id;
   readonly estudianteId: Id;
   readonly codigo: string;
-  readonly nombre: string;
+  readonly nombres: string;
+  readonly apellidos: string;
   readonly telefono: string | null;
   readonly estado: EstadoDeInscripcion;
   readonly paquete: Paquete | null;
@@ -143,6 +153,7 @@ export interface SolicitudEnBandeja {
   readonly tipo: 'inscripcion' | 'renovacion';
   readonly programaCodigo: string;
   readonly sedeId: Id;
+  readonly sedeNombre: string;
   readonly turno: string | null;
   readonly dias: string | null;
   readonly duracion: number | null;

@@ -34,6 +34,28 @@ export const RUTAS_PANEL = {
   mas: '/panel/mas',
 } as const;
 
+/** Alumnos del panel: lista, inscripción, bandeja del portal y grupos. */
+export const RUTAS_ALUMNOS = {
+  lista: '/panel/alumnos',
+  nuevo: '/panel/alumnos/nuevo',
+  inscribir: '/panel/alumnos/inscribir',
+  solicitudes: '/panel/alumnos/solicitudes',
+  grupos: '/panel/alumnos/grupos',
+  grupoNuevo: '/panel/alumnos/grupos/nuevo',
+} as const;
+
+export function rutaDeAlumno(codigo: string): string {
+  return `${RUTAS_ALUMNOS.lista}/${encodeURIComponent(codigo)}`;
+}
+
+export function rutaDeGrupo(id: string): string {
+  return `${RUTAS_ALUMNOS.grupos}/${encodeURIComponent(id)}`;
+}
+
+export function rutaDeSolicitudDelPanel(id: string): string {
+  return `${RUTAS_ALUMNOS.solicitudes}/${encodeURIComponent(id)}`;
+}
+
 /** La carrera tiene página propia; los cursos cuelgan de /cursos. */
 export function rutaDePrograma(codigo: string): string {
   return codigo === 'gastronomia' ? RUTAS.carrera : `${RUTAS.cursos}/${codigo}`;

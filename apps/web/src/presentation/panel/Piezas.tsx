@@ -235,3 +235,149 @@ export function SeccionEnPreparacion({ titulo, icono, texto }: { readonly titulo
     </div>
   );
 }
+
+// ---------------------------------------------------------------- Pestañas de sección
+
+export interface Pestana {
+  readonly href: string;
+  readonly etiqueta: string;
+  readonly icono?: NombreDeIcono;
+  /** Número que acompaña a la pestaña (solicitudes por atender). */
+  readonly contador?: number;
+}
+
+/** Pestañas de una sección (Alumnos · Solicitudes · Grupos): enlaces, no JavaScript. */
+export function Pestanas({ pestanas, activa, etiqueta }: { readonly pestanas: readonly Pestana[]; readonly activa: string; readonly etiqueta: string }) {
+  return (
+    <nav aria-label={etiqueta} className="panel-sin-imprimir -mx-1 overflow-x-auto">
+      <ul className="flex min-w-max gap-1 border-b-2 border-linea px-1">
+        {pestanas.map((p) => {
+          const actual = p.href === activa;
+          return (
+            <li key={p.href}>
+              <Link
+                href={p.href}
+                aria-current={actual ? 'page' : undefined}
+                className={cn(
+                  '-mb-0.5 inline-flex min-h-12 items-center gap-2 border-b-4 px-4 font-semibold',
+                  actual ? 'border-accion text-estructural' : 'border-transparent text-tinta-suave hover:text-estructural',
+                )}
+              >
+                {p.icono ? <Icono nombre={p.icono} tamano={18} /> : null}
+                {p.etiqueta}
+                {p.contador !== undefined && p.contador > 0 ? (
+                  <span className="inline-grid min-w-6 place-items-center rounded-full bg-accion px-1.5 text-sm font-bold text-sobre-accion">{p.contador}</span>
+                ) : null}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+// ---------------------------------------------------------------- Chips
+
+export type TonoDeChip = 'azul' | 'vino' | 'verde' | 'gris' | 'rojo' | 'amarillo';
+
+/** Etiqueta corta con icono opcional. El color nunca va solo: siempre hay texto. */
+export function Chip({ tono, icono, children, contorno = false }: { readonly tono: TonoDeChip; readonly icono?: NombreDeIcono; readonly children: ReactNode; readonly contorno?: boolean }) {
+  const lleno = {
+    azul: 'bg-estructural text-sobre-estructural',
+    vino: 'bg-cursos text-sobre-cursos',
+    verde: 'bg-exito/12 text-exito',
+    gris: 'bg-superficie-alterna text-tinta-suave',
+    rojo: 'bg-peligro/10 text-peligro',
+    amarillo: 'bg-accion text-sobre-accion',
+  }[tono];
+  const borde = {
+    azul: 'border-estructural text-estructural',
+    vino: 'border-cursos text-cursos',
+    verde: 'border-exito text-exito',
+    gris: 'border-linea text-tinta-suave',
+    rojo: 'border-peligro text-peligro',
+    amarillo: 'border-accion-fuerte text-estructural',
+  }[tono];
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap', contorno ? cn('border-2 bg-tarjeta', borde) : lleno)}>
+      {icono ? <Icono nombre={icono} tamano={14} /> : null}
+      {children}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------- Cupos
+
+/** Cupos de un grupo: barra nativa (`<progress>`, sin estilos en línea) y frase. */
+export function BarraDeCupos({ inscritos, capacidad }: { readonly inscritos: number; readonly capacidad: number | null }) {
+  if (capacidad === null) {
+    return <span className="text-sm text-tinta-suave">{inscritos === 1 ? '1 inscrito' : `${inscritos} inscritos`} · sin límite de cupos</span>;
+  }
+  const libres = Math.max(0, capacidad - inscritos);
+  return (
+    <span className="grid gap-1">
+      <progress className={cn('panel-progreso', libres === 0 && 'panel-progreso--lleno')} value={Math.min(inscritos, capacidad)} max={capacidad}>
+        {inscritos} de {capacidad}
+      </progress>
+      <span className={cn('text-sm', libres === 0 ? 'font-semibold text-peligro' : 'text-tinta-suave')}>
+        {inscritos} de {capacidad} · {libres === 0 ? 'Lleno' : libres === 1 ? '1 libre' : `${libres} libres`}
+      </span>
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------- Persona
+
+export function Iniciales({ nombres, apellidos, tamano = 'md' }: { readonly nombres: string; readonly apellidos: string; readonly tamano?: 'md' | 'lg' }) {
+  const letras = `${nombres.trim().charAt(0)}${apellidos.trim().charAt(0)}`.toUpperCase() || '·';
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'inline-grid flex-none place-items-center rounded-full bg-superficie-alterna font-bold text-estructural ring-2 ring-linea',
+        tamano === 'lg' ? 'size-16 text-xl' : 'size-11',
+      )}
+    >
+      {letras}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------- Acción desplegable
+
+/**
+ * Acción secundaria que pide datos o confirmación (retirar, archivar, cerrar
+ * grupo): queda plegada y no estorba; al abrirla muestra su formulario. Sin
+ * JavaScript propio (`<details>`).
+ */
+export function Desplegable({ titulo, icono, children, peligro = false }: { readonly titulo: string; readonly icono: NombreDeIcono; readonly children: ReactNode; readonly peligro?: boolean }) {
+  return (
+    <details className="group rounded-[var(--t-radio-lg)] border-2 border-linea bg-tarjeta">
+      <summary
+        className={cn(
+          'flex min-h-12 cursor-pointer list-none items-center gap-3 px-4 font-semibold [&::-webkit-details-marker]:hidden',
+          peligro ? 'text-peligro' : 'text-estructural',
+        )}
+      >
+        <Icono nombre={icono} tamano={20} />
+        <span className="flex-1">{titulo}</span>
+        <span className="text-sm font-normal text-tinta-suave group-open:hidden">Abrir</span>
+        <span className="hidden text-sm font-normal text-tinta-suave group-open:inline">Cerrar</span>
+      </summary>
+      <div className="border-t-2 border-linea p-4">{children}</div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------- Dato
+
+/** Par etiqueta / valor para fichas (nombre del dato arriba, valor grande). */
+export function Dato({ etiqueta, children }: { readonly etiqueta: string; readonly children: ReactNode }) {
+  return (
+    <div>
+      <dt className="t-etiqueta">{etiqueta}</dt>
+      <dd className="mt-0.5 font-semibold text-tinta">{children}</dd>
+    </div>
+  );
+}

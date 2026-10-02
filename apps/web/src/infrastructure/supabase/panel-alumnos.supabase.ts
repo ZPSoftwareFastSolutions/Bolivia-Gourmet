@@ -31,6 +31,7 @@ import type {
   GrupoEnLista,
   InscripcionDeAlumno,
   InscripcionHecha,
+  PrecioDeGrupo,
   SolicitudEnBandeja,
 } from '@core/application/ports/alumnos.port';
 import { traducirErrorDePanel } from './errores-del-panel';
@@ -42,7 +43,7 @@ type Fila<T extends keyof Database['public']['Views']> = Database['public']['Vie
 const NO_GUARDADO = 'No pudimos guardar el cambio. Vuelve a abrir la página e inténtalo otra vez.';
 const LIMITE_DE_LISTA = 100;
 
-function grupoDesdeVista(f: Fila<'v_grupos'>): GrupoEnLista {
+function grupoDesdeVista(f: Fila<'v_grupos'>, precios: readonly PrecioDeGrupo[] = []): GrupoEnLista {
   return {
     id: (f.id ?? '') as Id,
     programaCodigo: f.programa_codigo ?? '',
@@ -63,6 +64,7 @@ function grupoDesdeVista(f: Fila<'v_grupos'>): GrupoEnLista {
     nombre: f.nombre ?? '',
     inscritos: f.inscritos ?? 0,
     planes: f.planes ?? 0,
+    precios,
   };
 }
 
@@ -111,6 +113,7 @@ interface SolicitudCruda {
   readonly respuesta: string | null;
   readonly created_at: string;
   readonly estudiante_id: string;
+  readonly sedes: { readonly nombre: string } | null;
   readonly perfiles: {
     readonly nombres: string;
     readonly apellidos: string;
@@ -121,7 +124,7 @@ interface SolicitudCruda {
 }
 
 const COLUMNAS_DE_SOLICITUD =
-  'id, tipo, programa_codigo, sede_id, turno, dias, duracion, modalidad, paquete, gestion_anterior, mensaje, estado, respuesta, created_at, estudiante_id, perfiles!solicitudes_estudiante_id_fkey(nombres, apellidos, correo, telefono, documento)';
+  'id, tipo, programa_codigo, sede_id, turno, dias, duracion, modalidad, paquete, gestion_anterior, mensaje, estado, respuesta, created_at, estudiante_id, sedes(nombre), perfiles!solicitudes_estudiante_id_fkey(nombres, apellidos, correo, telefono, documento)';
 
 export class PanelAlumnosSupabase implements AlumnosPort {
   private readonly cliente: SupabaseClient<Database>;
@@ -143,7 +146,7 @@ export class PanelAlumnosSupabase implements AlumnosPort {
     const q = textoDeBusqueda(filtro.texto ?? '');
     if (q.length > 0) {
       const comodin = `%${q.replace(/ /g, '%')}%`;
-      const exacto = q.toUpperCase();
+      const exacto = q.toUpperCase().replace(/ /g, '');
       consulta = consulta.or(`nombre_busqueda.ilike.${comodin},documento.ilike.${exacto}%,codigo.ilike.%${exacto}%`);
     }
     if (filtro.programa === 'carrera') consulta = consulta.eq('programa_tipo', 'carrera');
@@ -333,7 +336,28 @@ export class PanelAlumnosSupabase implements AlumnosPort {
     consulta = filtro.estados && filtro.estados.length > 0 ? consulta.in('estado', [...filtro.estados]) : consulta.neq('estado', 'cerrado');
     const { data, error } = await consulta;
     if (error) return fallo(traducirErrorDePanel(error));
-    return exito((data ?? []).map(grupoDesdeVista));
+    const filas = data ?? [];
+    const precios = await this.preciosDe(filas.map((f) => f.id ?? ''));
+    if (!precios.exito) return precios;
+    return exito(filas.map((f) => grupoDesdeVista(f, precios.valor.get(f.id ?? '') ?? [])));
+  }
+
+  private async preciosDe(ids: readonly string[]): Promise<Resultado<ReadonlyMap<string, readonly PrecioDeGrupo[]>>> {
+    const unicos = [...new Set(ids)].filter((x) => x.length > 0);
+    const mapa = new Map<string, PrecioDeGrupo[]>();
+    if (unicos.length === 0) return exito(mapa);
+    const { data, error } = await this.cliente
+      .from('planes_de_pago')
+      .select('cohorte_id, paquete, monto_cuota, cuotas, cada_meses')
+      .in('cohorte_id', unicos)
+      .order('paquete');
+    if (error) return fallo(traducirErrorDePanel(error));
+    for (const p of data ?? []) {
+      const lista = mapa.get(p.cohorte_id) ?? [];
+      lista.push({ paquete: p.paquete, montoCuota: p.monto_cuota as Centavos, cuotas: p.cuotas, cadaMeses: p.cada_meses });
+      mapa.set(p.cohorte_id, lista);
+    }
+    return exito(mapa);
   }
 
   async fichaDeGrupo(id: Id): Promise<Resultado<FichaDeGrupo | null>> {
@@ -353,8 +377,14 @@ export class PanelAlumnosSupabase implements AlumnosPort {
     const error = g.error ?? planes.error ?? inscritos.error;
     if (error) return fallo(traducirErrorDePanel(error));
     if (!g.data) return exito(null);
+    const precios = (planes.data ?? []).map((p) => ({
+      paquete: p.paquete,
+      montoCuota: p.monto_cuota as Centavos,
+      cuotas: p.cuotas,
+      cadaMeses: p.cada_meses,
+    }));
     return exito({
-      grupo: grupoDesdeVista(g.data),
+      grupo: grupoDesdeVista(g.data, precios),
       planes: (planes.data ?? []).map((p) => ({
         id: p.id as Id,
         paquete: p.paquete,
@@ -368,7 +398,8 @@ export class PanelAlumnosSupabase implements AlumnosPort {
         inscripcionId: i.id as Id,
         estudianteId: (i.estudiantes?.id ?? '') as Id,
         codigo: i.estudiantes?.codigo ?? '',
-        nombre: i.estudiantes ? `${i.estudiantes.nombres} ${i.estudiantes.apellidos}` : '',
+        nombres: i.estudiantes?.nombres ?? '',
+        apellidos: i.estudiantes?.apellidos ?? '',
         telefono: i.estudiantes?.telefono ?? null,
         estado: i.estado,
         paquete: i.paquete,
@@ -519,6 +550,7 @@ export class PanelAlumnosSupabase implements AlumnosPort {
         tipo: s.tipo,
         programaCodigo: s.programa_codigo,
         sedeId: s.sede_id as Id,
+        sedeNombre: s.sedes?.nombre ?? '',
         turno: s.turno,
         dias: s.dias,
         duracion: s.duracion,

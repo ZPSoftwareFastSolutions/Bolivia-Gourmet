@@ -90,3 +90,14 @@ test('la hora se toma en La Paz (UTC−4) y la fecha de negocio no se corre de d
   assert.match(formatearDiaLargo('2026-10-02'), /viernes,? 2 de octubre/);
   assert.equal(formatearDiaLargo('no-es-fecha'), '—');
 });
+
+test('hace cuánto, en días de calendario de La Paz', async () => {
+  const { haceCuanto } = await import('../src/lib/fechas.ts');
+  const ahora = new Date('2026-10-02T15:00:00Z'); // 11:00 en La Paz
+  assert.equal(haceCuanto('2026-10-02T13:00:00Z', ahora), 'hoy');
+  assert.equal(haceCuanto('2026-10-02T02:00:00Z', ahora), 'ayer'); // 22:00 del 1 en La Paz
+  assert.equal(haceCuanto('2026-09-29T15:00:00Z', ahora), 'hace 3 días');
+  assert.equal(haceCuanto('2026-09-15T15:00:00Z', ahora), 'hace 2 semanas');
+  assert.equal(haceCuanto('2026-06-15T15:00:00Z', ahora), 'hace 3 meses');
+  assert.equal(haceCuanto('no', ahora), '—');
+});

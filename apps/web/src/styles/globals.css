@@ -732,4 +732,36 @@
     }
   }
 
+
+  /* Cupos de un grupo y niveles de existencias: <progress> nativo, sin estilos
+     en línea (CSP). Azul mientras hay lugar; rojo vino cuando se llenó. */
+  .panel-progreso {
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 0.625rem;
+    border: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--t-superficie-alterna);
+    color: var(--t-estructural);
+  }
+  .panel-progreso::-webkit-progress-bar {
+    background: var(--t-superficie-alterna);
+    border-radius: 999px;
+  }
+  .panel-progreso::-webkit-progress-value {
+    background: var(--t-estructural);
+    border-radius: 999px;
+  }
+  .panel-progreso::-moz-progress-bar {
+    background: var(--t-estructural);
+    border-radius: 999px;
+  }
+  .panel-progreso--lleno::-webkit-progress-value {
+    background: var(--t-cursos);
+  }
+  .panel-progreso--lleno::-moz-progress-bar {
+    background: var(--t-cursos);
+  }
 }

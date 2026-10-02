@@ -345,6 +345,12 @@ const TRAZOS = {
       <rect x="6" y="14" width="12" height="8" rx="1" />
     </>
   ),
+  candado: (
+    <>
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </>
+  ),
   papelera: (
     <>
       <path d="M3 6h18" />
