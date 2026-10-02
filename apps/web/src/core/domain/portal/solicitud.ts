@@ -13,8 +13,11 @@
  */
 
 import { enumerar, esPendiente, exito, fallo, type Id, type Resultado } from '../shared/tipos-base';
-import { ETIQUETA_DE_TURNO, type Modalidad, type Programa, type Turno } from '../academico/programa';
+import { ETIQUETA_DE_MODALIDAD, ETIQUETA_DE_TURNO, type Modalidad, type Programa, type Turno } from '../academico/programa';
 import type { Paquete } from '../estudiantes/estudiante';
+
+/** Vive en `academico/programa.ts` (lo usa el nombre del grupo); se reexporta para el portal. */
+export { ETIQUETA_DE_MODALIDAD };
 
 export type TipoDeSolicitud = 'inscripcion' | 'renovacion';
 export type EstadoDeSolicitud = 'pendiente' | 'en_revision' | 'aprobada' | 'rechazada' | 'cancelada';
@@ -46,12 +49,6 @@ export const PAQUETES: readonly Paquete[] = ['economico', 'ahorrador'];
 export const ETIQUETA_DE_PAQUETE: Record<Paquete, string> = {
   economico: 'Paquete Económico',
   ahorrador: 'Paquete Ahorrador',
-};
-
-export const ETIQUETA_DE_MODALIDAD: Record<Modalidad, string> = {
-  practico: 'Curso práctico',
-  magistral: 'Clase magistral',
-  virtual: 'Virtual',
 };
 
 /** Límite de solicitudes abiertas por estudiante. Igual que en la base. */

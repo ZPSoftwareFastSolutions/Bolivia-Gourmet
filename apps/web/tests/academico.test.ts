@@ -2,8 +2,10 @@
  * Pruebas del dominio académico (ADR 0004) y del catálogo estático.
  *
  * QUÉ SE PRUEBA. Que el catálogo transcrito de INFORMACION-INSTITUTO.md sea
- * válido y fiel (ningún `[Consultar]` convertido en número), y la regla A1:
- * una cohorte solo elige entre las opciones de su programa.
+ * válido y fiel (ningún `[Consultar]` convertido en número); la regla A1 (un
+ * grupo solo elige entre las opciones de su programa) con los grupos de
+ * temporada de B.4; los estados de grupo de B.2; el nombre visible del grupo
+ * (§2.3) y el plan de pagos con sus cuotas (B.7).
  */
 
 import assert from 'node:assert/strict';
@@ -11,14 +13,23 @@ import { test } from 'node:test';
 
 import { ALIADOS, UNIVERSIDADES } from '../contenido/convenios.ts';
 import {
+  admiteInscripciones,
   describirDuracion,
+  describirPlan,
+  ESTADOS_DE_COHORTE,
+  etiquetaCortaDeDias,
   formatearMonto,
+  generarCuotas,
+  nombreDeGrupo,
+  ordinal,
   validarCohorte,
+  validarPlanDePago,
   validarPrograma,
   type DatosDeCohorte,
+  type PlanDePago,
   type Programa,
 } from '../src/core/domain/academico/programa.ts';
-import { esPendiente, PENDIENTE, type Centavos, type FechaISO, type Id } from '../src/core/domain/shared/tipos-base.ts';
+import { esPendiente, PENDIENTE, type Centavos, type FechaISO } from '../src/core/domain/shared/tipos-base.ts';
 import { validarCatalogo } from '../src/infrastructure/catalogo/catalogo.validator.ts';
 import { direccionesDeMapa } from '../src/lib/mapas.ts';
 import { PROGRAMAS, SEDE_LA_PAZ_ID, SEDES } from '../src/infrastructure/catalogo/oferta-academica.ts';
@@ -205,41 +216,51 @@ test('el validador rechaza una ubicación fuera de Bolivia o un enlace que no es
   assert.ok(validarCatalogo(PROGRAMAS, ajeno).some((e) => /ubicación/.test(e)));
 });
 
-// ---------------------------------------------------------------- cohortes
+// ---------------------------------------------------------------- grupos (cohortes)
 
 const COHORTE_CARRERA: DatosDeCohorte = {
   programaCodigo: 'gastronomia',
   sedeId: SEDE_LA_PAZ_ID,
-  nombre: 'Gastronomía · Febrero 2027 · Noche',
+  gestion: 2027,
+  anioDeCarrera: 1,
   fechaInicio: '2027-02-01' as FechaISO,
   duracionElegida: 3,
   turno: 'noche',
   diasDeClase: 'lun-vie',
-  costoVigente: PENDIENTE,
-  anioDeCarrera: 1,
-  estado: 'planificada',
+  estado: 'planificado',
 };
 
 const COHORTE_TORTAS: DatosDeCohorte = {
   programaCodigo: 'tortas',
   sedeId: SEDE_LA_PAZ_ID,
-  nombre: 'Tortas · Sábados · 2 meses',
-  fechaInicio: '2026-11-07' as FechaISO,
+  gestion: 2026,
+  fechaInicio: '2026-10-12' as FechaISO,
   duracionElegida: 2,
   diasDeClase: 'sab',
-  costoVigente: PENDIENTE,
-  estado: 'abierta',
+  capacidad: 12,
+  estado: 'abierto',
 };
 
-test('regla A1: una cohorte válida elige entre las opciones del programa', () => {
+const COHORTE_TEMPORADA: DatosDeCohorte = {
+  programaCodigo: 'cursos-de-temporada',
+  sedeId: SEDE_LA_PAZ_ID,
+  gestion: 2026,
+  fechaInicio: '2026-12-05' as FechaISO,
+  fechaFin: '2026-12-05' as FechaISO,
+  modalidad: 'practico',
+  estado: 'abierto',
+};
+
+test('regla A1: un grupo válido elige entre las opciones del programa', () => {
   assert.equal(validarCohorte(porCodigo('gastronomia'), COHORTE_CARRERA).exito, true);
   assert.equal(validarCohorte(porCodigo('tortas'), COHORTE_TORTAS).exito, true);
 });
 
-test('una duración fuera de las opciones del programa se rechaza', () => {
+test('una duración fuera de las opciones del programa se rechaza, y es obligatoria si el programa la define', () => {
   const resultado = validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, duracionElegida: 3 });
   assert.equal(resultado.exito, false);
   assert.ok(!resultado.exito && resultado.error.some((e) => /2, 4 o 6/.test(e)));
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, duracionElegida: undefined }).exito, false);
 });
 
 test('el turno es obligatorio si el programa lo ofrece y prohibido si no', () => {
@@ -250,52 +271,163 @@ test('el turno es obligatorio si el programa lo ofrece y prohibido si no', () =>
 
 test('los días de clase deben ser una opción del programa', () => {
   assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, diasDeClase: 'jue-vie' }).exito, false);
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, diasDeClase: undefined }).exito, false);
 });
 
-test('la modalidad es obligatoria solo en cursos de temporada', () => {
+test('B.4: un curso de temporada abre grupos con modalidad y fechas, sin días ni duración', () => {
   const temporada = porCodigo('cursos-de-temporada');
-  const base: DatosDeCohorte = { ...COHORTE_TORTAS, programaCodigo: temporada.codigo, diasDeClase: 'sab' };
-  // Sin duración ni días definidos, el programa de temporada no puede abrir cohortes todavía.
-  const resultado = validarCohorte(temporada, { ...base, modalidad: 'virtual' });
-  assert.equal(resultado.exito, false);
-  assert.ok(!resultado.exito && resultado.error.some((e) => /duración definida/.test(e)));
-  assert.ok(!resultado.exito && resultado.error.some((e) => /días de clase/.test(e)));
-  assert.ok(!resultado.exito && !resultado.error.some((e) => /modalidad/.test(e)));
+  assert.deepEqual(validarCohorte(temporada, COHORTE_TEMPORADA), { exito: true, valor: COHORTE_TEMPORADA });
 
+  const sinModalidad = validarCohorte(temporada, { ...COHORTE_TEMPORADA, modalidad: undefined });
+  assert.ok(!sinModalidad.exito && sinModalidad.error.some((e) => /modalidad/.test(e)));
+  const sinFin = validarCohorte(temporada, { ...COHORTE_TEMPORADA, fechaFin: undefined });
+  assert.ok(!sinFin.exito && sinFin.error.some((e) => /fecha de fin/.test(e)));
+  assert.equal(validarCohorte(temporada, { ...COHORTE_TEMPORADA, diasDeClase: 'sab' }).exito, false, 'el programa no define días');
+  assert.equal(validarCohorte(temporada, { ...COHORTE_TEMPORADA, duracionElegida: 1 }).exito, false, 'ni duración');
+
+  // La modalidad, en cambio, no existe en los cursos que no la ofrecen.
   assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, modalidad: 'virtual' }).exito, false);
 });
 
-test('solo las cohortes de carrera llevan año, y dentro de la duración', () => {
+test('solo los grupos de carrera llevan año, y dentro de la duración', () => {
   assert.equal(validarCohorte(porCodigo('gastronomia'), { ...COHORTE_CARRERA, anioDeCarrera: undefined }).exito, false);
   assert.equal(validarCohorte(porCodigo('gastronomia'), { ...COHORTE_CARRERA, anioDeCarrera: 4 }).exito, false);
   assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, anioDeCarrera: 1 }).exito, false);
 });
 
-test('un programa inactivo no admite cohortes nuevas', () => {
+test('la gestión es un año razonable y el estado uno de los cuatro', () => {
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, gestion: 1999 }).exito, false);
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, gestion: 2026.5 }).exito, false);
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, estado: 'abierta' as never }).exito, false, 'masculino (crítica 30)');
+});
+
+test('un programa inactivo no admite grupos nuevos', () => {
   const inactivo = { ...porCodigo('tortas'), activo: false };
   assert.equal(validarCohorte(inactivo, COHORTE_TORTAS).exito, false);
 });
 
 test('fechas: formato, existencia y fin no anterior al inicio', () => {
-  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaInicio: '07/11/2026' as FechaISO }).exito, false);
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaInicio: '12/10/2026' as FechaISO }).exito, false);
   assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaInicio: '2026-02-30' as FechaISO }).exito, false);
-  assert.equal(
-    validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaFin: '2026-11-01' as FechaISO }).exito,
-    false,
-  );
-  assert.equal(
-    validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaFin: '2027-01-07' as FechaISO }).exito,
-    true,
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaFin: '2026-10-01' as FechaISO }).exito, false);
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, fechaFin: '2026-12-12' as FechaISO }).exito, true);
+});
+
+test('el grupo se valida contra SU programa', () => {
+  assert.equal(validarCohorte(porCodigo('cocina'), COHORTE_TORTAS).exito, false);
+});
+
+test('la capacidad, si se indica, es un entero positivo', () => {
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, capacidad: 0 }).exito, false);
+  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, capacidad: undefined }).exito, true);
+});
+
+test('B.2: solo «abierto» y «en curso» admiten inscripciones', () => {
+  assert.deepEqual(
+    ESTADOS_DE_COHORTE.map((e) => [e, admiteInscripciones(e)]),
+    [
+      ['planificado', false],
+      ['abierto', true],
+      ['en_curso', true],
+      ['cerrado', false],
+    ],
   );
 });
 
-test('la cohorte se valida contra SU programa', () => {
-  const resultado = validarCohorte(porCodigo('cocina'), COHORTE_TORTAS);
-  assert.equal(resultado.exito, false);
+// ---------------------------------------------------------------- nombre del grupo
+
+const LA_PAZ = { nombre: 'La Paz' };
+const EL_ALTO = { nombre: 'El Alto' };
+
+test('nombreDeGrupo de la carrera: programa · año · turno · gestión · sede', () => {
+  const carrera = porCodigo('gastronomia');
+  assert.equal(nombreDeGrupo({ ...COHORTE_CARRERA, gestion: 2026 }, carrera, LA_PAZ), 'Gastronomía · 1.er año · Noche · 2026 · La Paz');
+  assert.equal(nombreDeGrupo({ ...COHORTE_CARRERA, anioDeCarrera: 2 }, carrera, LA_PAZ), 'Gastronomía · 2.º año · Noche · 2027 · La Paz');
+  assert.equal(
+    nombreDeGrupo({ ...COHORTE_CARRERA, anioDeCarrera: 3, turno: 'manana', gestion: 2026 }, carrera, EL_ALTO),
+    'Gastronomía · 3.er año · Mañana · 2026 · El Alto',
+  );
 });
 
-test('el costo vigente puede quedar pendiente, pero si se define es un entero en centavos', () => {
-  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, costoVigente: 65000 as never }).exito, true);
-  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, costoVigente: 650.5 as never }).exito, false);
-  assert.equal(validarCohorte(porCodigo('tortas'), { ...COHORTE_TORTAS, sedeId: SEDE_LA_PAZ_ID as Id }).exito, true);
+test('nombreDeGrupo de los cursos: programa · días · turno · modalidad · mes de inicio · sede', () => {
+  assert.equal(nombreDeGrupo(COHORTE_TORTAS, porCodigo('tortas'), LA_PAZ), 'Tortas · Sábados · oct 2026 · La Paz');
+  assert.equal(
+    nombreDeGrupo({ ...COHORTE_TORTAS, diasDeClase: 'jue-vie', fechaInicio: '2026-11-05' as FechaISO }, porCodigo('cocteleria'), LA_PAZ),
+    'Coctelería · Jue–Vie · nov 2026 · La Paz',
+  );
+  assert.equal(
+    nombreDeGrupo({ ...COHORTE_TORTAS, diasDeClase: 'lun-mie', turno: 'noche', fechaInicio: '2026-09-07' as FechaISO }, porCodigo('reposteria-y-panaderia'), EL_ALTO),
+    'Repostería y Panadería · Lun–Mié · Noche · sep 2026 · El Alto',
+  );
+  assert.equal(nombreDeGrupo(COHORTE_TEMPORADA, porCodigo('cursos-de-temporada'), LA_PAZ), 'Cursos de Temporada · Curso práctico · dic 2026 · La Paz');
+});
+
+test('los días se rotulan desde su código (la base solo ve el código)', () => {
+  assert.equal(etiquetaCortaDeDias('sab'), 'Sábados');
+  assert.equal(etiquetaCortaDeDias('lun-vie'), 'Lun–Vie');
+  assert.equal(etiquetaCortaDeDias('lun-mie'), 'Lun–Mié');
+  assert.equal(etiquetaCortaDeDias('xyz'), 'xyz');
+  assert.equal(etiquetaCortaDeDias('lun-mar-mie'), 'lun-mar-mie');
+  assert.deepEqual([1, 2, 3, 4].map(ordinal), ['1.er', '2.º', '3.er', '4.º']);
+});
+
+// ---------------------------------------------------------------- plan de pagos y cuotas
+
+const PLAN_CARRERA: PlanDePago = {
+  paquete: 'economico',
+  montoCuota: 65_000 as Centavos,
+  cuotas: 1,
+  primerVencimiento: '2026-03-01' as FechaISO,
+  cadaMeses: 1,
+  nota: ' Periodicidad por confirmar ',
+};
+
+test('el plan de la carrera es por paquete; el de un curso, no', () => {
+  const valido = validarPlanDePago(PLAN_CARRERA, 'carrera');
+  assert.ok(valido.exito);
+  assert.equal(valido.valor.nota, 'Periodicidad por confirmar');
+  assert.equal(validarPlanDePago({ ...PLAN_CARRERA, paquete: undefined }, 'carrera').exito, false);
+  assert.equal(validarPlanDePago(PLAN_CARRERA, 'curso').exito, false);
+  assert.equal(validarPlanDePago({ ...PLAN_CARRERA, paquete: undefined }, 'curso').exito, true);
+});
+
+test('el plan valida monto, cuotas (1 a 24), cada cuántos meses (1 a 12) y fecha, todo a la vez', () => {
+  const malo = validarPlanDePago({ ...PLAN_CARRERA, montoCuota: 0 as Centavos, cuotas: 25, cadaMeses: 0, primerVencimiento: '2026-02-30' as FechaISO }, 'carrera');
+  assert.ok(!malo.exito && malo.error.length === 4);
+  assert.equal(describirPlan(PLAN_CARRERA), '1 cuota de Bs 650');
+  assert.equal(describirPlan({ montoCuota: 10_000 as Centavos, cuotas: 3, cadaMeses: 1 }), '3 cuotas de Bs 100 cada mes');
+  assert.equal(describirPlan({ montoCuota: 10_000 as Centavos, cuotas: 2, cadaMeses: 2 }), '2 cuotas de Bs 100 cada 2 meses');
+});
+
+test('generarCuotas: una por cuota, desde el primer vencimiento, y cuentan en el mes en que vencen', () => {
+  assert.deepEqual(generarCuotas(PLAN_CARRERA, '2026-02-10' as FechaISO), [
+    { numero: 1, de: 1, monto: 65_000, venceEl: '2026-03-01', fecha: '2026-03-01' },
+  ]);
+});
+
+test('generarCuotas suma meses como PostgreSQL: recorta al fin de mes y no encadena', () => {
+  const plan: PlanDePago = { montoCuota: 10_000 as Centavos, cuotas: 4, primerVencimiento: '2026-01-31' as FechaISO, cadaMeses: 1 };
+  assert.deepEqual(
+    generarCuotas(plan, '2026-01-15' as FechaISO).map((c) => c.venceEl),
+    ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30'],
+  );
+  const bisiesto: PlanDePago = { ...plan, cuotas: 2, primerVencimiento: '2028-01-31' as FechaISO };
+  assert.deepEqual(generarCuotas(bisiesto, '2028-01-15' as FechaISO).map((c) => c.venceEl), ['2028-01-31', '2028-02-29']);
+  const bimestral: PlanDePago = { ...plan, cuotas: 3, primerVencimiento: '2026-11-15' as FechaISO, cadaMeses: 2 };
+  assert.deepEqual(generarCuotas(bimestral, '2026-11-01' as FechaISO).map((c) => c.venceEl), ['2026-11-15', '2027-01-15', '2027-03-15']);
+});
+
+test('B.7: con «desde» no se generan las cuotas que vencen antes, y se conserva su número', () => {
+  const plan: PlanDePago = { montoCuota: 10_000 as Centavos, cuotas: 3, primerVencimiento: '2026-08-05' as FechaISO, cadaMeses: 1 };
+  const cuotas = generarCuotas(plan, '2026-08-01' as FechaISO, '2026-09-01' as FechaISO);
+  assert.deepEqual(
+    cuotas.map((c) => [c.numero, c.de, c.venceEl]),
+    [
+      [2, 3, '2026-09-05'],
+      [3, 3, '2026-10-05'],
+    ],
+  );
+  // «Antes de» es estricto: la que vence el mismo día de la puesta en marcha sí se genera.
+  assert.equal(generarCuotas(plan, '2026-08-01' as FechaISO, '2026-09-05' as FechaISO).length, 2);
+  assert.equal(generarCuotas(plan, '2026-08-01' as FechaISO, '2027-01-01' as FechaISO).length, 0);
 });

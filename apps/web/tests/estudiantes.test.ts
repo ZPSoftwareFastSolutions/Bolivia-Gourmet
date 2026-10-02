@@ -1,9 +1,11 @@
 /**
  * Pruebas del dominio de estudiantes e inscripciones.
  *
- * QUÉ SE PRUEBA. La validación de la persona (E-), que no se repite cohorte
- * vigente (E1), que el paquete solo existe en la carrera (E5) y los
- * ayudantes de sede (celular boliviano, enlace de WhatsApp).
+ * QUÉ SE PRUEBA. La validación de la persona (E-), que no se repite grupo
+ * vigente (E1), que el paquete solo existe en la carrera (E5), los estados
+ * de la inscripción (D6: inscrito, retirado, concluido), lo que admite cada
+ * estado de grupo (B.2), la renovación (B.3) y los ayudantes de sede
+ * (celular boliviano, enlace de WhatsApp).
  */
 
 import assert from 'node:assert/strict';
@@ -11,9 +13,12 @@ import { test } from 'node:test';
 
 import {
   esInscripcionVigente,
+  ESTADOS_VIGENTES,
   nombreCompleto,
+  validarCambioDeEstado,
   validarEstudiante,
   validarInscripcion,
+  validarRenovacion,
   type DatosDeEstudiante,
   type DatosDeInscripcion,
 } from '../src/core/domain/estudiantes/estudiante.ts';
@@ -88,19 +93,69 @@ test('regla E1: no se repite una cohorte con inscripción vigente', () => {
   assert.equal(validarInscripcion(INSCRIPCION, 'curso', previas).exito, false);
 });
 
-test('una inscripción retirada o concluida no bloquea volver a inscribirse', () => {
+test('D6: solo «inscrito» es vigente; retirada o concluida no bloquea volver a inscribirse', () => {
+  assert.deepEqual(ESTADOS_VIGENTES, ['inscrito']);
   const previas = [
     { cohorteId: id('coh-tortas'), estado: 'retirado' as const },
     { cohorteId: id('coh-tortas'), estado: 'concluido' as const },
   ];
   assert.equal(validarInscripcion(INSCRIPCION, 'curso', previas).exito, true);
   assert.equal(esInscripcionVigente({ estado: 'retirado' }), false);
-  assert.equal(esInscripcionVigente({ estado: 'en_curso' }), true);
+  assert.equal(esInscripcionVigente({ estado: 'concluido' }), false);
+  assert.equal(esInscripcionVigente({ estado: 'inscrito' }), true);
 });
 
-test('regla E2: inscripciones simultáneas en cohortes distintas', () => {
-  const previas = [{ cohorteId: id('coh-gastronomia'), estado: 'en_curso' as const }];
+test('regla E2: inscripciones simultáneas en grupos distintos', () => {
+  const previas = [{ cohorteId: id('coh-gastronomia'), estado: 'inscrito' as const }];
   assert.equal(validarInscripcion(INSCRIPCION, 'curso', previas).exito, true);
+});
+
+test('una inscripción nueva empieza «inscrito» y puede venir de una solicitud y renovar a otra', () => {
+  const renovacion: DatosDeInscripcion = {
+    ...INSCRIPCION,
+    cohorteId: id('coh-gastro-2-2027'),
+    paquete: 'economico',
+    solicitudId: id('sol-diego'),
+    renuevaA: id('ins-diego-2026'),
+  };
+  assert.equal(validarInscripcion(renovacion, 'carrera', []).exito, true);
+  assert.equal(validarInscripcion({ ...INSCRIPCION, estado: 'concluido' }, 'curso', []).exito, false);
+});
+
+test('B.2: solo un grupo abierto o en curso, y con cupo, admite inscripciones', () => {
+  const grupo = { estado: 'abierto' as const, capacidad: 12, inscritos: 3 };
+  assert.equal(validarInscripcion(INSCRIPCION, 'curso', [], grupo).exito, true);
+  assert.equal(validarInscripcion(INSCRIPCION, 'curso', [], { ...grupo, estado: 'en_curso' }).exito, true);
+  assert.equal(validarInscripcion(INSCRIPCION, 'curso', [], { ...grupo, estado: 'planificado' }).exito, false);
+  assert.equal(validarInscripcion(INSCRIPCION, 'curso', [], { ...grupo, estado: 'cerrado' }).exito, false);
+  const lleno = validarInscripcion(INSCRIPCION, 'curso', [], { ...grupo, inscritos: 12 });
+  assert.ok(!lleno.exito && lleno.error.some((e) => /lleno \(12 cupos\)/.test(e)));
+  assert.equal(validarInscripcion(INSCRIPCION, 'curso', [], { estado: 'abierto', inscritos: 500 }).exito, true, 'sin capacidad = sin límite');
+});
+
+test('cambio de estado: desde «inscrito» a retirado (con motivo) o a concluido', () => {
+  assert.deepEqual(validarCambioDeEstado('inscrito', 'retirado', '  Se mudó a Cochabamba '), {
+    exito: true,
+    valor: { estado: 'retirado', motivo: 'Se mudó a Cochabamba' },
+  });
+  assert.equal(validarCambioDeEstado('inscrito', 'retirado').exito, false, 'motivo obligatorio');
+  assert.equal(validarCambioDeEstado('inscrito', 'concluido').exito, true);
+  assert.equal(validarCambioDeEstado('concluido', 'inscrito').exito, false);
+  assert.equal(validarCambioDeEstado('retirado', 'concluido').exito, false);
+  assert.equal(validarCambioDeEstado('inscrito', 'inscrito').exito, false);
+});
+
+test('renovación: mismo programa, gestión posterior y, en la carrera, el año siguiente', () => {
+  const primeroDe2026 = { estado: 'inscrito' as const, grupo: { programaCodigo: 'gastronomia', gestion: 2026, anioDeCarrera: 1 } };
+  assert.equal(validarRenovacion(primeroDe2026, { programaCodigo: 'gastronomia', gestion: 2027, anioDeCarrera: 2 }, 'carrera').exito, true);
+  assert.equal(validarRenovacion(primeroDe2026, { programaCodigo: 'gastronomia', gestion: 2026, anioDeCarrera: 2 }, 'carrera').exito, false, 'misma gestión');
+  assert.equal(validarRenovacion(primeroDe2026, { programaCodigo: 'gastronomia', gestion: 2027, anioDeCarrera: 3 }, 'carrera').exito, false, 'salta un año');
+  assert.equal(validarRenovacion(primeroDe2026, { programaCodigo: 'cocina', gestion: 2027 }, 'carrera').exito, false, 'otro programa');
+  assert.equal(
+    validarRenovacion({ ...primeroDe2026, estado: 'concluido' }, { programaCodigo: 'gastronomia', gestion: 2027, anioDeCarrera: 2 }, 'carrera').exito,
+    false,
+    'B.3: renovar enlaza una inscripción vigente',
+  );
 });
 
 test('regla E5: el paquete es obligatorio en la carrera y prohibido en los cursos', () => {

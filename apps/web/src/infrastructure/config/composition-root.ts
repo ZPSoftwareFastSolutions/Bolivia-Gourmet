@@ -17,7 +17,6 @@
 
 import type { AutenticacionPort } from '@core/application/ports/autenticacion.port';
 import type { CatalogoAcademicoPort } from '@core/application/ports/catalogo-academico.port';
-import type { InventarioRepositoryPort } from '@core/application/ports/inventario-repository.port';
 import type { PortalRepositoryPort } from '@core/application/ports/portal-repository.port';
 import type { Id } from '@core/domain/shared/tipos-base';
 import { CatalogoEstaticoRepository } from '../catalogo/catalogo-estatico.repository';
@@ -47,15 +46,4 @@ export async function portalRepository(usuarioId: Id): Promise<PortalRepositoryP
     import('../supabase/portal.supabase'),
   ]);
   return new PortalSupabase(await crearClienteDeServidor(), usuarioId);
-}
-
-/**
- * Falla cerrado: el inventario pertenece al sistema interno (rama
- * `feat/sistema-interno`) y todavía no tiene tablas. Mejor que una pantalla
- * lo diga a que muestre un cero que parece un dato.
- */
-export function inventarioRepository(): InventarioRepositoryPort {
-  throw new Error(
-    'El repositorio de inventario no está configurado: sus tablas llegan con el sistema interno (ver TASKS.md, fase 2).',
-  );
 }

@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/alias.mjs --test \"tests/*.test.ts\"",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./tests/alias.mjs --test --test-concurrency=1 \"tests/*.test.ts\"",
     "imagenes": "node scripts/optimizar-imagenes.mjs"
   },
   "dependencies": {
