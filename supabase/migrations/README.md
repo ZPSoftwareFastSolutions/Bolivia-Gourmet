@@ -17,6 +17,8 @@ herramienta `apply_migration` del conector o pegándolos en el editor SQL.
 | `20261001120200_programas.sql` | Enum `tipo_de_programa`, tabla `programas` (referencia de FK) con los 6 programas del catálogo |
 | `20261001120300_solicitudes_de_inscripcion.sql` | Enums de solicitud, tabla `solicitudes` (inscripción y renovación), validación de alta, transiciones de estado y límite de 5 abiertas |
 | `20261002120000_panel_nucleo.sql` | Sistema interno (R1): permisos de administración y recepción; `app.en_mantenimiento`, `app.hoy` (fecha de Bolivia, simulable solo en mantenimiento), `app.exigir_permiso`, `app.sede_de_sesion`, `app.puede_operar_sede`, `app.exigir_sede`; tabla `operaciones` (idempotencia: sin políticas, solo la tocan funciones DEFINER) con `app.iniciar_operacion` / `app.terminar_operacion`; fachada `public.mi_contexto()`. Errores con el código como mensaje (`sin_permiso`…) y datos en `detail` |
+| `20261002130000_panel_alumnos.sql` | Sistema interno (R2): `conceptos` (semilla fija), `estudiantes` (fichas con código BG-AAAA-NNNN, carnet único entre fichas vivas, archivar sin borrar), `cohortes` (grupos), `planes_de_pago` (precio del grupo, uno por paquete en la carrera), `inscripciones`; disparadores de forma (año solo en la carrera, cupo, grupo cerrado, paquete); vistas `v_grupos` y `v_alumnos`; `app.nombre_de_grupo` (gemela del dominio) |
+| `20261002130100_panel_alumnos_motor.sql` | RPC `crear_estudiante`, `inscribir`, `aprobar_solicitud` (B.8: el personal elige la ficha), `cambiar_estado_de_inscripcion`, `cerrar_grupo` (B.3); piezas `app.generar_cuotas` / `app.al_retirar` / `app.alumnos_que_deben` que la R3 reemplaza |
 
 Estado tras aplicarlas: 5 tablas, 5 con RLS, 11 políticas, 0 avisos de
 seguridad en `get_advisors`.

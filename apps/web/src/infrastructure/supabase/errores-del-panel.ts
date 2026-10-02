@@ -32,6 +32,36 @@ export const MENSAJES_DE_PANEL: Readonly<Record<string, (detalle: Detalle) => st
   sede_no_asignada: () => 'Tu cuenta aún no tiene sede. Pide a administración que te la asigne.',
   datos_invalidos: () => 'Faltan datos o alguno no es válido. Revisa el formulario.',
   clave_reutilizada: () => 'Este formulario ya se usó para otra cosa. Vuelve a abrirlo y repite la operación.',
+
+  // Alumnos y grupos (R2)
+  alumno_no_encontrado: () => 'No encontramos a ese alumno. Búscalo otra vez.',
+  alumno_archivado: () => 'La ficha de este alumno está archivada. Pide a administración que la reactive.',
+  alumno_con_inscripcion: () => 'No se puede archivar: el alumno sigue inscrito. Primero retíralo o espera a que termine su grupo.',
+  documento_duplicado: (d) =>
+    `Ya hay un alumno con ese carnet${typeof d.nombre === 'string' ? `: ${d.nombre}` : ''}${typeof d.codigo === 'string' ? ` (${d.codigo})` : ''}. Búscalo y usa su ficha.`,
+  ficha_con_cuenta: (d) =>
+    `Esa ficha ya está unida a otra cuenta del portal${typeof d.codigo === 'string' ? ` (${d.codigo})` : ''}. Elige «Crear ficha nueva».`,
+  grupo_no_encontrado: () => 'No encontramos ese grupo. Vuelve a la lista de grupos.',
+  grupo_no_disponible: () => 'Ese grupo no recibe inscripciones ahora (está planificado o cerrado). Elige otro grupo.',
+  grupo_lleno: (d) => `El grupo ya está lleno${typeof d.capacidad === 'number' ? ` (${d.capacidad} cupos)` : ''}. Elige otro grupo o pide a administración más cupos.`,
+  grupo_cerrado: () => 'Ese grupo ya está cerrado y no se puede cambiar.',
+  grupo_con_inscripciones: () => 'El grupo ya tiene alumnos: no se puede cambiar su programa, sede ni año.',
+  grupo_no_corresponde: () => 'El grupo elegido es de otro programa que el que pidió el alumno.',
+  usa_cerrar_grupo: () => 'Para cerrar un grupo usa el botón «Cerrar grupo»: así sus alumnos quedan como concluidos.',
+  capacidad_menor_que_inscritos: (d) =>
+    `El cupo no puede ser menor que los alumnos inscritos${typeof d.inscritos === 'number' ? ` (${d.inscritos})` : ''}.`,
+  anio_de_carrera_invalido: () => 'Los grupos de la carrera llevan año (1.º, 2.º o 3.º); los cursos no.',
+  programa_inactivo: () => 'Ese programa no está activo y no admite grupos nuevos.',
+  paquete_requerido: () => 'En la carrera hay que elegir el paquete (Económico o Ahorrador).',
+  paquete_no_admitido: () => 'Solo la carrera se inscribe por paquete; en los cursos déjalo vacío.',
+  concepto_no_es_ingreso: () => 'Ese concepto no es de ingreso. Elige uno de cobro.',
+  ya_inscrito: () => 'Este alumno ya está inscrito en ese grupo.',
+  renovacion_no_corresponde: () => 'La renovación debe ser al año siguiente del mismo programa, y una sola vez.',
+  inscripcion_no_encontrada: () => 'No encontramos esa inscripción. Vuelve a la ficha del alumno.',
+  transicion_no_valida: () => 'Esa inscripción ya no está vigente: no se puede cambiar su estado.',
+  motivo_requerido: () => 'Escribe el motivo: queda registrado.',
+  solicitud_no_encontrada: () => 'No encontramos esa solicitud. Vuelve a la bandeja.',
+  solicitud_cerrada: () => 'Esa solicitud ya fue atendida. Vuelve a la bandeja para ver las pendientes.',
 };
 
 const GENERICO = 'No pudimos guardar. Revisa tu conexión e inténtalo otra vez. Si se repite, avisa a administración.';

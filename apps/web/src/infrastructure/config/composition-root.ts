@@ -15,6 +15,7 @@
  *   de verdad se necesitan.
  */
 
+import type { AlumnosPort } from '@core/application/ports/alumnos.port';
 import type { AutenticacionPort } from '@core/application/ports/autenticacion.port';
 import type { CatalogoAcademicoPort } from '@core/application/ports/catalogo-academico.port';
 import type { PanelPort } from '@core/application/ports/panel.port';
@@ -47,6 +48,15 @@ export async function portalRepository(usuarioId: Id): Promise<PortalRepositoryP
     import('../supabase/portal.supabase'),
   ]);
   return new PortalSupabase(await crearClienteDeServidor(), usuarioId);
+}
+
+/** Alumnos, grupos, inscripciones y solicitudes del panel, con la sesión de ESTA petición. */
+export async function alumnosRepository(): Promise<AlumnosPort> {
+  const [{ crearClienteDeServidor }, { PanelAlumnosSupabase }] = await Promise.all([
+    import('../supabase/cliente-servidor'),
+    import('../supabase/panel-alumnos.supabase'),
+  ]);
+  return new PanelAlumnosSupabase(await crearClienteDeServidor());
 }
 
 /** Contexto del panel interno (quién, qué permisos, qué sedes) de ESTA petición. */
