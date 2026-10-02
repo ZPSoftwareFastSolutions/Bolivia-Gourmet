@@ -7,7 +7,7 @@
  *    respuesta (la que aplica el navegador) y en la petición que sigue hacia
  *    la página: Next lo lee de ahí y se lo pone a sus scripts.
  *
- * 2. RENOVAR LA SESIÓN en el portal. Los tokens de Supabase caducan en una
+ * 2. RENOVAR LA SESIÓN en el portal y en el panel interno. Los tokens de Supabase caducan en una
  *    hora; sin esto la sesión se caería mientras el estudiante rellena una
  *    solicitud. Solo en `/portal` y `/auth`: en las páginas públicas no hay
  *    sesión que renovar y consultar a Supabase en cada visita sumaría latencia
@@ -27,7 +27,13 @@ import { nuevoNonce, politicaDeContenido } from '@/lib/politica-de-contenido';
 const PRODUCCION = process.env.NODE_ENV === 'production';
 
 function conSesion(ruta: string): boolean {
-  return ruta === '/portal' || ruta.startsWith('/portal/') || ruta.startsWith('/auth/');
+  return (
+    ruta === '/portal' ||
+    ruta.startsWith('/portal/') ||
+    ruta === '/panel' ||
+    ruta.startsWith('/panel/') ||
+    ruta.startsWith('/auth/')
+  );
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {

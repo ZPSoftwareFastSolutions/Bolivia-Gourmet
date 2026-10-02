@@ -1,9 +1,11 @@
 /**
  * GENERADO con `generate_typescript_types` (conector de Supabase) sobre el
- * proyecto `bnobhnmurzsnffdrxeck` el 2026-10-01, tras la migración 0004.
+ * proyecto `bnobhnmurzsnffdrxeck` el 2026-10-02, tras la migración 0005 (panel_nucleo).
  * No editar a mano: regenerar tras cada migración que cambie el esquema.
  * Se conserva solo el tipo `Database` que consume el cliente.
  */
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   __InternalSupabase: {
@@ -11,6 +13,38 @@ export type Database = {
   };
   public: {
     Tables: {
+      operaciones: {
+        Row: {
+          clave: string;
+          created_at: string;
+          registrado_por: string;
+          resultado: Json | null;
+          tipo: string;
+        };
+        Insert: {
+          clave: string;
+          created_at?: string;
+          registrado_por?: string;
+          resultado?: Json | null;
+          tipo: string;
+        };
+        Update: {
+          clave?: string;
+          created_at?: string;
+          registrado_por?: string;
+          resultado?: Json | null;
+          tipo?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'operaciones_registrado_por_fkey';
+            columns: ['registrado_por'];
+            isOneToOne: false;
+            referencedRelation: 'perfiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       perfiles: {
         Row: {
           activo: boolean;
@@ -236,7 +270,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      mi_contexto: { Args: never; Returns: Json };
     };
     Enums: {
       estado_de_solicitud: 'pendiente' | 'en_revision' | 'aprobada' | 'rechazada' | 'cancelada';

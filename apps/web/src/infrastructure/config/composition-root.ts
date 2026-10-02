@@ -17,6 +17,7 @@
 
 import type { AutenticacionPort } from '@core/application/ports/autenticacion.port';
 import type { CatalogoAcademicoPort } from '@core/application/ports/catalogo-academico.port';
+import type { PanelPort } from '@core/application/ports/panel.port';
 import type { PortalRepositoryPort } from '@core/application/ports/portal-repository.port';
 import type { Id } from '@core/domain/shared/tipos-base';
 import { CatalogoEstaticoRepository } from '../catalogo/catalogo-estatico.repository';
@@ -46,4 +47,13 @@ export async function portalRepository(usuarioId: Id): Promise<PortalRepositoryP
     import('../supabase/portal.supabase'),
   ]);
   return new PortalSupabase(await crearClienteDeServidor(), usuarioId);
+}
+
+/** Contexto del panel interno (quién, qué permisos, qué sedes) de ESTA petición. */
+export async function panelRepository(): Promise<PanelPort> {
+  const [{ crearClienteDeServidor }, { PanelSupabase }] = await Promise.all([
+    import('../supabase/cliente-servidor'),
+    import('../supabase/panel.supabase'),
+  ]);
+  return new PanelSupabase(await crearClienteDeServidor());
 }

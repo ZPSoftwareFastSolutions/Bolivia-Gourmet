@@ -8,6 +8,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { obtenerPanel } from '@core/application/portal/solicitudes.usecase';
 import { esPersonal, ETIQUETA_DE_ROL } from '@core/domain/identidad/rol';
 import { estaAbierta } from '@core/domain/portal/solicitud';
@@ -60,6 +61,11 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
   }
 
   const { perfil, solicitudes } = panel.valor;
+  // El personal trabaja en el panel interno. `?panel=no` lo pone el propio panel
+  // cuando la cuenta no puede entrar (desactivada o sin permiso): sin esa marca
+  // se formaría un bucle de redirecciones entre /portal y /panel.
+  const sinPanel = parametros.panel === 'no';
+  if (esPersonal(perfil.rol) && !sinPanel) redirect(RUTAS.panel);
   const abiertas = solicitudes.filter(estaAbierta).length;
   const carrera = programas.find((p) => p.tipo === 'carrera') ?? null;
 
@@ -94,7 +100,7 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
 
       {esPersonal(perfil.rol) ? (
         <Aviso tono="info" titulo="Tu cuenta es del personal">
-          <p>El panel de {ETIQUETA_DE_ROL[perfil.rol].toLowerCase()} del sistema interno está en construcción. Desde aquí ves el portal como un estudiante.</p>
+          <p>Tu cuenta de {ETIQUETA_DE_ROL[perfil.rol].toLowerCase()} no puede entrar al panel interno ahora (puede estar desactivada). Pide a administración que la revise. Desde aquí ves el portal como un estudiante.</p>
         </Aviso>
       ) : null}
 

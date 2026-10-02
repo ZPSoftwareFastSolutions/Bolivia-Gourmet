@@ -20,6 +20,18 @@ export const RUTAS = {
   solicitud: '/portal/solicitud',
   renovacion: '/portal/renovacion',
   confirmar: '/auth/confirmar',
+  panel: '/panel',
+} as const;
+
+/** Panel interno (personal). Una sección por módulo; las subrutas cuelgan de aquí. */
+export const RUTAS_PANEL = {
+  inicio: '/panel',
+  alumnos: '/panel/alumnos',
+  inventario: '/panel/inventario',
+  caja: '/panel/caja',
+  contabilidad: '/panel/contabilidad',
+  ajustes: '/panel/ajustes',
+  mas: '/panel/mas',
 } as const;
 
 /** La carrera tiene página propia; los cursos cuelgan de /cursos. */

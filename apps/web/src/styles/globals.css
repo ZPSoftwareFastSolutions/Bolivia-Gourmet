@@ -589,4 +589,147 @@
     }
   }
 
+
+  /* ===========================================================================
+     PANEL INTERNO · ANIMACIONES QUE CONFIRMAN (enmiendas B.14)
+     ----------------------------------------------------------------------------
+     Corroboran que algo se guardó o cambió; ninguna decorativa se repite y el
+     estado nunca se comunica solo con movimiento ni solo con color (siempre
+     hay texto e icono). Con movimiento reducido, el resultado final aparece
+     directo (la regla global de @layer base acorta toda animación) y la fila
+     nueva lleva un borde amarillo fijo en lugar del destello.
+     ======================================================================== */
+  .anim-sello {
+    animation: panel-sello 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .anim-check {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: panel-trazo 320ms 260ms ease-out forwards;
+  }
+  .anim-entrar {
+    animation: panel-entrar 220ms ease-out both;
+  }
+  .anim-cambio__antes {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+  .anim-cambio__despues {
+    display: inline-block;
+    animation: panel-rebote 600ms 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  [data-nuevo='si'] {
+    animation: panel-destello 1.6s ease-out both;
+  }
+  .anim-sacudir {
+    animation: panel-sacudir 300ms ease-in-out;
+  }
+  .anim-girar {
+    animation: panel-girar 0.9s linear infinite;
+  }
+  .mosaico {
+    transition:
+      transform 0.15s ease,
+      border-color 0.2s ease;
+  }
+  @media (hover: hover) {
+    .mosaico:hover {
+      transform: translateY(-2px);
+    }
+  }
+  .mosaico:active {
+    transform: scale(0.98);
+  }
+
+  @keyframes panel-sello {
+    0% {
+      transform: scale(1.25) rotate(-8deg);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(0.95) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+  }
+  @keyframes panel-trazo {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes panel-entrar {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes panel-rebote {
+    0% {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+    60% {
+      opacity: 1;
+      transform: translateX(2px) scale(1.06);
+    }
+    100% {
+      transform: none;
+    }
+  }
+  @keyframes panel-destello {
+    from {
+      background-color: color-mix(in srgb, var(--t-accion) 38%, transparent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes panel-sacudir {
+    0%,
+    100% {
+      transform: none;
+    }
+    20%,
+    60% {
+      transform: translateX(-4px);
+    }
+    40%,
+    80% {
+      transform: translateX(4px);
+    }
+  }
+  @keyframes panel-girar {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-nuevo='si'] {
+      box-shadow: inset 4px 0 0 var(--t-accion);
+    }
+    .anim-check {
+      stroke-dashoffset: 0;
+    }
+    .anim-girar {
+      animation: none;
+    }
+  }
+
+  /* Impresión de recibos, kárdex y resúmenes: sin menú ni barras. */
+  @media print {
+    .panel-sin-imprimir {
+      display: none !important;
+    }
+    .panel-contenido {
+      padding: 0 !important;
+      background: white;
+    }
+  }
+
 }

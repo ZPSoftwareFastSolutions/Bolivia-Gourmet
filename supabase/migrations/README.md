@@ -16,6 +16,7 @@ herramienta `apply_migration` del conector o pegándolos en el editor SQL.
 | `20261001120100_identidad_perfiles_y_permisos.sql` | Enum `rol_de_usuario`, `perfiles` (alta automática como estudiante), `permisos_de_rol`, `app.tiene_permiso`, `app.rol_actual`, guardas de rol y de último administrador |
 | `20261001120200_programas.sql` | Enum `tipo_de_programa`, tabla `programas` (referencia de FK) con los 6 programas del catálogo |
 | `20261001120300_solicitudes_de_inscripcion.sql` | Enums de solicitud, tabla `solicitudes` (inscripción y renovación), validación de alta, transiciones de estado y límite de 5 abiertas |
+| `20261002120000_panel_nucleo.sql` | Sistema interno (R1): permisos de administración y recepción; `app.en_mantenimiento`, `app.hoy` (fecha de Bolivia, simulable solo en mantenimiento), `app.exigir_permiso`, `app.sede_de_sesion`, `app.puede_operar_sede`, `app.exigir_sede`; tabla `operaciones` (idempotencia: sin políticas, solo la tocan funciones DEFINER) con `app.iniciar_operacion` / `app.terminar_operacion`; fachada `public.mi_contexto()`. Errores con el código como mensaje (`sin_permiso`…) y datos en `detail` |
 
 Estado tras aplicarlas: 5 tablas, 5 con RLS, 11 políticas, 0 avisos de
 seguridad en `get_advisors`.
@@ -31,7 +32,13 @@ seguridad en `get_advisors`.
    permiso sobre ese esquema): se escriben aparte.
 4. Las funciones `SECURITY DEFINER` viven en `app` y fijan `search_path = ''`.
 5. Las vistas se crean con `security_invoker = true`.
-6. Cada migración se acompaña de su batería RLS en `docs/runbooks/`.
+6. Cada migración se acompaña de su batería RLS en `docs/runbooks/` (sistema
+   interno: `pruebas-rls-panel-v1.sql`, que crece con cada rebanada).
+8. Sistema interno: las RPC son fachadas `public.*` SECURITY INVOKER (con
+   `revoke all … from public, anon`) que llaman a un motor `app.*` DEFINER.
+   Los errores llevan el código en `message` y su frase está en
+   `apps/web/src/infrastructure/supabase/errores-del-panel.ts` (lo exige
+   `tests/errores-de-panel.test.ts`).
 7. Una prueba del repositorio (`apps/web/tests/base-de-datos.test.ts`) vigila
    RLS, revocación de permisos, funciones DEFINER y que los programas
    sembrados coincidan con el catálogo.

@@ -76,10 +76,12 @@ test('el matcher del proxy y next.config sirven la misma lista de archivos', () 
 
 // ---------------------------------------------------------------- redirecciones
 
-test('destinoSeguro solo deja volver al portal', () => {
+test('destinoSeguro solo deja volver al portal y al panel interno', () => {
   assert.equal(destinoSeguro('/portal'), '/portal');
   assert.equal(destinoSeguro('/portal/solicitud?programa=tortas'), '/portal/solicitud?programa=tortas');
-  for (const malo of ['https://malicioso.com', '//malicioso.com', '/\\malicioso.com', 'javascript:alert(1)', '/carrera', '/portalfalso', '/portal\n/x', '']) {
+  assert.equal(destinoSeguro('/panel'), '/panel');
+  assert.equal(destinoSeguro('/panel/alumnos?buscar=diego'), '/panel/alumnos?buscar=diego');
+  for (const malo of ['https://malicioso.com', '//malicioso.com', '/\\malicioso.com', 'javascript:alert(1)', '/carrera', '/portalfalso', '/panelfalso', '/portal\n/x', '']) {
     assert.equal(destinoSeguro(malo), '/portal', malo);
   }
   assert.equal(destinoSeguro(null), '/portal');

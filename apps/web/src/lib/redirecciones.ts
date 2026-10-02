@@ -5,13 +5,14 @@
  * Si se aceptara cualquier valor, un correo falso con
  * `?siguiente=https://sitio-malicioso` usaría nuestro dominio para mandar a la
  * víctima a otro sitio justo después de iniciar sesión (redirección abierta).
- * Solo se aceptan rutas internas del portal; lo demás cae al panel.
+ * Solo se aceptan rutas internas del portal y del panel interno; lo demás cae
+ * al portal (que lleva al personal a su panel).
  */
 
 const DESTINO_POR_DEFECTO = '/portal';
 
 /** Rutas a las que se puede volver tras autenticarse. */
-const PREFIJOS_PERMITIDOS = ['/portal'] as const;
+const PREFIJOS_PERMITIDOS = ['/portal', '/panel'] as const;
 
 export function destinoSeguro(valor: string | null | undefined): string {
   if (!valor) return DESTINO_POR_DEFECTO;

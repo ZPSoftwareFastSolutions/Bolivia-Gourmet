@@ -65,13 +65,63 @@ test('el alta de perfiles nunca lee el rol de los metadatos del registro', () =>
   assert.doesNotMatch(funcion, /\brol\b\s*[,)]/, 'la función no debe insertar la columna rol');
 });
 
+/** Cada función de las migraciones: nombre calificado y cabecera completa (hasta `as $$`). */
+function funciones(): readonly { migracion: string; nombre: string; cabecera: string }[] {
+  const lista: { migracion: string; nombre: string; cabecera: string }[] = [];
+  for (const { nombre: migracion, sql } of migraciones()) {
+    for (const bloque of sql.split(/create or replace function /).slice(1)) {
+      const fin = bloque.indexOf('as $$');
+      assert.ok(fin > 0, `${migracion}: función sin cuerpo $$`);
+      const nombre = /^([a-z_]+\.[a-z_]+)\(/.exec(bloque)?.[1] ?? '';
+      assert.ok(nombre, `${migracion}: función sin esquema explícito`);
+      lista.push({ migracion, nombre, cabecera: bloque.slice(0, fin) });
+    }
+  }
+  return lista;
+}
+
+function revocaciones(): string {
+  return migraciones()
+    .map((m) => m.sql)
+    .join('\n');
+}
+
+function escapar(nombre: string): string {
+  return nombre.replace('.', '\\.');
+}
+
+// Enmiendas B.11: se lee la cabecera ENTERA (una lista larga de parámetros
+// dejaba `security definer` fuera de los primeros 400 caracteres).
 test('las funciones SECURITY DEFINER viven en el esquema app y fijan search_path', () => {
+  const definer = funciones().filter((f) => /security definer/.test(f.cabecera));
+  assert.ok(definer.length > 0);
+  for (const f of definer) {
+    assert.match(f.nombre, /^app\./, `${f.migracion}: ${f.nombre} es DEFINER fuera de app`);
+    assert.match(f.cabecera, /set search_path = ''/, `${f.migracion}: ${f.nombre} sin search_path fijo`);
+  }
+});
+
+test('las fachadas de public son SECURITY INVOKER y anon no las puede ejecutar', () => {
+  const sql = revocaciones();
+  const fachadas = funciones().filter((x) => x.nombre.startsWith('public.'));
+  assert.ok(fachadas.length > 0);
+  for (const f of fachadas) {
+    assert.doesNotMatch(f.cabecera, /security definer/, `${f.nombre} no debe ser DEFINER`);
+    assert.match(sql, new RegExp(`revoke all on function ${escapar(f.nombre)}\\([^)]*\\) from public, anon`), `${f.nombre}: falta revoke a anon`);
+  }
+});
+
+test('toda función de app retira el permiso de ejecución por defecto', () => {
+  const sql = revocaciones();
+  for (const f of funciones().filter((x) => x.nombre.startsWith('app.'))) {
+    assert.match(sql, new RegExp(`revoke all on function ${escapar(f.nombre)}\\([^)]*\\) from public`), `${f.nombre}: falta revoke`);
+  }
+});
+
+test('las vistas v_* consultan con los permisos de quien pregunta (security_invoker)', () => {
   for (const { nombre, sql } of migraciones()) {
-    const bloques = sql.split(/create or replace function /).slice(1);
-    for (const bloque of bloques) {
-      if (!/security definer/.test(bloque.slice(0, 400))) continue;
-      assert.match(bloque, /^app\./, `${nombre}: función DEFINER fuera de app`);
-      assert.match(bloque.slice(0, 400), /set search_path = ''/, `${nombre}: DEFINER sin search_path fijo`);
+    for (const m of sql.matchAll(/create (?:or replace )?view (public\.v_[a-z_]+)([^;]*?) as\b/g)) {
+      assert.match(m[2] ?? '', /security_invoker\s*=\s*(true|on)/, `${nombre}: ${m[1]} sin security_invoker`);
     }
   }
 });
