@@ -16,11 +16,16 @@ import type {
   DatosDeArticuloNuevo,
   DatosDeBaja,
   DatosDeCompra,
+  DatosDeDevolucion,
+  DatosDeEntrega,
+  DatosDePrestamo,
   DatosDeUso,
   DocumentoAnulable,
+  EntregaHecha,
   InventarioPort,
   LineaContada,
   LineaDeSaldoInicial,
+  LineaRecibida,
 } from '../../ports/inventario.port';
 
 type Res<T> = Promise<Resultado<T, readonly string[]>>;
@@ -189,4 +194,81 @@ export async function anularDocumento(port: InventarioPort, clave: string, tipo:
   const limpio = motivo.trim();
   if (limpio.length < 3) return fallo(['Escribe el motivo de la anulación: queda registrado.']);
   return comoLista(await port.anular(clave, tipo, id, limpio));
+}
+
+// ---------------------------------------------------------------- uniformes y préstamos (R5)
+
+function piezasValidas(lineas: readonly { readonly cantidad: number }[]): boolean {
+  return lineas.every((l) => Number.isSafeInteger(l.cantidad) && l.cantidad > 0);
+}
+
+/** Entregar el uniforme (§6.3): talla, cargo a la cuenta y, si se cobra ya, cómo pagó. */
+export async function entregarUniforme(port: InventarioPort, clave: string, datos: DatosDeEntrega): Res<EntregaHecha> {
+  const errores: string[] = [];
+  const detalle = opcionalLimpio(datos.detalle);
+  if (datos.lineas.length === 0) errores.push('Elige la talla.');
+  if (!piezasValidas(datos.lineas)) errores.push('Se entregan piezas enteras: 1, 2, 3…');
+  if (!sinRepetir(datos.lineas.map((l) => l.varianteId))) errores.push('Elegiste la misma talla dos veces.');
+  if (datos.contexto === 'otro' && (!detalle || detalle.length < 3)) errores.push('Escribe por qué se entrega.');
+  if (datos.cobro && !datos.cargar) errores.push('Para cobrar ahora, primero carga el uniforme a su cuenta.');
+  const referencia = opcionalLimpio(datos.cobro?.referencia);
+  if (datos.cobro && exigeReferencia(datos.cobro.medio) && (!referencia || referencia.length < 3)) {
+    errores.push('Escribe el número de operación del QR o de la transferencia.');
+  }
+  if (errores.length > 0) return fallo(errores);
+  return comoLista(
+    await port.entregarUniforme(clave, {
+      ...datos,
+      detalle,
+      cobro: datos.cobro ? { medio: datos.cobro.medio, referencia: exigeReferencia(datos.cobro.medio) ? referencia : undefined } : undefined,
+    }),
+  );
+}
+
+/** Recibir un uniforme devuelto o cambiarle la talla (§6.4): al costo con que salió; el cambio no se cobra. */
+export async function devolverUniforme(port: InventarioPort, clave: string, datos: DatosDeDevolucion): Res<void> {
+  const errores: string[] = [];
+  const motivo = opcionalLimpio(datos.motivo);
+  if (!Number.isSafeInteger(datos.cantidad) || datos.cantidad <= 0) errores.push('Escribe cuántas piezas vuelven.');
+  if (!motivo || motivo.length < 3) errores.push(datos.cambiarPor ? 'Escribe por qué cambia de talla.' : 'Escribe por qué lo devuelve.');
+  if (errores.length > 0) return fallo(errores);
+  return comoLista(await port.devolverUniforme(clave, { ...datos, motivo: motivo ?? '' }));
+}
+
+/** Prestar utensilios (§6.5): a un alumno, a un grupo o a otra persona; hasta cuándo. */
+export async function prestarUtensilios(port: InventarioPort, clave: string, datos: DatosDePrestamo): Res<void> {
+  const errores: string[] = [];
+  const persona = opcionalLimpio(datos.persona);
+  const destinatarios = [datos.estudianteId, datos.grupoId, persona].filter((x) => x !== undefined && x !== '').length;
+  if (destinatarios !== 1) errores.push('Elige a quién se presta: un alumno, un grupo u otra persona.');
+  if (persona !== undefined && persona.length < 2) errores.push('Escribe el nombre de la persona.');
+  if (datos.lineas.length === 0) errores.push('Escribe cuántos de al menos un utensilio.');
+  if (!piezasValidas(datos.lineas)) errores.push('Se prestan piezas enteras: 1, 2, 3…');
+  if (errores.length > 0) return fallo(errores);
+  return comoLista(await port.prestarUtensilios(clave, { ...datos, persona }));
+}
+
+/** Recibir lo prestado (§6.6): cuántos volvieron y, si falta algo, por qué. */
+export async function recibirDevolucion(
+  port: InventarioPort,
+  clave: string,
+  lineas: readonly (LineaRecibida & { readonly nombre: string })[],
+): Res<{ readonly perdidos: number }> {
+  const errores: string[] = [];
+  const conDatos = lineas.filter((l) => l.devueltos > 0 || l.perdidos > 0);
+  if (conDatos.length === 0) errores.push('Escribe cuántos volvieron o cuántos faltan.');
+  for (const l of conDatos) {
+    if (!Number.isSafeInteger(l.devueltos) || !Number.isSafeInteger(l.perdidos) || l.devueltos < 0 || l.perdidos < 0) {
+      errores.push(`${l.nombre}: solo piezas enteras.`);
+    } else if (l.perdidos > 0 && (opcionalLimpio(l.motivo)?.length ?? 0) < 3) {
+      errores.push(`${l.nombre}: escribe qué pasó con lo que falta.`);
+    }
+  }
+  if (errores.length > 0) return fallo(errores);
+  return comoLista(
+    await port.recibirDevolucion(
+      clave,
+      conDatos.map(({ nombre: _nombre, ...l }) => ({ ...l, motivo: opcionalLimpio(l.motivo) })),
+    ),
+  );
 }

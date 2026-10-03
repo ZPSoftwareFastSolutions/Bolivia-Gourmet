@@ -25,6 +25,7 @@ import { exigirPermiso, exigirPersonal } from '../../_sesion';
 import { archivarAlumnoAccion, cambiarEstadoAccion, guardarRequisitosAccion } from '../actions';
 import { CasillasDeRequisitos, ChipDeInscripcion, ETIQUETA_DE_PAQUETE, parametro, type Parametros } from '../_componentes';
 import { CuentaDelAlumno } from './_cuenta';
+import { UniformeYPrestamos } from './_uniforme';
 
 export const metadata: Metadata = { title: 'Ficha del alumno' };
 
@@ -270,6 +271,10 @@ export default async function FichaDelAlumno({ params, searchParams }: Props) {
           </ul>
         )}
       </section>
+
+      {tienePermiso(ctx, 'inventario.leer') ? (
+        <UniformeYPrestamos ctx={ctx} estudianteId={a.id} codigo={a.codigo} tieneInscripcion={vigentes.length > 0} confirmar={parametro(valores, 'uniforme')} />
+      ) : null}
 
       <section aria-labelledby="datos" className="grid gap-4 rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">

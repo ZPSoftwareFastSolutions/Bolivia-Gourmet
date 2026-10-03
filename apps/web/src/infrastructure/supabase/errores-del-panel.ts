@@ -129,6 +129,21 @@ export const MENSAJES_DE_PANEL: Readonly<Record<string, (detalle: Detalle) => st
   compra_con_movimientos_posteriores: () =>
     'Esto ya se usó o se movió después: no se puede anular sin deshacer primero lo que vino luego.',
   baja_de_prestamo: () => 'Esa baja viene de un préstamo y se corrige desde el préstamo.',
+
+  // Uniformes y utensilios (R5)
+  inscripcion_no_vigente: () => 'Esa inscripción ya no está vigente (retirado o concluido): el uniforme se entrega a quien está inscrito.',
+  entrega_no_admitida: (d) => `${typeof d.articulo === 'string' ? d.articulo : 'Ese artículo'} no es un uniforme: no se entrega al alumno.`,
+  talla_requerida: () => 'Elige la talla.',
+  precio_no_definido: (d) =>
+    `${typeof d.articulo === 'string' ? d.articulo : 'Ese uniforme'} aún no tiene precio: entrégalo sin cargo o pide a administración que lo defina.`,
+  devolucion_excede: (d) =>
+    `No puede volver más de lo que salió${typeof d.pendiente === 'number' ? `: quedan ${d.pendiente} por devolver` : ''}.`,
+  talla_igual: () => 'Para cambiar la talla, elige una distinta de la que tiene.',
+  pieza_distinta: () => 'Solo se cambia por otra talla del mismo uniforme.',
+  destinatario_requerido: () => 'Elige a quién se presta: un alumno, un grupo u otra persona (con su nombre).',
+  prestamo_no_admitido: (d) => `${typeof d.articulo === 'string' ? d.articulo : 'Ese artículo'} no es un utensilio: no se presta.`,
+  fecha_de_devolucion_invalida: () => 'Revisa la fecha de devolución: desde hoy y hasta cuatro meses.',
+  prestamo_cerrado: () => 'Ese préstamo ya se recibió completo. Vuelve a la lista de préstamos.',
 };
 
 const GENERICO = 'No pudimos guardar. Revisa tu conexión e inténtalo otra vez. Si se repite, avisa a administración.';

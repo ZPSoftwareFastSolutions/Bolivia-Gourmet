@@ -227,6 +227,116 @@ export interface LineaContada {
 
 export type DocumentoAnulable = 'compra' | 'uso' | 'baja' | 'saldo_inicial';
 
+// ---------------------------------------------------------------- uniformes y préstamos (R5)
+
+export type ContextoDeEntrega = 'inscripcion' | 'reposicion' | 'cambio_de_talla' | 'otro';
+
+/** Un uniforme entregado a un alumno (lo que tiene en su poder = cantidad − devuelta). */
+export interface EntregaDeUniforme {
+  readonly id: Id;
+  readonly numero: number;
+  readonly inscripcionId: Id;
+  readonly estudianteId: Id;
+  readonly sedeId: Id;
+  readonly sedeNombre: string;
+  readonly varianteId: Id;
+  readonly articuloId: Id;
+  readonly articuloCodigo: string;
+  readonly articuloNombre: string;
+  readonly etiqueta: string;
+  readonly cantidad: number;
+  readonly devuelta: number;
+  readonly enPoder: number;
+  readonly contexto: ContextoDeEntrega;
+  readonly detalle: string | null;
+  readonly fecha: FechaISO;
+}
+
+export interface PrestamoAbierto {
+  readonly id: Id;
+  readonly numero: number;
+  readonly operacionId: Id;
+  readonly sedeId: Id;
+  readonly sedeNombre: string;
+  readonly varianteId: Id;
+  readonly articuloCodigo: string;
+  readonly articuloNombre: string;
+  readonly icono: IconoDeArticulo;
+  readonly cantidad: number;
+  readonly devuelta: number;
+  readonly perdida: number;
+  readonly pendiente: number;
+  readonly estudianteId: Id | null;
+  readonly estudianteCodigo: string | null;
+  readonly telefono: string | null;
+  readonly grupoNombre: string | null;
+  readonly persona: string | null;
+  /** «Ana Pérez», el nombre del grupo o la persona. */
+  readonly destinatario: string;
+  readonly fecha: FechaISO;
+  readonly devolverEl: FechaISO;
+  readonly diasDeAtraso: number;
+  readonly atrasado: boolean;
+}
+
+/** Alumno de la carrera con inscripción vigente y sin uniforme en su poder. */
+export interface AlumnoSinUniforme {
+  readonly inscripcionId: Id;
+  readonly estudianteId: Id;
+  readonly codigo: string;
+  readonly nombres: string;
+  readonly apellidos: string;
+  readonly telefono: string | null;
+  readonly sedeId: Id;
+  readonly sedeNombre: string;
+  readonly grupoNombre: string;
+  readonly inscritoEl: FechaISO;
+}
+
+export interface DatosDeEntrega {
+  readonly inscripcionId: Id;
+  readonly sedeId: Id;
+  readonly contexto: ContextoDeEntrega;
+  readonly detalle?: string;
+  readonly lineas: readonly { readonly varianteId: Id; readonly cantidad: number }[];
+  /** Cargar «Venta de uniforme» a su cuenta. */
+  readonly cargar: boolean;
+  /** Cobrar en el acto (exige cargar). */
+  readonly cobro?: { readonly medio: MedioDePago; readonly referencia?: string };
+}
+
+export interface EntregaHecha {
+  readonly codigo: string;
+  readonly cargado: Centavos;
+  readonly pagoId: Id | null;
+  readonly recibo: string | null;
+}
+
+export interface DatosDeDevolucion {
+  readonly entregaId: Id;
+  readonly cantidad: number;
+  readonly motivo: string;
+  /** Otra talla del mismo uniforme: cambio de talla, sin cargo. */
+  readonly cambiarPor?: Id;
+}
+
+export interface DatosDePrestamo {
+  readonly sedeId: Id;
+  readonly estudianteId?: Id;
+  readonly grupoId?: Id;
+  readonly persona?: string;
+  readonly devolverEl?: FechaISO;
+  readonly lineas: readonly { readonly varianteId: Id; readonly cantidad: number }[];
+}
+
+export interface LineaRecibida {
+  readonly prestamoId: Id;
+  readonly devueltos: number;
+  readonly perdidos: number;
+  readonly motivoBaja?: 'perdida' | 'rotura';
+  readonly motivo?: string;
+}
+
 // ---------------------------------------------------------------- puerto
 
 export interface InventarioPort {
@@ -247,4 +357,12 @@ export interface InventarioPort {
   darDeBaja(clave: string, datos: DatosDeBaja): Promise<Resultado<void>>;
   registrarConteo(clave: string, sedeId: Id, lineas: readonly LineaContada[]): Promise<Resultado<{ readonly diferencias: number }>>;
   anular(clave: string, tipo: DocumentoAnulable, id: Id, motivo: string): Promise<Resultado<void>>;
+
+  entregas(estudianteId: Id): Promise<Resultado<readonly EntregaDeUniforme[]>>;
+  prestamosAbiertos(filtro: { readonly sedeId?: Id; readonly estudianteId?: Id }): Promise<Resultado<readonly PrestamoAbierto[]>>;
+  sinUniforme(sedeId?: Id): Promise<Resultado<readonly AlumnoSinUniforme[]>>;
+  entregarUniforme(clave: string, datos: DatosDeEntrega): Promise<Resultado<EntregaHecha>>;
+  devolverUniforme(clave: string, datos: DatosDeDevolucion): Promise<Resultado<void>>;
+  prestarUtensilios(clave: string, datos: DatosDePrestamo): Promise<Resultado<void>>;
+  recibirDevolucion(clave: string, lineas: readonly LineaRecibida[]): Promise<Resultado<{ readonly perdidos: number }>>;
 }

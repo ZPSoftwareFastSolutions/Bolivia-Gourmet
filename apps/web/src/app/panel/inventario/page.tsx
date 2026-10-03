@@ -10,7 +10,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { ArticuloConExistencias, LoteVigente } from '@core/application/ports/inventario.port';
+import type { ArticuloConExistencias, LoteVigente, PrestamoAbierto } from '@core/application/ports/inventario.port';
 import { sedeDeTrabajo, tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import { formatearMontoExacto } from '@core/domain/shared/dinero';
 import type { Centavos } from '@core/domain/shared/tipos-base';
@@ -35,8 +35,17 @@ interface Alerta {
   readonly grave: boolean;
 }
 
-function alertas(articulos: readonly ArticuloConExistencias[], lotes: readonly LoteVigente[]): Alerta[] {
+function alertas(articulos: readonly ArticuloConExistencias[], lotes: readonly LoteVigente[], prestamos: readonly PrestamoAbierto[]): Alerta[] {
   const lista: Alerta[] = [];
+  for (const p of prestamos.filter((x) => x.atrasado)) {
+    lista.push({
+      clave: `a-${p.id}`,
+      frase: `${p.articuloNombre}: ${p.pendiente === 1 ? '1 pieza' : `${p.pendiente} piezas`} con ${p.destinatario}, atrasado ${p.diasDeAtraso === 1 ? '1 día' : `${p.diasDeAtraso} días`}.`,
+      href: RUTAS_INVENTARIO.prestamos,
+      enlace: 'Recibir',
+      grave: true,
+    });
+  }
   const codigo = new Map(articulos.map((a) => [a.id as string, a.codigo]));
   for (const l of lotes.filter((x) => x.estado === 'vencido')) {
     lista.push({
@@ -86,9 +95,9 @@ export default async function Inventario({ searchParams }: { readonly searchPara
   const propia = sedeDeTrabajo(ctx);
 
   const repo = await inventarioRepository();
-  const [todos, lotes] = await Promise.all([repo.existencias({ conValor }), repo.lotesConAlerta()]);
+  const [todos, lotes, prestamos] = await Promise.all([repo.existencias({ conValor }), repo.lotesConAlerta(), repo.prestamosAbiertos({})]);
   const delTipo = todos.exito ? todos.valor.filter((a) => a.tipo === tipo) : [];
-  const avisos = todos.exito && lotes.exito ? alertas(todos.valor, lotes.valor) : [];
+  const avisos = todos.exito && lotes.exito ? alertas(todos.valor, lotes.valor, prestamos.exito ? prestamos.valor : []) : [];
 
   return (
     <div className="grid gap-6">
@@ -108,6 +117,8 @@ export default async function Inventario({ searchParams }: { readonly searchPara
         {tienePermiso(ctx, 'inventario.operar') ? (
           <>
             <Mosaico href={RUTAS_INVENTARIO.usar} icono="bol" titulo="Usar en clase" detalle="Descuenta lo que se usó" tono="amarillo" />
+            <Mosaico href={RUTAS_INVENTARIO.entregar} icono="chaqueta" titulo="Entregar uniforme" detalle="Por talla, con su cargo" />
+            <Mosaico href={RUTAS_INVENTARIO.prestar} icono="cubiertos" titulo="Prestar utensilios" detalle="Y recibirlos de vuelta" />
             <Mosaico href={RUTAS_INVENTARIO.baja} icono="papelera" titulo="Dar de baja" detalle="Vencido, roto, perdido" />
           </>
         ) : null}

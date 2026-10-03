@@ -19,13 +19,20 @@ import type { DestinoDeUso, MotivoDeBaja, TipoDeMovimiento } from '@core/domain/
 import type { Milesimas, Unidad } from '@core/domain/shared/cantidad';
 import { exito, fallo, type Centavos, type FechaISO, type Id, type Resultado } from '@core/domain/shared/tipos-base';
 import type {
+  AlumnoSinUniforme,
   ArticuloConExistencias,
   CambiosDeArticulo,
+  ContextoDeEntrega,
   DatosDeArticuloNuevo,
   DatosDeBaja,
   DatosDeCompra,
+  DatosDeDevolucion,
+  DatosDeEntrega,
+  DatosDePrestamo,
   DatosDeUso,
   DocumentoAnulable,
+  EntregaDeUniforme,
+  EntregaHecha,
   EstadoDeExistencia,
   EstadoDeLote,
   ExistenciaEnSede,
@@ -36,8 +43,10 @@ import type {
   InventarioPort,
   LineaContada,
   LineaDeSaldoInicial,
+  LineaRecibida,
   LoteVigente,
   MovimientoEnKardex,
+  PrestamoAbierto,
   VarianteConExistencias,
 } from '@core/application/ports/inventario.port';
 import { traducirErrorDePanel } from './errores-del-panel';
@@ -389,5 +398,160 @@ export class PanelInventarioSupabase implements InventarioPort {
     const { error } = await this.cliente.rpc('anular', { p_clave: clave, p_tipo: tipo, p_id: id, p_motivo: motivo });
     if (error) return fallo(traducirErrorDePanel(error));
     return exito(undefined);
+  }
+
+  // ---------------------------------------------------------------- uniformes y préstamos (R5)
+
+  async entregas(estudianteId: Id): Promise<Resultado<readonly EntregaDeUniforme[]>> {
+    const { data, error } = await this.cliente.from('v_entregas').select('*').eq('estudiante_id', estudianteId).order('numero', { ascending: false });
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito(
+      (data ?? []).map((f) => ({
+        id: (f.id ?? '') as Id,
+        numero: f.numero ?? 0,
+        inscripcionId: (f.inscripcion_id ?? '') as Id,
+        estudianteId: (f.estudiante_id ?? '') as Id,
+        sedeId: (f.sede_id ?? '') as Id,
+        sedeNombre: f.sede_nombre ?? '',
+        varianteId: (f.variante_id ?? '') as Id,
+        articuloId: (f.articulo_id ?? '') as Id,
+        articuloCodigo: f.articulo_codigo ?? '',
+        articuloNombre: f.articulo_nombre ?? '',
+        etiqueta: f.etiqueta ?? '',
+        cantidad: f.cantidad ?? 0,
+        devuelta: f.devuelta ?? 0,
+        enPoder: f.en_poder ?? 0,
+        contexto: (f.contexto ?? 'inscripcion') as ContextoDeEntrega,
+        detalle: f.detalle,
+        fecha: (f.fecha ?? '') as FechaISO,
+      })),
+    );
+  }
+
+  async prestamosAbiertos(filtro: { readonly sedeId?: Id; readonly estudianteId?: Id }): Promise<Resultado<readonly PrestamoAbierto[]>> {
+    let consulta = this.cliente.from('v_prestamos_abiertos').select('*').order('devolver_el').order('numero');
+    if (filtro.sedeId) consulta = consulta.eq('sede_id', filtro.sedeId);
+    if (filtro.estudianteId) consulta = consulta.eq('estudiante_id', filtro.estudianteId);
+    const { data, error } = await consulta;
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito(
+      (data ?? []).map((f) => ({
+        id: (f.id ?? '') as Id,
+        numero: f.numero ?? 0,
+        operacionId: (f.operacion_id ?? '') as Id,
+        sedeId: (f.sede_id ?? '') as Id,
+        sedeNombre: f.sede_nombre ?? '',
+        varianteId: (f.variante_id ?? '') as Id,
+        articuloCodigo: f.articulo_codigo ?? '',
+        articuloNombre: f.articulo_nombre ?? '',
+        icono: (f.icono ?? 'cubiertos') as IconoDeArticulo,
+        cantidad: f.cantidad ?? 0,
+        devuelta: f.devuelta ?? 0,
+        perdida: f.perdida ?? 0,
+        pendiente: f.pendiente ?? 0,
+        estudianteId: (f.estudiante_id ?? null) as Id | null,
+        estudianteCodigo: f.estudiante_codigo,
+        telefono: f.estudiante_telefono,
+        grupoNombre: f.grupo_nombre,
+        persona: f.persona,
+        destinatario: f.destinatario ?? '',
+        fecha: (f.fecha ?? '') as FechaISO,
+        devolverEl: (f.devolver_el ?? '') as FechaISO,
+        diasDeAtraso: f.dias_de_atraso ?? 0,
+        atrasado: f.atrasado === true,
+      })),
+    );
+  }
+
+  async sinUniforme(sedeId?: Id): Promise<Resultado<readonly AlumnoSinUniforme[]>> {
+    let consulta = this.cliente.from('v_sin_uniforme').select('*').order('inscrito_el');
+    if (sedeId) consulta = consulta.eq('sede_id', sedeId);
+    const { data, error } = await consulta;
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito(
+      (data ?? []).map((f) => ({
+        inscripcionId: (f.inscripcion_id ?? '') as Id,
+        estudianteId: (f.estudiante_id ?? '') as Id,
+        codigo: f.codigo ?? '',
+        nombres: f.nombres ?? '',
+        apellidos: f.apellidos ?? '',
+        telefono: f.telefono,
+        sedeId: (f.sede_id ?? '') as Id,
+        sedeNombre: f.sede_nombre ?? '',
+        grupoNombre: f.grupo_nombre ?? '',
+        inscritoEl: (f.inscrito_el ?? '') as FechaISO,
+      })),
+    );
+  }
+
+  async entregarUniforme(clave: string, datos: DatosDeEntrega): Promise<Resultado<EntregaHecha>> {
+    const { data, error } = await this.cliente.rpc(
+      'entregar_uniforme',
+      argsDe<'entregar_uniforme'>({
+        p_clave: clave,
+        p_inscripcion: datos.inscripcionId,
+        p_sede: datos.sedeId,
+        p_contexto: datos.contexto,
+        p_detalle: datos.detalle ?? null,
+        p_lineas: datos.lineas.map((l) => ({ variante: l.varianteId, cantidad: String(l.cantidad) })) as Json,
+        p_cargar: datos.cargar,
+        p_cobro: datos.cobro ? ({ medio: datos.cobro.medio, referencia: datos.cobro.referencia ?? '' } as Json) : null,
+      }),
+    );
+    if (error) return fallo(traducirErrorDePanel(error));
+    const r = comoObjeto(data);
+    return exito({
+      codigo: texto(r.codigo),
+      cargado: numero(r.cargado) as Centavos,
+      pagoId: typeof r.pago === 'string' ? (r.pago as Id) : null,
+      recibo: typeof r.recibo === 'string' ? r.recibo : null,
+    });
+  }
+
+  async devolverUniforme(clave: string, datos: DatosDeDevolucion): Promise<Resultado<void>> {
+    const { error } = await this.cliente.rpc(
+      'devolver_uniforme',
+      argsDe<'devolver_uniforme'>({
+        p_clave: clave,
+        p_entrega: datos.entregaId,
+        p_cantidad: String(datos.cantidad),
+        p_motivo: datos.motivo,
+        p_cambiar_por: datos.cambiarPor ?? null,
+      }),
+    );
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito(undefined);
+  }
+
+  async prestarUtensilios(clave: string, datos: DatosDePrestamo): Promise<Resultado<void>> {
+    const { error } = await this.cliente.rpc(
+      'prestar_utensilios',
+      argsDe<'prestar_utensilios'>({
+        p_clave: clave,
+        p_sede: datos.sedeId,
+        p_estudiante: datos.estudianteId ?? null,
+        p_cohorte: datos.grupoId ?? null,
+        p_persona: datos.persona ?? null,
+        p_devolver_el: datos.devolverEl ?? null,
+        p_lineas: datos.lineas.map((l) => ({ variante: l.varianteId, cantidad: String(l.cantidad) })) as Json,
+      }),
+    );
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito(undefined);
+  }
+
+  async recibirDevolucion(clave: string, lineas: readonly LineaRecibida[]): Promise<Resultado<{ readonly perdidos: number }>> {
+    const { data, error } = await this.cliente.rpc('recibir_devolucion', {
+      p_clave: clave,
+      p_lineas: lineas.map((l) => ({
+        prestamo: l.prestamoId,
+        devueltos: String(l.devueltos),
+        perdidos: String(l.perdidos),
+        motivo_baja: l.motivoBaja ?? 'perdida',
+        motivo: l.motivo ?? '',
+      })) as Json,
+    });
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito({ perdidos: numero(comoObjeto(data).perdidos) });
   }
 }

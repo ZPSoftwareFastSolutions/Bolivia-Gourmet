@@ -1073,6 +1073,250 @@ begin
     execute 'reset role';
   end;
 
+  -- ============================================================ R5 · uniformes y utensilios (números de valuacion.test.ts)
+  declare
+    v_g uuid;
+    v_alumno uuid;
+    v_ins uuid;
+    v_ins_ret uuid;
+    v_juego uuid;
+    v_m uuid;
+    v_s uuid;
+    v_l uuid;
+    v_mandil uuid;
+    v_cuchillo uuid;
+    v_harina uuid;
+    v_entrega_m uuid;
+    v_entrega_l uuid;
+    v_prestamo uuid;
+    v_clave uuid := gen_random_uuid();
+    v_caja_antes bigint;
+    v_n integer;
+    v_texto text;
+    v_valores text := '';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Juego R5","tipo":"uniforme","precio_venta":"65000"}'::jsonb, array['S', 'M', 'L']);
+    v_juego := (v_res ->> 'articulo')::uuid;
+    select id into v_s from public.variantes where articulo_id = v_juego and etiqueta = 'S';
+    select id into v_m from public.variantes where articulo_id = v_juego and etiqueta = 'M';
+    select id into v_l from public.variantes where articulo_id = v_juego and etiqueta = 'L';
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Mandil R5","tipo":"uniforme"}'::jsonb, null);
+    select id into v_mandil from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Cuchillo R5","tipo":"utensilio"}'::jsonb, null);
+    select id into v_cuchillo from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Harina R5","tipo":"insumo","unidad":"kg"}'::jsonb, null);
+    select id into v_harina from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R5-1', jsonb_build_array(
+      jsonb_build_object('variante', v_m, 'cantidad', '10', 'costo_total', '300000'),
+      jsonb_build_object('variante', v_s, 'cantidad', '3', 'costo_total', '10000'),
+      jsonb_build_object('variante', v_l, 'cantidad', '3', 'costo_total', '10000'),
+      jsonb_build_object('variante', v_mandil, 'cantidad', '2', 'costo_total', '4000'),
+      jsonb_build_object('variante', v_cuchillo, 'cantidad', '10', 'costo_total', '45000'),
+      jsonb_build_object('variante', v_harina, 'cantidad', '5', 'costo_total', '3000')));
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R5-2', jsonb_build_array(
+      jsonb_build_object('variante', v_m, 'cantidad', '10', 'costo_total', '340000')));
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado)
+    values ('gastronomia', v_la_paz, 2026, 1, 'tarde', 'lun-vie', 3, app.hoy() - 5, 'en_curso') returning id into v_g;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Uma","apellidos":"Uniforme Uno"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno := (v_res ->> 'estudiante')::uuid;
+    v_ins := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Rita","apellidos":"Retirada Dos"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_ins_ret := (v_res ->> 'inscripcion')::uuid;
+    perform public.cambiar_estado_de_inscripcion(gen_random_uuid(), v_ins_ret, 'retirado', 'Se mudó de ciudad');
+
+    -- N62 · el alumno de carrera sin uniforme aparece en la lista
+    select count(*) into v_n from public.v_sin_uniforme where estudiante_id = v_alumno;
+    if v_n <> 1 then raise exception 'FALLO N62: no aparece sin uniforme (%)', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N63 · entrega con cargo y cobro en efectivo: costo promedio, cargo, recibo y caja
+    v_caja_antes := (public.caja_por_cerrar(v_la_paz) ->> 'entradas_efectivo')::bigint;
+    v_res := public.entregar_uniforme(v_clave, v_ins, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '1')), true, '{"medio":"efectivo"}'::jsonb);
+    if (v_res ->> 'cargado')::bigint <> 65000 or v_res ->> 'recibo' !~ '^LP-' then raise exception 'FALLO N63a: %', v_res; end if;
+    select en.id into v_entrega_m from public.entregas en where en.inscripcion_id = v_ins and en.variante_id = v_m;
+    select -c.delta_valor into v_n from public.movimientos m join public.movimientos_costo c on c.movimiento_id = m.id
+     where m.entrega_id = v_entrega_m and m.tipo = 'entrega';
+    if v_n <> 32000 then raise exception 'FALLO N63b: salió a %', v_n; end if;
+    select count(*) into v_n from public.cargos c join public.v_saldos_de_cargo x on x.id = c.id
+     where c.entrega_id = v_entrega_m and c.monto = 65000 and c.origen = 'entrega' and x.pendiente = 0;
+    if v_n <> 1 then raise exception 'FALLO N63c: el cargo no quedó pagado'; end if;
+    if (public.caja_por_cerrar(v_la_paz) ->> 'entradas_efectivo')::bigint <> v_caja_antes + 65000 then
+      raise exception 'FALLO N63d: el cobro no entró en la caja';
+    end if;
+    select count(*) into v_n from public.v_sin_uniforme where estudiante_id = v_alumno;
+    if v_n <> 0 then raise exception 'FALLO N63e: sigue sin uniforme'; end if;
+    v_res := public.entregar_uniforme(v_clave, v_ins, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '1')), true, '{"medio":"efectivo"}'::jsonb);
+    select count(*) into v_n from public.entregas where inscripcion_id = v_ins;
+    if not (v_res ->> 'repetida')::boolean or v_n <> 1 then raise exception 'FALLO N63f: el reenvío entregó otra vez'; end if;
+    v_ok := v_ok + 1;
+
+    -- N64 · lo que no se entrega
+    begin
+      perform public.entregar_uniforme(gen_random_uuid(), v_ins, v_la_paz, null, null, jsonb_build_array(jsonb_build_object('variante', v_harina)), false, null);
+      raise exception 'FALLO N64a: entregó harina';
+    exception when others then
+      if sqlerrm <> 'entrega_no_admitida' then raise exception 'FALLO N64a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.entregar_uniforme(gen_random_uuid(), v_ins, v_la_paz, null, null, jsonb_build_array(jsonb_build_object('variante', v_mandil)), true, null);
+      raise exception 'FALLO N64b: cargó un uniforme sin precio';
+    exception when others then
+      if sqlerrm <> 'precio_no_definido' then raise exception 'FALLO N64b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.entregar_uniforme(gen_random_uuid(), v_ins_ret, v_la_paz, null, null, jsonb_build_array(jsonb_build_object('variante', v_s)), false, null);
+      raise exception 'FALLO N64c: entregó a un retirado';
+    exception when others then
+      if sqlerrm <> 'inscripcion_no_vigente' then raise exception 'FALLO N64c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N65 · cambio de talla: vuelve al costo con que salió y la nueva entrega va sin cargo
+    begin
+      perform public.devolver_uniforme(gen_random_uuid(), v_entrega_m, '1', 'Le queda grande', v_m);
+      raise exception 'FALLO N65a: cambió a la misma talla';
+    exception when others then
+      if sqlerrm <> 'talla_igual' then raise exception 'FALLO N65a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.devolver_uniforme(gen_random_uuid(), v_entrega_m, '1', 'Le queda grande', v_cuchillo);
+      raise exception 'FALLO N65b: cambió por otra pieza';
+    exception when others then
+      if sqlerrm <> 'pieza_distinta' then raise exception 'FALLO N65b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    perform public.devolver_uniforme(gen_random_uuid(), v_entrega_m, '1', 'Le queda grande', v_s);
+    select c.delta_valor into v_n from public.movimientos m join public.movimientos_costo c on c.movimiento_id = m.id
+     where m.entrega_id = v_entrega_m and m.tipo = 'devolucion_entrega';
+    if v_n <> 32000 then raise exception 'FALLO N65c: volvió a %', v_n; end if;
+    select count(*) into v_n from public.cargos where estudiante_id = v_alumno and anulado_en is null;
+    if v_n <> 1 then raise exception 'FALLO N65d: el cambio cobró otra vez (% cargos)', v_n; end if;
+    select count(*) into v_n from public.v_entregas where estudiante_id = v_alumno and contexto = 'cambio_de_talla' and etiqueta = 'S' and en_poder = 1;
+    if v_n <> 1 then raise exception 'FALLO N65e: no está la entrega por cambio de talla'; end if;
+    v_ok := v_ok + 1;
+
+    -- N66 · devolución en partes: 3333, 3333 y la última se lleva el resto (3334)
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins, v_la_paz, 'reposicion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_l, 'cantidad', '3')), false, null);
+    select en.id into v_entrega_l from public.entregas en where en.inscripcion_id = v_ins and en.variante_id = v_l;
+    for v_n in 1 .. 3 loop
+      perform public.devolver_uniforme(gen_random_uuid(), v_entrega_l, '1', 'Devuelve una pieza', null);
+    end loop;
+    select string_agg(c.delta_valor::text, ';' order by m.numero) into v_valores
+      from public.movimientos m join public.movimientos_costo c on c.movimiento_id = m.id
+     where m.entrega_id = v_entrega_l and m.tipo = 'devolucion_entrega';
+    if v_valores <> '3333;3333;3334' then raise exception 'FALLO N66: %', v_valores; end if;
+    v_ok := v_ok + 1;
+
+    -- N67 · no se devuelve más de lo entregado
+    begin
+      perform public.devolver_uniforme(gen_random_uuid(), v_entrega_l, '1', 'Otra más', null);
+      raise exception 'FALLO N67: devolvió de más';
+    exception when others then
+      if sqlerrm <> 'devolucion_excede' then raise exception 'FALLO N67: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N68 · préstamo: custodia, el valor no cambia; destinatario y fecha
+    begin
+      perform public.prestar_utensilios(gen_random_uuid(), v_la_paz, v_alumno, null, 'Chef', app.hoy(), jsonb_build_array(jsonb_build_object('variante', v_cuchillo, 'cantidad', '1')));
+      raise exception 'FALLO N68a: prestó a dos a la vez';
+    exception when others then
+      if sqlerrm <> 'destinatario_requerido' then raise exception 'FALLO N68a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.prestar_utensilios(gen_random_uuid(), v_la_paz, null, null, 'Chef', app.hoy() - 1, jsonb_build_array(jsonb_build_object('variante', v_cuchillo, 'cantidad', '1')));
+      raise exception 'FALLO N68b: devolver en el pasado';
+    exception when others then
+      if sqlerrm <> 'fecha_de_devolucion_invalida' then raise exception 'FALLO N68b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.prestar_utensilios(gen_random_uuid(), v_la_paz, null, null, 'Chef', app.hoy(), jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '1')));
+      raise exception 'FALLO N68c: prestó un uniforme';
+    exception when others then
+      if sqlerrm <> 'prestamo_no_admitido' then raise exception 'FALLO N68c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_clave := gen_random_uuid();
+    perform public.prestar_utensilios(v_clave, v_la_paz, null, null, '  Chef   Invitado ', app.hoy(), jsonb_build_array(jsonb_build_object('variante', v_cuchillo, 'cantidad', '2')));
+    select e.disponible::text || '|' || e.prestado::text || '|' || c.valor into v_texto
+      from public.existencias e join public.existencias_costo c using (variante_id, sede_id) where e.variante_id = v_cuchillo and e.sede_id = v_la_paz;
+    if v_texto <> '8.000|2.000|45000' then raise exception 'FALLO N68d: %', v_texto; end if;
+    select count(*) into v_n from public.v_kardex_valorizado where operacion_id = v_clave and delta_valor = 0;
+    if v_n <> 1 then raise exception 'FALLO N68e: el préstamo no figura en el kárdex valorizado'; end if;
+    select id into v_prestamo from public.v_prestamos_abiertos where operacion_id = v_clave and persona = 'Chef Invitado' and pendiente = 2;
+    if v_prestamo is null then raise exception 'FALLO N68f: el préstamo no está abierto'; end if;
+    v_ok := v_ok + 1;
+
+    -- N69 · recibir: uno vuelve y uno se pierde (baja desde prestado a 4500)
+    begin
+      perform public.recibir_devolucion(gen_random_uuid(), jsonb_build_array(jsonb_build_object('prestamo', v_prestamo, 'devueltos', '1', 'perdidos', '1')));
+      raise exception 'FALLO N69a: pérdida sin motivo';
+    exception when others then
+      if sqlerrm <> 'motivo_requerido' then raise exception 'FALLO N69a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    perform public.recibir_devolucion(gen_random_uuid(), jsonb_build_array(
+      jsonb_build_object('prestamo', v_prestamo, 'devueltos', '1', 'perdidos', '1', 'motivo', 'No apareció al cerrar la clase')));
+    select e.disponible::text || '|' || e.prestado::text || '|' || c.valor into v_texto
+      from public.existencias e join public.existencias_costo c using (variante_id, sede_id) where e.variante_id = v_cuchillo and e.sede_id = v_la_paz;
+    if v_texto <> '9.000|0.000|40500' then raise exception 'FALLO N69b: %', v_texto; end if;
+    select (cerrado_en is not null)::text into v_texto from public.prestamos where id = v_prestamo;
+    if v_texto <> 'true' then raise exception 'FALLO N69c: el préstamo no se cerró'; end if;
+    begin
+      perform public.recibir_devolucion(gen_random_uuid(), jsonb_build_array(jsonb_build_object('prestamo', v_prestamo, 'devueltos', '1')));
+      raise exception 'FALLO N69d: recibió de un préstamo cerrado';
+    exception when others then
+      if sqlerrm <> 'prestamo_cerrado' then raise exception 'FALLO N69d: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N70 · la pérdida de un préstamo no se anula como una baja
+    begin
+      perform public.anular(gen_random_uuid(), 'baja',
+        (select m.id from public.movimientos m where m.prestamo_id = v_prestamo and m.tipo = 'baja'), 'Prueba');
+      raise exception 'FALLO N70: anuló la pérdida de un préstamo';
+    exception when others then
+      if sqlerrm <> 'baja_de_prestamo' then raise exception 'FALLO N70: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+
+    -- N71 · recepción en otra sede; el estudiante no ve entregas ni préstamos
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.prestar_utensilios(gen_random_uuid(), v_el_alto, null, null, 'Chef', app.hoy(), jsonb_build_array(jsonb_build_object('variante', v_cuchillo, 'cantidad', '1')));
+      raise exception 'FALLO N71a: recepción prestó en otra sede';
+    exception when others then
+      if sqlerrm <> 'sede_no_operable' then raise exception 'FALLO N71a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    select (select count(*) from public.v_entregas) + (select count(*) from public.v_prestamos_abiertos) + (select count(*) from public.v_sin_uniforme) into v_n;
+    if v_n <> 0 then raise exception 'FALLO N71b: el estudiante ve % filas', v_n; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N72 · invariantes: todo movimiento con su costo; saldo en cero = valor en cero
+    select count(*) into v_n from public.movimientos m where not exists (select 1 from public.movimientos_costo c where c.movimiento_id = m.id);
+    if v_n <> 0 then raise exception 'FALLO N72a: % movimientos sin costo', v_n; end if;
+    select count(*) into v_n from public.existencias e join public.existencias_costo c using (variante_id, sede_id) where e.total = 0 and c.valor <> 0;
+    if v_n <> 0 then raise exception 'FALLO N72b: % saldos en cero con valor', v_n; end if;
+    v_ok := v_ok + 1;
+  end;
+
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
 $$;

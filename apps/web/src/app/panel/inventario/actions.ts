@@ -18,20 +18,24 @@ import type { DestinoDeUso, MotivoDeBaja } from '@core/domain/inventario/movimie
 import { parsearCantidad, type Milesimas } from '@core/domain/shared/cantidad';
 import { parsearMonto } from '@core/domain/shared/dinero';
 import { fechaISO, type Centavos, type FechaISO, type Id } from '@core/domain/shared/tipos-base';
-import type { DocumentoAnulable, LineaContada, LineaDeCompra, LineaDeSaldoInicial, LineaDeUso, TipoDeComprobante } from '@core/application/ports/inventario.port';
+import type { ContextoDeEntrega, DocumentoAnulable, LineaContada, LineaDeCompra, LineaDeSaldoInicial, LineaDeUso, TipoDeComprobante } from '@core/application/ports/inventario.port';
 import {
   agregarTalla,
   anularDocumento,
   crearArticulo,
   darDeBaja,
+  devolverUniforme,
   editarArticulo,
+  entregarUniforme,
+  prestarUtensilios,
+  recibirDevolucion,
   registrarCompra,
   registrarConteo,
   registrarSaldoInicial,
   usarInsumos,
 } from '@core/application/panel/inventario/inventario.usecase';
-import { inventarioRepository } from '@infra/config/composition-root';
-import { RUTAS_INVENTARIO, rutaDeArticulo } from '@/lib/rutas';
+import { alumnosRepository, inventarioRepository } from '@infra/config/composition-root';
+import { RUTAS_INVENTARIO, rutaDeAlumno, rutaDeArticulo } from '@/lib/rutas';
 import { campo, type EstadoDeFormulario } from '@/presentation/formularios/estado';
 import { exigirPersonal } from '../_sesion';
 
@@ -350,4 +354,112 @@ export async function anularAccion(_previo: EstadoDeFormulario, datos: FormData)
   if (!r.exito) return errores(r.error);
   const volver = campo(datos, 'volver');
   redirect(`${volver.startsWith(`${RUTAS_INVENTARIO.inicio}/`) || volver === RUTAS_INVENTARIO.inicio ? volver : RUTAS_INVENTARIO.historial}?anulado=${tipo}`);
+}
+
+// ---------------------------------------------------------------- uniformes y préstamos (R5)
+
+const CONTEXTOS: readonly ContextoDeEntrega[] = ['inscripcion', 'reposicion', 'otro'];
+
+/** Piezas escritas: vacío = `vacio`; texto que no es un entero ≥ 0 = NaN. */
+function piezas(texto: string, vacio = 0): number {
+  if (texto === '') return vacio;
+  return /^\d{1,4}$/.test(texto) ? Number.parseInt(texto, 10) : Number.NaN;
+}
+
+export async function entregarAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
+  const bloqueo = await conPermiso('inventario.operar');
+  if (bloqueo) return bloqueo;
+  const variante = campo(datos, 'variante');
+  if (variante === '') return errores(['Elige la talla.']);
+  const cantidad = piezas(campo(datos, 'cantidad'), 1);
+  if (Number.isNaN(cantidad)) return errores(['Se entregan piezas enteras: 1, 2, 3…']);
+  const cargar = campo(datos, 'cargar') === 'si';
+  const elegido = medio(campo(datos, 'cobro'));
+  if (cargar && campo(datos, 'cobro') === '') return errores(['Elige si se cobra ahora (y cómo) o si queda pendiente.']);
+  const clave = campo(datos, 'clave');
+  const r = await entregarUniforme(await inventarioRepository(), clave, {
+    inscripcionId: campo(datos, 'inscripcion') as Id,
+    sedeId: campo(datos, 'sede') as Id,
+    contexto: uno<ContextoDeEntrega>(CONTEXTOS, campo(datos, 'contexto')) ?? 'inscripcion',
+    detalle: opcional(campo(datos, 'detalle')),
+    lineas: [{ varianteId: variante as Id, cantidad }],
+    cargar,
+    cobro: cargar && elegido ? { medio: elegido, referencia: opcional(campo(datos, 'referencia')) } : undefined,
+  });
+  if (!r.exito) return errores(r.error);
+  const alumno = encodeURIComponent(campo(datos, 'alumno'));
+  redirect(`${RUTAS_INVENTARIO.entregar}?hecho=${clave}&alumno=${alumno}${r.valor.pagoId ? `&pago=${r.valor.pagoId}` : ''}${r.valor.cargado > 0 ? `&cargado=${r.valor.cargado}` : ''}`);
+}
+
+export async function devolverUniformeAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
+  const bloqueo = await conPermiso('inventario.operar');
+  if (bloqueo) return bloqueo;
+  const cantidad = piezas(campo(datos, 'cantidad'), 1);
+  if (Number.isNaN(cantidad)) return errores(['Escribe cuántas piezas vuelven: 1, 2, 3…']);
+  const clave = campo(datos, 'clave');
+  const r = await devolverUniforme(await inventarioRepository(), clave, {
+    entregaId: campo(datos, 'entrega') as Id,
+    cantidad,
+    motivo: campo(datos, 'motivo'),
+    cambiarPor: opcional(campo(datos, 'cambiarPor')) as Id | undefined,
+  });
+  if (!r.exito) return errores(r.error);
+  redirect(`${rutaDeAlumno(campo(datos, 'alumno'))}?uniforme=${clave}`);
+}
+
+export async function prestarAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
+  const bloqueo = await conPermiso('inventario.operar');
+  if (bloqueo) return bloqueo;
+  const destino = campo(datos, 'destino');
+  let estudianteId: Id | undefined;
+  if (destino === 'alumno') {
+    const codigo = campo(datos, 'alumno').toUpperCase();
+    if (codigo === '') return errores(['Escribe el código del alumno (por ejemplo BG-2026-0001).']);
+    const ficha = await (await alumnosRepository()).fichaDeAlumno(codigo);
+    if (!ficha.exito) return errores([ficha.error]);
+    if (!ficha.valor) return errores([`No encontramos al alumno ${codigo}. Revisa el código en su ficha.`]);
+    estudianteId = ficha.valor.id;
+  }
+  const devolverEl = fechaOpcional(campo(datos, 'devolverEl'));
+  if (devolverEl === null) return errores(['Revisa la fecha de devolución.']);
+  const lineas: { varianteId: Id; cantidad: number }[] = [];
+  const problemas: string[] = [];
+  for (const id of idsCon(datos, 'cantidad-')) {
+    const n = piezas(campo(datos, `cantidad-${id}`));
+    if (Number.isNaN(n)) problemas.push(`${campo(datos, `nombre-${id}`) || 'Un utensilio'}: solo piezas enteras.`);
+    else if (n > 0) lineas.push({ varianteId: id, cantidad: n });
+  }
+  if (problemas.length > 0) return errores(problemas);
+  const clave = campo(datos, 'clave');
+  const r = await prestarUtensilios(await inventarioRepository(), clave, {
+    sedeId: campo(datos, 'sede') as Id,
+    estudianteId,
+    grupoId: destino === 'grupo' ? (opcional(campo(datos, 'grupo')) as Id | undefined) : undefined,
+    persona: destino === 'persona' ? campo(datos, 'persona') : undefined,
+    devolverEl,
+    lineas,
+  });
+  if (!r.exito) return errores(r.error);
+  redirect(`${RUTAS_INVENTARIO.prestar}?hecho=${clave}`);
+}
+
+export async function recibirPrestamoAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
+  const bloqueo = await conPermiso('inventario.operar');
+  if (bloqueo) return bloqueo;
+  const devueltos = piezas(campo(datos, 'devueltos'));
+  const perdidos = piezas(campo(datos, 'perdidos'));
+  if (Number.isNaN(devueltos) || Number.isNaN(perdidos)) return errores(['Escribe piezas enteras: 0, 1, 2…']);
+  const clave = campo(datos, 'clave');
+  const r = await recibirDevolucion(await inventarioRepository(), clave, [
+    {
+      prestamoId: campo(datos, 'prestamo') as Id,
+      nombre: campo(datos, 'nombre') || 'El préstamo',
+      devueltos,
+      perdidos,
+      motivoBaja: campo(datos, 'motivoBaja') === 'rotura' ? 'rotura' : 'perdida',
+      motivo: opcional(campo(datos, 'motivo')),
+    },
+  ]);
+  if (!r.exito) return errores(r.error);
+  redirect(`${RUTAS_INVENTARIO.prestamos}?recibido=${clave}`);
 }

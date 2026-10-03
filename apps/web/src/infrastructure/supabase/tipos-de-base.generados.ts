@@ -1,6 +1,6 @@
 /**
  * GENERADO con `generate_typescript_types` (conector de Supabase) sobre el
- * proyecto `bnobhnmurzsnffdrxeck` el 2026-10-02, tras la migración 0013 (panel_inventario_caja).
+ * proyecto `bnobhnmurzsnffdrxeck` el 2026-10-02, tras la migración 0014 (panel_uniformes_prestamos).
  * No editar a mano: regenerar tras cada migración que cambie el esquema.
  * Se conserva solo el tipo `Database` que consume el cliente. El generador
  * marca todos los parámetros de las RPC como obligatorios aunque admitan null:
@@ -173,6 +173,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'cargos_entrega_fkey';
+            columns: ['entrega_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_entregas';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'cargos_estudiante_id_fkey';
             columns: ['estudiante_id'];
             isOneToOne: false;
@@ -201,6 +208,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'cargos_inscripcion_id_fkey';
+            columns: ['inscripcion_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sin_uniforme';
+            referencedColumns: ['inscripcion_id'];
+          },
+          {
             foreignKeyName: 'cargos_operacion_id_fkey';
             columns: ['operacion_id'];
             isOneToOne: false;
@@ -219,6 +233,13 @@ export type Database = {
             columns: ['prestamo_id'];
             isOneToOne: false;
             referencedRelation: 'prestamos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cargos_prestamo_fkey';
+            columns: ['prestamo_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_prestamos_abiertos';
             referencedColumns: ['id'];
           },
           {
@@ -736,6 +757,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'inscripciones';
             referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entregas_inscripcion_id_fkey';
+            columns: ['inscripcion_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sin_uniforme';
+            referencedColumns: ['inscripcion_id'];
           },
           {
             foreignKeyName: 'entregas_operacion_id_fkey';
@@ -1281,6 +1309,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'inscripciones_renueva_a_fkey';
+            columns: ['renueva_a'];
+            isOneToOne: true;
+            referencedRelation: 'v_sin_uniforme';
+            referencedColumns: ['inscripcion_id'];
+          },
+          {
             foreignKeyName: 'inscripciones_solicitud_id_fkey';
             columns: ['solicitud_id'];
             isOneToOne: true;
@@ -1619,6 +1654,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'movimientos_entrega_id_fkey';
+            columns: ['entrega_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_entregas';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'movimientos_lote_fkey';
             columns: ['lote_id'];
             isOneToOne: false;
@@ -1644,6 +1686,13 @@ export type Database = {
             columns: ['prestamo_id'];
             isOneToOne: false;
             referencedRelation: 'prestamos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'movimientos_prestamo_id_fkey';
+            columns: ['prestamo_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_prestamos_abiertos';
             referencedColumns: ['id'];
           },
           {
@@ -2461,6 +2510,13 @@ export type Database = {
             foreignKeyName: 'variantes_articulo_id_fkey';
             columns: ['articulo_id'];
             isOneToOne: false;
+            referencedRelation: 'v_entregas';
+            referencedColumns: ['articulo_id'];
+          },
+          {
+            foreignKeyName: 'variantes_articulo_id_fkey';
+            columns: ['articulo_id'];
+            isOneToOne: false;
             referencedRelation: 'v_existencias';
             referencedColumns: ['articulo_id'];
           },
@@ -2490,6 +2546,13 @@ export type Database = {
             columns: ['articulo_id'];
             isOneToOne: false;
             referencedRelation: 'v_lotes_vigentes';
+            referencedColumns: ['articulo_id'];
+          },
+          {
+            foreignKeyName: 'variantes_articulo_id_fkey';
+            columns: ['articulo_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_prestamos_abiertos';
             referencedColumns: ['articulo_id'];
           },
         ];
@@ -2553,6 +2616,115 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'v_existencias_valorizadas';
             referencedColumns: ['sede_id'];
+          },
+        ];
+      };
+      v_entregas: {
+        Row: {
+          articulo_codigo: string | null;
+          articulo_id: string | null;
+          articulo_nombre: string | null;
+          cantidad: number | null;
+          contexto: Database['public']['Enums']['contexto_de_entrega'] | null;
+          detalle: string | null;
+          devuelta: number | null;
+          en_poder: number | null;
+          estudiante_id: string | null;
+          etiqueta: string | null;
+          fecha: string | null;
+          id: string | null;
+          inscripcion_id: string | null;
+          numero: number | null;
+          operacion_id: string | null;
+          registrado_en: string | null;
+          sede_id: string | null;
+          sede_nombre: string | null;
+          variante_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'entregas_inscripcion_id_fkey';
+            columns: ['inscripcion_id'];
+            isOneToOne: false;
+            referencedRelation: 'inscripciones';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entregas_inscripcion_id_fkey';
+            columns: ['inscripcion_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sin_uniforme';
+            referencedColumns: ['inscripcion_id'];
+          },
+          {
+            foreignKeyName: 'entregas_operacion_id_fkey';
+            columns: ['operacion_id'];
+            isOneToOne: false;
+            referencedRelation: 'operaciones';
+            referencedColumns: ['clave'];
+          },
+          {
+            foreignKeyName: 'entregas_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'sedes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'entregas_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias';
+            referencedColumns: ['sede_id'];
+          },
+          {
+            foreignKeyName: 'entregas_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias_valorizadas';
+            referencedColumns: ['sede_id'];
+          },
+          {
+            foreignKeyName: 'entregas_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'entregas_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias_valorizadas';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'entregas_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'variantes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'inscripciones_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiantes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'inscripciones_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_alumnos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'inscripciones_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_saldos_de_alumno';
+            referencedColumns: ['estudiante_id'];
           },
         ];
       };
@@ -2761,6 +2933,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'movimientos_entrega_id_fkey';
+            columns: ['entrega_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_entregas';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'movimientos_lote_fkey';
             columns: ['lote_id'];
             isOneToOne: false;
@@ -2786,6 +2965,13 @@ export type Database = {
             columns: ['prestamo_id'];
             isOneToOne: false;
             referencedRelation: 'prestamos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'movimientos_prestamo_id_fkey';
+            columns: ['prestamo_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_prestamos_abiertos';
             referencedColumns: ['id'];
           },
           {
@@ -2927,6 +3113,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'movimientos_entrega_id_fkey';
+            columns: ['entrega_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_entregas';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'movimientos_lote_fkey';
             columns: ['lote_id'];
             isOneToOne: false;
@@ -2952,6 +3145,13 @@ export type Database = {
             columns: ['prestamo_id'];
             isOneToOne: false;
             referencedRelation: 'prestamos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'movimientos_prestamo_id_fkey';
+            columns: ['prestamo_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_prestamos_abiertos';
             referencedColumns: ['id'];
           },
           {
@@ -3061,6 +3261,123 @@ export type Database = {
           },
         ];
       };
+      v_prestamos_abiertos: {
+        Row: {
+          articulo_codigo: string | null;
+          articulo_id: string | null;
+          articulo_nombre: string | null;
+          atrasado: boolean | null;
+          cantidad: number | null;
+          cohorte_id: string | null;
+          destinatario: string | null;
+          devolver_el: string | null;
+          devuelta: number | null;
+          dias_de_atraso: number | null;
+          estudiante_apellidos: string | null;
+          estudiante_codigo: string | null;
+          estudiante_id: string | null;
+          estudiante_nombres: string | null;
+          estudiante_telefono: string | null;
+          fecha: string | null;
+          grupo_nombre: string | null;
+          icono: string | null;
+          id: string | null;
+          numero: number | null;
+          operacion_id: string | null;
+          pendiente: number | null;
+          perdida: number | null;
+          persona: string | null;
+          sede_id: string | null;
+          sede_nombre: string | null;
+          variante_id: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'prestamos_cohorte_id_fkey';
+            columns: ['cohorte_id'];
+            isOneToOne: false;
+            referencedRelation: 'cohortes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prestamos_cohorte_id_fkey';
+            columns: ['cohorte_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_grupos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prestamos_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiantes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prestamos_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_alumnos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prestamos_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_saldos_de_alumno';
+            referencedColumns: ['estudiante_id'];
+          },
+          {
+            foreignKeyName: 'prestamos_operacion_id_fkey';
+            columns: ['operacion_id'];
+            isOneToOne: false;
+            referencedRelation: 'operaciones';
+            referencedColumns: ['clave'];
+          },
+          {
+            foreignKeyName: 'prestamos_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'sedes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'prestamos_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias';
+            referencedColumns: ['sede_id'];
+          },
+          {
+            foreignKeyName: 'prestamos_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias_valorizadas';
+            referencedColumns: ['sede_id'];
+          },
+          {
+            foreignKeyName: 'prestamos_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'prestamos_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias_valorizadas';
+            referencedColumns: ['variante_id'];
+          },
+          {
+            foreignKeyName: 'prestamos_variante_id_fkey';
+            columns: ['variante_id'];
+            isOneToOne: false;
+            referencedRelation: 'variantes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       v_saldos_de_alumno: {
         Row: {
           apellidos: string | null;
@@ -3159,6 +3476,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'cargos_inscripcion_id_fkey';
+            columns: ['inscripcion_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_sin_uniforme';
+            referencedColumns: ['inscripcion_id'];
+          },
+          {
             foreignKeyName: 'cargos_sede_id_fkey';
             columns: ['sede_id'];
             isOneToOne: false;
@@ -3178,6 +3502,64 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: 'v_existencias_valorizadas';
             referencedColumns: ['sede_id'];
+          },
+        ];
+      };
+      v_sin_uniforme: {
+        Row: {
+          apellidos: string | null;
+          codigo: string | null;
+          estudiante_id: string | null;
+          grupo_nombre: string | null;
+          inscripcion_id: string | null;
+          inscrito_el: string | null;
+          nombres: string | null;
+          sede_id: string | null;
+          sede_nombre: string | null;
+          telefono: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'cohortes_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'sedes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cohortes_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias';
+            referencedColumns: ['sede_id'];
+          },
+          {
+            foreignKeyName: 'cohortes_sede_id_fkey';
+            columns: ['sede_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_existencias_valorizadas';
+            referencedColumns: ['sede_id'];
+          },
+          {
+            foreignKeyName: 'inscripciones_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'estudiantes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'inscripciones_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_alumnos';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'inscripciones_estudiante_id_fkey';
+            columns: ['estudiante_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_saldos_de_alumno';
+            referencedColumns: ['estudiante_id'];
           },
         ];
       };
@@ -3258,6 +3640,29 @@ export type Database = {
         };
         Returns: Json;
       };
+      devolver_uniforme: {
+        Args: {
+          p_cambiar_por: string;
+          p_cantidad: string;
+          p_clave: string;
+          p_entrega: string;
+          p_motivo: string;
+        };
+        Returns: Json;
+      };
+      entregar_uniforme: {
+        Args: {
+          p_cargar: boolean;
+          p_clave: string;
+          p_cobro: Json;
+          p_contexto: Database['public']['Enums']['contexto_de_entrega'];
+          p_detalle: string;
+          p_inscripcion: string;
+          p_lineas: Json;
+          p_sede: string;
+        };
+        Returns: Json;
+      };
       generar_cuotas_de_grupo: {
         Args: { p_clave: string; p_cohorte: string };
         Returns: Json;
@@ -3281,6 +3686,22 @@ export type Database = {
         Returns: Json;
       };
       mi_contexto: { Args: never; Returns: Json };
+      prestar_utensilios: {
+        Args: {
+          p_clave: string;
+          p_cohorte: string;
+          p_devolver_el: string;
+          p_estudiante: string;
+          p_lineas: Json;
+          p_persona: string;
+          p_sede: string;
+        };
+        Returns: Json;
+      };
+      recibir_devolucion: {
+        Args: { p_clave: string; p_lineas: Json };
+        Returns: Json;
+      };
       registrar_cobro: {
         Args: {
           p_aplicaciones: Json;

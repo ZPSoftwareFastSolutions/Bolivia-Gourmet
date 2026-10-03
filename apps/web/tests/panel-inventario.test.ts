@@ -19,6 +19,10 @@ import {
   registrarConteo,
   registrarSaldoInicial,
   usarInsumos,
+  devolverUniforme,
+  entregarUniforme,
+  prestarUtensilios,
+  recibirDevolucion,
 } from '../src/core/application/panel/inventario/inventario.usecase.ts';
 import type { InventarioPort } from '../src/core/application/ports/inventario.port.ts';
 import { cantidadParaLaBase, milesimasDe } from '../src/infrastructure/supabase/cantidades.ts';
@@ -53,6 +57,13 @@ function puertoFalso() {
     darDeBaja: (_c, d) => ok('darDeBaja', undefined, d),
     registrarConteo: (_c, _s, l) => ok('registrarConteo', { diferencias: 1 }, l),
     anular: (_c, t, i, mo) => ok('anular', undefined, { t, i, mo }),
+    entregas: () => ok('entregas', []),
+    prestamosAbiertos: () => ok('prestamosAbiertos', []),
+    sinUniforme: () => ok('sinUniforme', []),
+    entregarUniforme: (_c, d) => ok('entregarUniforme', { codigo: 'BG-2026-0001', cargado: 65000 as Centavos, pagoId: null, recibo: null }, d),
+    devolverUniforme: (_c, d) => ok('devolverUniforme', undefined, d),
+    prestarUtensilios: (_c, d) => ok('prestarUtensilios', undefined, d),
+    recibirDevolucion: (_c, l) => ok('recibirDevolucion', { perdidos: 0 }, l),
   };
   return { puerto, llamadas, datos };
 }
@@ -184,4 +195,52 @@ test('saldo inicial y anulación revisan lo mínimo antes de llamar', async () =
   const anulado = await anularDocumento(puerto, 'c', 'uso', 'op' as Id, 'Grupo equivocado');
   assert.ok(anulado.exito);
   assert.deepEqual(llamadas, ['anular']);
+});
+
+test('entregar uniforme: cobrar exige cargar; QR pide número de operación; piezas enteras', async () => {
+  const { puerto, llamadas, datos } = puertoFalso();
+  const base = { inscripcionId: 'i' as Id, sedeId: SEDE, contexto: 'inscripcion' as const, lineas: [{ varianteId: 'm' as Id, cantidad: 1 }] };
+  const sinCargo = await entregarUniforme(puerto, 'c', { ...base, cargar: false, cobro: { medio: 'efectivo' } });
+  assert.ok(!sinCargo.exito);
+  const qr = await entregarUniforme(puerto, 'c', { ...base, cargar: true, cobro: { medio: 'qr' } });
+  assert.ok(!qr.exito);
+  const media = await entregarUniforme(puerto, 'c', { ...base, lineas: [{ varianteId: 'm' as Id, cantidad: 1.5 }], cargar: false });
+  assert.ok(!media.exito);
+  const efectivo = await entregarUniforme(puerto, 'c', { ...base, cargar: true, cobro: { medio: 'efectivo', referencia: 'X-1' } });
+  assert.ok(efectivo.exito);
+  assert.equal((datos[0] as { cobro?: { referencia?: string } }).cobro?.referencia, undefined, 'en efectivo no hay número de operación');
+  assert.deepEqual(llamadas, ['entregarUniforme']);
+});
+
+test('devolver o cambiar la talla pide el motivo', async () => {
+  const { puerto, llamadas } = puertoFalso();
+  const sinMotivo = await devolverUniforme(puerto, 'c', { entregaId: 'e' as Id, cantidad: 1, motivo: ' ', cambiarPor: 's' as Id });
+  assert.ok(!sinMotivo.exito);
+  assert.match(sinMotivo.error.join(' '), /cambia de talla/);
+  const bien = await devolverUniforme(puerto, 'c', { entregaId: 'e' as Id, cantidad: 1, motivo: 'Le queda grande', cambiarPor: 's' as Id });
+  assert.ok(bien.exito);
+  assert.deepEqual(llamadas, ['devolverUniforme']);
+});
+
+test('prestar: exactamente un destinatario; recibir: lo que falta pide qué pasó', async () => {
+  const { puerto, llamadas } = puertoFalso();
+  const lineas = [{ varianteId: 'cuchillo' as Id, cantidad: 2 }];
+  const dos = await prestarUtensilios(puerto, 'c', { sedeId: SEDE, estudianteId: 'a' as Id, persona: 'Chef', lineas });
+  assert.ok(!dos.exito);
+  const ninguno = await prestarUtensilios(puerto, 'c', { sedeId: SEDE, persona: '   ', lineas });
+  assert.ok(!ninguno.exito);
+  const bien = await prestarUtensilios(puerto, 'c', { sedeId: SEDE, persona: ' Chef  Invitado ', lineas });
+  assert.ok(bien.exito);
+
+  const vacio = await recibirDevolucion(puerto, 'c', [{ prestamoId: 'p' as Id, nombre: 'Cuchillos', devueltos: 0, perdidos: 0 }]);
+  assert.ok(!vacio.exito);
+  const sinMotivo = await recibirDevolucion(puerto, 'c', [{ prestamoId: 'p' as Id, nombre: 'Cuchillos', devueltos: 1, perdidos: 1 }]);
+  assert.ok(!sinMotivo.exito);
+  assert.deepEqual(sinMotivo.error, ['Cuchillos: escribe qué pasó con lo que falta.']);
+  const recibido = await recibirDevolucion(puerto, 'c', [
+    { prestamoId: 'p' as Id, nombre: 'Cuchillos', devueltos: 1, perdidos: 1, motivo: 'No apareció' },
+    { prestamoId: 'q' as Id, nombre: 'Bols', devueltos: 0, perdidos: 0 },
+  ]);
+  assert.ok(recibido.exito);
+  assert.deepEqual(llamadas, ['prestarUtensilios', 'recibirDevolucion']);
 });

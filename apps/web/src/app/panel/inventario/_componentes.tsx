@@ -50,6 +50,7 @@ export function PestanasDeInventario({ activa }: { readonly activa: TipoDeArticu
       activa={activa === 'historial' ? RUTAS_INVENTARIO.historial : activa === 'prestamos' ? RUTAS_INVENTARIO.prestamos : href(activa)}
       pestanas={[
         ...TIPOS_EN_ORDEN.map((t) => ({ href: href(t), etiqueta: PLURAL_DE_TIPO[t], icono: ICONO_DE_TIPO[t] })),
+        { href: RUTAS_INVENTARIO.prestamos, etiqueta: 'Préstamos', icono: 'reloj' as const },
         { href: RUTAS_INVENTARIO.historial, etiqueta: 'Historial', icono: 'libro' as const },
       ]}
     />
