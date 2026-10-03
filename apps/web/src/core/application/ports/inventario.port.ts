@@ -132,6 +132,8 @@ export interface FiltroDeKardex {
   readonly compraId?: Id;
   readonly movimientoId?: Id;
   readonly limite?: number;
+  /** Saltar las primeras N filas (para leer por páginas: la API corta en 1000). */
+  readonly desde?: number;
   readonly conValor?: boolean;
 }
 

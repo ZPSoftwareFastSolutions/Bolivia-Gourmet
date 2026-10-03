@@ -1,6 +1,6 @@
 /**
  * GENERADO con `generate_typescript_types` (conector de Supabase) sobre el
- * proyecto `bnobhnmurzsnffdrxeck` el 2026-10-02, tras la migración 0014 (panel_uniformes_prestamos).
+ * proyecto `bnobhnmurzsnffdrxeck` el 2026-10-02, tras la migración 0016 (panel_tablero).
  * No editar a mano: regenerar tras cada migración que cambie el esquema.
  * Se conserva solo el tipo `Database` que consume el cliente. El generador
  * marca todos los parámetros de las RPC como obligatorios aunque admitan null:
@@ -3754,6 +3754,11 @@ export type Database = {
         Args: { p_clave: string; p_lineas: Json; p_sede: string };
         Returns: Json;
       };
+      resumen_del_mes: {
+        Args: { p_mes: string; p_sede: string };
+        Returns: Json;
+      };
+      tablero_de_administracion: { Args: { p_sede: string }; Returns: Json };
       usar_insumos: {
         Args: {
           p_clave: string;
@@ -3765,6 +3770,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      verificar_cuadre: { Args: { p_sede: string }; Returns: Json };
     };
     Enums: {
       clase_de_conteo: 'conteo' | 'saldo_inicial';

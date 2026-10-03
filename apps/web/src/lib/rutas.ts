@@ -90,6 +90,20 @@ export function rutaDeArticulo(codigo: string): string {
   return `${RUTAS_INVENTARIO.inicio}/${encodeURIComponent(codigo)}`;
 }
 
+/** Contabilidad del panel (administración): resumen del mes, gastos, compras, inventario valorizado. */
+export const RUTAS_CONTABILIDAD = {
+  resumen: '/panel/contabilidad',
+  gastos: '/panel/contabilidad/gastos',
+  gastoNuevo: '/panel/contabilidad/gastos/nuevo',
+  compras: '/panel/contabilidad/compras',
+  inventario: '/panel/contabilidad/inventario',
+  tarjeta: '/panel/contabilidad/tarjeta',
+} as const;
+
+export function rutaDeCompra(id: string): string {
+  return `${RUTAS_CONTABILIDAD.compras}/${encodeURIComponent(id)}`;
+}
+
 /** La carrera tiene página propia; los cursos cuelgan de /cursos. */
 export function rutaDePrograma(codigo: string): string {
   return codigo === 'gastronomia' ? RUTAS.carrera : `${RUTAS.cursos}/${codigo}`;

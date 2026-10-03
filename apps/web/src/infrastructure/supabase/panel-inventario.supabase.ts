@@ -233,7 +233,9 @@ export class PanelInventarioSupabase implements InventarioPort {
   async kardex(filtro: FiltroDeKardex): Promise<Resultado<readonly MovimientoEnKardex[]>> {
     const vista = filtro.conValor ? 'v_kardex_valorizado' : 'v_kardex';
     const columnas = filtro.conValor ? `${COLUMNAS_DE_KARDEX}, delta_valor, valor_resultante` : COLUMNAS_DE_KARDEX;
-    let consulta = this.cliente.from(vista).select(columnas).order('numero', { ascending: false }).limit(filtro.limite ?? LIMITE_DE_KARDEX);
+    const limite = filtro.limite ?? LIMITE_DE_KARDEX;
+    let consulta = this.cliente.from(vista).select(columnas).order('numero', { ascending: false });
+    consulta = filtro.desde !== undefined ? consulta.range(filtro.desde, filtro.desde + limite - 1) : consulta.limit(limite);
     if (filtro.articuloId) consulta = consulta.eq('articulo_id', filtro.articuloId);
     if (filtro.sedeId) consulta = consulta.eq('sede_id', filtro.sedeId);
     if (filtro.operacionId) consulta = consulta.eq('operacion_id', filtro.operacionId);

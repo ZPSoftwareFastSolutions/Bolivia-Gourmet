@@ -19,6 +19,7 @@ import type { AlumnosPort } from '@core/application/ports/alumnos.port';
 import type { AutenticacionPort } from '@core/application/ports/autenticacion.port';
 import type { CajaPort } from '@core/application/ports/caja.port';
 import type { CatalogoAcademicoPort } from '@core/application/ports/catalogo-academico.port';
+import type { ContabilidadPort } from '@core/application/ports/contabilidad.port';
 import type { InventarioPort } from '@core/application/ports/inventario.port';
 import type { PanelPort } from '@core/application/ports/panel.port';
 import type { PortalRepositoryPort } from '@core/application/ports/portal-repository.port';
@@ -76,6 +77,15 @@ export async function inventarioRepository(): Promise<InventarioPort> {
     import('../supabase/panel-inventario.supabase'),
   ]);
   return new PanelInventarioSupabase(await crearClienteDeServidor());
+}
+
+/** Contabilidad del panel (solo lectura: totales, cuadre, gastos, compras, tarjeta PEPS), con la sesión de ESTA petición. */
+export async function contabilidadRepository(): Promise<ContabilidadPort> {
+  const [{ crearClienteDeServidor }, { PanelContabilidadSupabase }] = await Promise.all([
+    import('../supabase/cliente-servidor'),
+    import('../supabase/panel-contabilidad.supabase'),
+  ]);
+  return new PanelContabilidadSupabase(await crearClienteDeServidor());
 }
 
 /** Contexto del panel interno (quién, qué permisos, qué sedes) de ESTA petición. */

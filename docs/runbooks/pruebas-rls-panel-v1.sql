@@ -504,6 +504,7 @@ begin
     v_numero_2 integer;
     v_clave_cobro uuid := gen_random_uuid();
     v_caja jsonb;
+    v_caja0 jsonb;
     v_n integer;
     v_texto text;
     v_concepto_luz uuid;
@@ -560,6 +561,9 @@ begin
       if sqlerrm <> 'aplicacion_excede_saldo' then raise exception 'FALLO N32: %', sqlerrm; end if;
       v_ok := v_ok + 1;
     end;
+
+    -- Lo que ya había por arquear (datos de demostración): N38 mide la diferencia.
+    v_caja0 := public.caja_por_cerrar(v_la_paz);
 
     -- N33 · sin cargos indicados, del más antiguo al más nuevo; recibo LP-AAAA-NNNNNN
     v_res := public.registrar_cobro(v_clave_cobro, v_la_paz, v_x, 'efectivo', null, null, 40000, null, null);
@@ -628,8 +632,9 @@ begin
 
     -- N38 · lo que hay por arquear es la misma cuenta que hace el cierre
     v_caja := public.caja_por_cerrar(v_la_paz);
-    if (v_caja ->> 'entradas_efectivo')::bigint <> 45000 or (v_caja ->> 'cobros_qr')::bigint <> 20000
-       or (v_caja ->> 'esperado')::bigint <> (v_caja ->> 'saldo_inicial')::bigint + 45000 then
+    if (v_caja ->> 'entradas_efectivo')::bigint - (v_caja0 ->> 'entradas_efectivo')::bigint <> 45000
+       or (v_caja ->> 'cobros_qr')::bigint - (v_caja0 ->> 'cobros_qr')::bigint <> 20000
+       or (v_caja ->> 'esperado')::bigint - (v_caja0 ->> 'esperado')::bigint <> 45000 then
       raise exception 'FALLO N38: %', v_caja;
     end if;
     v_ok := v_ok + 1;
@@ -1315,6 +1320,242 @@ begin
     select count(*) into v_n from public.existencias e join public.existencias_costo c using (variante_id, sede_id) where e.total = 0 and c.valor <> 0;
     if v_n <> 0 then raise exception 'FALLO N72b: % saldos en cero con valor', v_n; end if;
     v_ok := v_ok + 1;
+  end;
+
+  -- ============================================================ R6 · contabilidad (seguimiento de §5.7, por diferencias)
+  declare
+    v_r0 jsonb;
+    v_r1 jsonb;
+    v_r2 jsonb;
+    v_caja jsonb;
+    v_harina uuid;
+    v_juego uuid;
+    v_tabla uuid;
+    v_g uuid;
+    v_ins uuid;
+    v_pago uuid;
+    v_gasto uuid;
+    v_luz uuid;
+    v_n integer;
+    v_texto text;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    select id into v_luz from public.conceptos where codigo = 'servicios-basicos';
+    v_r0 := public.resumen_del_mes(app.hoy(), v_la_paz);
+
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Harina R6","tipo":"insumo","unidad":"kg"}'::jsonb, null);
+    select id into v_harina from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Juego R6","tipo":"uniforme","precio_venta":"65000"}'::jsonb, array['M']);
+    select id into v_juego from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Tabla R6","tipo":"utensilio"}'::jsonb, null);
+    select id into v_tabla from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+
+    -- Compra de harina al contado; juego y tabla por transferencia.
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'efectivo', null,
+      jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '50', 'costo_total', '35000')));
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R6-1', jsonb_build_array(
+      jsonb_build_object('variante', v_juego, 'cantidad', '1', 'costo_total', '32000'),
+      jsonb_build_object('variante', v_tabla, 'cantidad', '1', 'costo_total', '4500')));
+    -- Uso de 30 kg (30/50 de 35000 = 21000).
+    perform public.usar_insumos(gen_random_uuid(), v_la_paz, 'practica', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '30')));
+    -- Cuota de un plan de 1 cuota que vence hoy.
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 1, app.hoy(), 'en_curso') returning id into v_g;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento) values (v_g, 65000, 1, app.hoy());
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Ceci","apellidos":"Contable Uno"}'::jsonb, v_g, null, null, null, null, null);
+    v_ins := (v_res ->> 'inscripcion')::uuid;
+    -- Entrega del juego con cargo (costo 32000) y cobro en efectivo.
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado)
+    values ('gastronomia', v_la_paz, extract(year from app.hoy())::smallint, 1, 'manana', 'lun-vie', 3, app.hoy(), 'en_curso') returning id into v_g;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Dino","apellidos":"Contable Dos"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_res := public.entregar_uniforme(gen_random_uuid(), (v_res ->> 'inscripcion')::uuid, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_juego)), true, '{"medio":"efectivo"}'::jsonb);
+    v_pago := (v_res ->> 'pago')::uuid;
+    -- Luz en efectivo y baja de la tabla rota.
+    v_res := public.registrar_gasto(gen_random_uuid(), v_la_paz, null, v_luz, 'Luz R6', 18000, 'efectivo', null, 'sin_comprobante', null, null);
+    select id into v_gasto from public.gastos where descripcion = 'Luz R6';
+    perform public.dar_de_baja(gen_random_uuid(), v_la_paz, v_tabla, '1', 'rotura', 'Se partió en la clase', null);
+    -- Arqueo con un faltante de Bs 5.
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    perform public.cerrar_caja(gen_random_uuid(), v_la_paz, (v_caja ->> 'esperado')::bigint - 500, 0, 'Faltó cambio R6',
+      case when (v_caja ->> 'primer_arqueo')::boolean then 0 end);
+
+    v_r1 := public.resumen_del_mes(app.hoy(), v_la_paz);
+
+    -- N73 · ingresos, costo de lo usado, gastos y diferencias de caja del mes
+    if (v_r1 -> 'ingresos' ->> 'total')::bigint - (v_r0 -> 'ingresos' ->> 'total')::bigint <> 130000 then
+      raise exception 'FALLO N73a: ingresos %', (v_r1 -> 'ingresos' ->> 'total')::bigint - (v_r0 -> 'ingresos' ->> 'total')::bigint;
+    end if;
+    if (v_r1 -> 'costo' ->> 'total')::bigint - (v_r0 -> 'costo' ->> 'total')::bigint <> 57500 then
+      raise exception 'FALLO N73b: costo %', (v_r1 -> 'costo' ->> 'total')::bigint - (v_r0 -> 'costo' ->> 'total')::bigint;
+    end if;
+    if (v_r1 -> 'gastos' ->> 'total')::bigint - (v_r0 -> 'gastos' ->> 'total')::bigint <> 18000 then
+      raise exception 'FALLO N73c: gastos';
+    end if;
+    if (v_r1 -> 'arqueos' ->> -1)::bigint <> -500 or jsonb_array_length(v_r1 -> 'arqueos') <> jsonb_array_length(v_r0 -> 'arqueos') + 1 then
+      raise exception 'FALLO N73d: arqueos %', v_r1 -> 'arqueos';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N74 · dinero del mes por medio: la compra es dinero, nunca gasto
+    if coalesce((v_r1 -> 'dinero' -> 'efectivo' ->> 'compras')::bigint, 0) - coalesce((v_r0 -> 'dinero' -> 'efectivo' ->> 'compras')::bigint, 0) <> 35000
+       or coalesce((v_r1 -> 'dinero' -> 'efectivo' ->> 'gastos')::bigint, 0) - coalesce((v_r0 -> 'dinero' -> 'efectivo' ->> 'gastos')::bigint, 0) <> 18000
+       or coalesce((v_r1 -> 'dinero' -> 'efectivo' ->> 'cobros')::bigint, 0) - coalesce((v_r0 -> 'dinero' -> 'efectivo' ->> 'cobros')::bigint, 0) <> 65000
+       or coalesce((v_r1 -> 'dinero' -> 'transferencia' ->> 'compras')::bigint, 0) - coalesce((v_r0 -> 'dinero' -> 'transferencia' ->> 'compras')::bigint, 0) <> 36500 then
+      raise exception 'FALLO N74: dinero %', v_r1 -> 'dinero';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N75 · cuadre del inventario del mes y valor de hoy
+    if (v_r1 -> 'inventario' ->> 'valor_inicial')::bigint + (v_r1 -> 'costo' ->> 'compras')::bigint - (v_r1 -> 'costo' ->> 'compras_anuladas')::bigint
+       + (v_r1 -> 'costo' ->> 'saldos_iniciales')::bigint - (v_r1 -> 'costo' ->> 'saldos_iniciales_anulados')::bigint - (v_r1 -> 'costo' ->> 'total')::bigint
+       <> (v_r1 -> 'inventario' ->> 'valor_final')::bigint then
+      raise exception 'FALLO N75a: el inventario del mes no cuadra %', v_r1;
+    end if;
+    if (v_r1 -> 'hoy' ->> 'valor_inventario')::bigint - (v_r0 -> 'hoy' ->> 'valor_inventario')::bigint <> 71500 - 57500 then
+      raise exception 'FALLO N75b: valor del inventario';
+    end if;
+    if (v_r1 -> 'hoy' ->> 'deben')::bigint - (v_r0 -> 'hoy' ->> 'deben')::bigint <> 65000 then
+      raise exception 'FALLO N75c: lo que deben';
+    end if;
+    v_res := public.verificar_cuadre(v_la_paz);
+    if not (v_res ->> 'cuadra')::boolean then raise exception 'FALLO N75d: verificar_cuadre %', v_res; end if;
+    v_ok := v_ok + 1;
+
+    -- N76 · anulaciones en el mes: restan el dinero o el gasto, el ingreso del uniforme no cambia
+    perform public.anular(gen_random_uuid(), 'cobro', v_pago, 'Se devolvió el dinero');
+    perform public.anular(gen_random_uuid(), 'gasto', v_gasto, 'Era de la otra sede');
+    v_r2 := public.resumen_del_mes(app.hoy(), v_la_paz);
+    if (v_r2 -> 'dinero' -> 'efectivo' ->> 'cobros_anulados')::bigint - coalesce((v_r1 -> 'dinero' -> 'efectivo' ->> 'cobros_anulados')::bigint, 0) <> 65000
+       or (v_r2 -> 'gastos' ->> 'anulados')::bigint - (v_r1 -> 'gastos' ->> 'anulados')::bigint <> 18000
+       or (v_r2 -> 'ingresos' ->> 'total')::bigint <> (v_r1 -> 'ingresos' ->> 'total')::bigint
+       or (v_r2 -> 'hoy' ->> 'deben')::bigint - (v_r1 -> 'hoy' ->> 'deben')::bigint <> 65000 then
+      raise exception 'FALLO N76: %', v_r2;
+    end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N77 · recepción y el estudiante no ven la contabilidad
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.resumen_del_mes(app.hoy(), v_la_paz);
+      raise exception 'FALLO N77a: recepción vio el resumen';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.verificar_cuadre(null);
+      raise exception 'FALLO N77b: recepción verificó el cuadre';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+    execute 'set local role anon';
+    begin
+      perform public.resumen_del_mes(null, null);
+      raise exception 'FALLO N77c: anon vio el resumen';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+
+    -- N78 · el cuadre de todas las sedes sigue en pie
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.verificar_cuadre(null);
+    if not (v_res ->> 'cuadra')::boolean then raise exception 'FALLO N78: %', v_res; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+  end;
+
+  -- ============================================================ R7 · tablero de administración (por diferencias)
+  declare
+    v_t0 jsonb;
+    v_t1 jsonb;
+    v_t2 jsonb;
+    v_tabla uuid;
+    v_baja uuid;
+    v_g uuid;
+    v_hoy date := app.hoy();
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_t0 := public.tablero_de_administracion(v_la_paz);
+    execute 'reset role';
+
+    -- Una venta en efectivo de hace dos días que nadie arqueó (fecha simulada).
+    perform set_config('app.mantenimiento', 'si', true);
+    perform set_config('app.hoy_simulada', (v_hoy - 2)::text, true);
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'efectivo', null, null, null,
+      '{"concepto":"otro-ingreso","descripcion":"Recetario R7 atrasado","monto":3000,"cliente":"Cliente R7"}'::jsonb, null);
+    execute 'reset role';
+    perform set_config('app.hoy_simulada', '', true);
+    perform set_config('app.mantenimiento', 'no', true);
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    -- Hoy: una venta en efectivo, una compra por transferencia que se da de baja y un grupo con inscritos sin precio.
+    perform public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'efectivo', null, null, null,
+      '{"concepto":"otro-ingreso","descripcion":"Recetario R7","monto":10000,"cliente":"Cliente R7"}'::jsonb, null);
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Tabla R7","tipo":"utensilio"}'::jsonb, null);
+    select id into v_tabla from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R7-1',
+      jsonb_build_array(jsonb_build_object('variante', v_tabla, 'cantidad', '1', 'costo_total', '4500')));
+    v_res := public.dar_de_baja(gen_random_uuid(), v_la_paz, v_tabla, '1', 'rotura', 'Se partió', null);
+    v_baja := (v_res ->> 'movimiento')::uuid;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('tortas', v_la_paz, extract(year from v_hoy)::smallint, 'sab', 1, v_hoy, 'abierto') returning id into v_g;
+    perform public.inscribir(gen_random_uuid(), null, '{"nombres":"Tito","apellidos":"Tablero Uno"}'::jsonb, v_g, null, null, null, null, null);
+    v_t1 := public.tablero_de_administracion(v_la_paz);
+
+    -- N79 · el efectivo de días anteriores sin arqueo aparece, con su fecha
+    if (v_t1 -> 'efectivo_sin_arqueo' ->> 'registros')::int <> (v_t0 -> 'efectivo_sin_arqueo' ->> 'registros')::int + 1
+       or (v_t1 -> 'efectivo_sin_arqueo' ->> 'desde')::date > v_hoy - 2 then
+      raise exception 'FALLO N79: %', v_t1 -> 'efectivo_sin_arqueo';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N80 · bajas de los últimos 7 días; una baja anulada deja de contar
+    if (v_t1 -> 'bajas_7_dias' ->> 'cantidad')::int <> (v_t0 -> 'bajas_7_dias' ->> 'cantidad')::int + 1
+       or (v_t1 -> 'bajas_7_dias' ->> 'monto')::bigint <> (v_t0 -> 'bajas_7_dias' ->> 'monto')::bigint + 4500 then
+      raise exception 'FALLO N80a: %', v_t1 -> 'bajas_7_dias';
+    end if;
+    perform public.anular(gen_random_uuid(), 'baja', v_baja, 'Se registró por error');
+    v_t2 := public.tablero_de_administracion(v_la_paz);
+    if (v_t2 -> 'bajas_7_dias' ->> 'cantidad')::int <> (v_t0 -> 'bajas_7_dias' ->> 'cantidad')::int then
+      raise exception 'FALLO N80b: la baja anulada sigue contando';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N81 · dinero del mes y de esta semana (la venta de hoy entra; la compra sale)
+    if (v_t1 -> 'comparacion' ->> 'entro_mes')::bigint - (v_t0 -> 'comparacion' ->> 'entro_mes')::bigint
+         <> 10000 + (case when date_trunc('month', v_hoy - 2) = date_trunc('month', v_hoy) then 3000 else 0 end)
+       or (v_t1 -> 'comparacion' ->> 'salio_mes')::bigint - (v_t0 -> 'comparacion' ->> 'salio_mes')::bigint <> 4500
+       or (v_t1 -> 'semanas' -> 7 ->> 'entro')::bigint - (v_t0 -> 'semanas' -> 7 ->> 'entro')::bigint
+         < 10000
+       or jsonb_array_length(v_t1 -> 'semanas') <> 8 then
+      raise exception 'FALLO N81: %', v_t1 -> 'comparacion';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N82 · un grupo con inscritos y sin precio
+    if (v_t1 -> 'sin_precio' ->> 'grupos')::int <> (v_t0 -> 'sin_precio' ->> 'grupos')::int + 1 then
+      raise exception 'FALLO N82: %', v_t1 -> 'sin_precio';
+    end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N83 · recepción no ve el tablero de administración
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.tablero_de_administracion(v_la_paz);
+      raise exception 'FALLO N83: recepción vio el tablero de administración';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
   end;
 
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
