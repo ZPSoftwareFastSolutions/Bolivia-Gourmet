@@ -31,8 +31,11 @@ herramienta `apply_migration` del conector o pegándolos en el editor SQL.
 | `20261002180100_panel_tablero_sedes.sql` | Revisión de R7: el tablero devuelve la sede del efectivo sin arqueo más antiguo y la del arqueo con diferencia más reciente (y en cuántas sedes hay), para que con «Ambas» el aviso lleve a la caja correcta; `resumen_de_deudores(p_sede)` cuenta en la base cuántos alumnos deben, cuánto, y lo vencido (exige `caja.leer`), en lugar de sumar una lista de 100 filas |
 | `20261002190000_panel_anular_lo_deshecho.sql` | Revisión (R9): `app.anular` deja anular una compra de costo promedio o un saldo inicial cuando lo que vino después ya se anuló (enmiendas A.2: «anula los usos y después la compra»), y anular dos veces un saldo inicial responde `ya_anulado` |
 
-Estado tras aplicarlas: 5 tablas, 5 con RLS, 11 políticas, 0 avisos de
-seguridad en `get_advisors`.
+Estado tras aplicarlas (2026-10-03): 29 tablas, 29 con RLS, 44 políticas,
+12 vistas `security_invoker`. `get_advisors(security)`: un aviso
+informativo esperado (`operaciones` tiene RLS sin políticas a propósito: solo
+la tocan funciones DEFINER) y uno de configuración de Auth (protección de
+contraseñas filtradas, se activa en el panel de Supabase).
 
 ## Reglas para cada migración (ADR 0002 y 0005, `CLAUDE.md` §4)
 
@@ -64,7 +67,21 @@ seguridad en `get_advisors`.
 - `datos-demo.sql`: cinco cuentas ficticias `@boliviagourmet.test` (administración,
   recepción y tres estudiantes) con su historial. Plantilla sin contraseña; la
   copia lista para pegar es `datos-demo.local.sql`, ignorada por git.
-- `borrar-datos-demo.sql`: las borra con todo lo suyo. Obligatorio antes de producción.
+- `datos-panel-demo.sql`: datos ficticios del panel interno (8 semanas hasta el
+  día de la carga) para que cada pantalla y cada aviso del tablero tengan qué
+  mostrar: catálogo y saldo inicial en las dos sedes, grupos (la carrera con
+  plan de Bs 650; Cocina y Tortas sin plan), 14 alumnos con cobros, deudas,
+  uniformes y un cambio de talla, compras (una anulada), usos, préstamos (uno
+  atrasado), bajas, un conteo, gastos y arqueos, y hoy caja por cerrar en La
+  Paz y efectivo sin arquear en El Alto. Va DESPUÉS de `datos-demo.sql` (usa a
+  Carla y a Rosa) y pasa por las RPC y la RLS reales simulando su sesión, con
+  la fecha simulada en modo mantenimiento. `c_simular := true` lo ensaya y lo
+  revierte («OK · simulación…»); es idempotente (se detiene si existe «Harina
+  de trigo»).
+- `borrar-datos-demo.sql`: borra primero todos los datos del panel (en modo
+  mantenimiento y en orden de claves foráneas) y después las cuentas con todo
+  lo suyo. Se detiene sin borrar nada si el panel tiene registros de cuentas
+  que no son de demostración. Obligatorio antes de producción.
 
 ## Pendientes previstas
 
