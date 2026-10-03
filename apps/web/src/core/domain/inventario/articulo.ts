@@ -114,6 +114,7 @@ export const ICONOS_DE_ARTICULO = [
   'bol',
   'batidor',
   'almacen',
+  'paquete',
 ] as const;
 
 export type IconoDeArticulo = (typeof ICONOS_DE_ARTICULO)[number];

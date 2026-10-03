@@ -775,6 +775,304 @@ begin
     v_ok := v_ok + 1;
   end;
 
+  -- ============================================================ R4 · inventario (mismos números que valuacion.test.ts, §5.8)
+  declare
+    v_harina uuid;
+    v_leche uuid;
+    v_juego_s uuid;
+    v_juego_m uuid;
+    v_cuchillo uuid;
+    v_detergente uuid;
+    v_lote_a uuid;
+    v_lote_b uuid;
+    v_compra uuid;
+    v_compra_d uuid;
+    v_uso uuid;
+    v_mov uuid;
+    v_n integer;
+    v_texto text;
+    v_valores text := '';
+    v_caja jsonb;
+    v_antes_cant numeric;
+    v_antes_valor bigint;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+
+    -- N50 · catálogo: código por tipo, nombre único, una variante en insumos, unidades
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Harina de prueba R4","tipo":"insumo","unidad":"kg","stock_minimo":"5"}'::jsonb, null);
+    if v_res ->> 'codigo' !~ '^INS-[0-9]{4}$' then raise exception 'FALLO N50a: %', v_res; end if;
+    select id into v_harina from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Leche de prueba R4","tipo":"insumo","unidad":"l","controla_vencimiento":"true"}'::jsonb, null);
+    select id into v_leche from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Juego de prueba R4","tipo":"uniforme","precio_venta":"65000"}'::jsonb, array['S', 'M']);
+    if v_res ->> 'codigo' !~ '^UNI-' then raise exception 'FALLO N50b: %', v_res; end if;
+    select id into v_juego_s from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid and etiqueta = 'S';
+    select id into v_juego_m from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid and etiqueta = 'M';
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Cuchillo de prueba R4","tipo":"utensilio"}'::jsonb, null);
+    select id into v_cuchillo from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Detergente de prueba R4","tipo":"otro","unidad":"l"}'::jsonb, null);
+    select id into v_detergente from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    begin
+      perform public.guardar_articulo(gen_random_uuid(), '{"nombre":"harina de PRUEBA r4","tipo":"insumo","unidad":"kg"}'::jsonb, null);
+      raise exception 'FALLO N50c: nombre repetido aceptado';
+    exception when others then
+      if sqlerrm <> 'nombre_repetido' then raise exception 'FALLO N50c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.guardar_articulo(gen_random_uuid(), '{"nombre":"Azúcar R4","tipo":"insumo","unidad":"kg"}'::jsonb, array['Blanca', 'Morena']);
+      raise exception 'FALLO N50d: insumo con dos variantes';
+    exception when others then
+      if sqlerrm <> 'insumo_una_variante' then raise exception 'FALLO N50d: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.guardar_articulo(gen_random_uuid(), '{"nombre":"Mandil R4","tipo":"uniforme","unidad":"kg"}'::jsonb, null);
+      raise exception 'FALLO N50e: uniforme en kg';
+    exception when others then
+      if sqlerrm <> 'unidad_no_admitida' then raise exception 'FALLO N50e: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+
+    -- N51 · PEPS de §5.3: 25 kg por Bs 170 y 25 kg por Bs 180; usos de 30, 0,333 y 19,667 kg
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, 'Molino A', 'factura', '1', 'transferencia', 'TR-R4-1',
+      jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '25', 'costo_total', '17000')));
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, 'Molino B', 'factura', '2', 'transferencia', 'TR-R4-2',
+      jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '25', 'costo_total', '18000')));
+    v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '30')));
+    v_valores := v_valores || (v_res ->> 'valor');
+    v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '0.333')));
+    v_valores := v_valores || '|' || (v_res ->> 'valor');
+    v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '19.667')));
+    v_valores := v_valores || '|' || (v_res ->> 'valor');
+    if v_valores <> '20600|240|14160' then raise exception 'FALLO N51a: salidas %', v_valores; end if;
+    select e.disponible::text || '|' || c.valor into v_texto from public.existencias e join public.existencias_costo c using (variante_id, sede_id)
+     where e.variante_id = v_harina and e.sede_id = v_la_paz;
+    if v_texto <> '0.000|0' then raise exception 'FALLO N51b: queda %', v_texto; end if;
+    v_ok := v_ok + 1;
+
+    -- N52 · fracciones: 3 kg por Bs 10 usados de a 1 kg → 333 + 334 + 333
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R4-3',
+      jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '3', 'costo_total', '1000')));
+    v_valores := '';
+    for v_n in 1 .. 3 loop
+      v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'practica', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '1')));
+      v_valores := v_valores || (v_res ->> 'valor') || ';';
+    end loop;
+    if v_valores <> '333;334;333;' then raise exception 'FALLO N52: %', v_valores; end if;
+    v_ok := v_ok + 1;
+
+    -- N53 · lo vencido no se usa en clase; la baja por vencimiento saca ESE lote
+    perform public.registrar_saldo_inicial(gen_random_uuid(), v_la_paz, jsonb_build_array(
+      jsonb_build_object('variante', v_leche, 'cantidad', '2', 'valor', '2000', 'vence_el', app.hoy() - 1),
+      jsonb_build_object('variante', v_leche, 'cantidad', '1', 'valor', '1100', 'vence_el', app.hoy() + 30)));
+    select id into v_lote_a from public.lotes where variante_id = v_leche and vence_el < app.hoy();
+    select id into v_lote_b from public.lotes where variante_id = v_leche and vence_el > app.hoy();
+    begin
+      perform public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_leche, 'cantidad', '2')));
+      raise exception 'FALLO N53a: usó leche vencida';
+    exception when others then
+      if sqlerrm <> 'stock_insuficiente' then raise exception 'FALLO N53a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_leche, 'cantidad', '1')));
+    select ml.lote_id into v_mov from public.movimiento_lotes ml join public.movimientos m on m.id = ml.movimiento_id
+     where m.operacion_id = (v_res ->> 'operacion')::uuid;
+    if v_mov <> v_lote_b or (v_res ->> 'valor')::bigint <> 1100 then raise exception 'FALLO N53b: salió del lote equivocado %', v_res; end if;
+    begin
+      perform public.dar_de_baja(gen_random_uuid(), v_la_paz, v_leche, '1', 'vencimiento', null, v_lote_b);
+      raise exception 'FALLO N53c: dio de baja por vencimiento un lote vigente';
+    exception when others then
+      if sqlerrm <> 'lote_no_corresponde' and sqlerrm <> 'lote_no_vencido' then raise exception 'FALLO N53c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_res := public.dar_de_baja(gen_random_uuid(), v_la_paz, v_leche, '2', 'vencimiento', null, v_lote_a);
+    if (v_res ->> 'valor')::bigint <> 2000 then raise exception 'FALLO N53d: %', v_res; end if;
+    v_ok := v_ok + 1;
+
+    -- N54 · promedio (§5.4): 10 por Bs 3.000 + 10 por Bs 3.400 → cada juego M sale a Bs 320
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R4-4',
+      jsonb_build_array(jsonb_build_object('variante', v_juego_m, 'cantidad', '10', 'costo_total', '300000')));
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R4-5',
+      jsonb_build_array(jsonb_build_object('variante', v_juego_m, 'cantidad', '10', 'costo_total', '340000')));
+    v_res := public.dar_de_baja(gen_random_uuid(), v_la_paz, v_juego_m, '1', 'dano', null, null);
+    if (v_res ->> 'valor')::bigint <> 32000 then raise exception 'FALLO N54a: %', v_res; end if;
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R4-6',
+      jsonb_build_array(jsonb_build_object('variante', v_juego_s, 'cantidad', '3', 'costo_total', '10000')));
+    v_valores := '';
+    for v_n in 1 .. 3 loop
+      v_res := public.dar_de_baja(gen_random_uuid(), v_la_paz, v_juego_s, '1', 'dano', null, null);
+      v_valores := v_valores || (v_res ->> 'valor') || ';';
+    end loop;
+    if v_valores <> '3333;3334;3333;' then raise exception 'FALLO N54b: %', v_valores; end if;
+    begin
+      perform public.dar_de_baja(gen_random_uuid(), v_la_paz, v_juego_m, '1.5', 'dano', null, null);
+      raise exception 'FALLO N54c: medio uniforme';
+    exception when others then
+      if sqlerrm <> 'cantidad_no_entera' then raise exception 'FALLO N54c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+
+    -- N55 · conteo: faltante por PEPS, sobrante al último costo, y si alguien movió el saldo se vuelve a contar
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R4-7',
+      jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '10', 'costo_total', '5000')));
+    begin
+      perform public.registrar_conteo(gen_random_uuid(), v_la_paz, jsonb_build_array(
+        jsonb_build_object('variante', v_harina, 'existencia_vista', '7', 'contado', '6', 'motivo', 'Merma')));
+      raise exception 'FALLO N55a: contó sobre un saldo distinto';
+    exception when others then
+      if sqlerrm <> 'existencia_cambio' then raise exception 'FALLO N55a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    perform public.registrar_conteo(gen_random_uuid(), v_la_paz, jsonb_build_array(
+      jsonb_build_object('variante', v_harina, 'existencia_vista', '10', 'contado', '9.5', 'motivo', 'Merma del saco')));
+    select c.delta_valor into v_antes_valor from public.movimientos m join public.movimientos_costo c on c.movimiento_id = m.id
+     where m.variante_id = v_harina and m.tipo = 'ajuste_faltante';
+    if v_antes_valor <> -250 then raise exception 'FALLO N55b: faltante %', v_antes_valor; end if;
+    perform public.registrar_conteo(gen_random_uuid(), v_la_paz, jsonb_build_array(
+      jsonb_build_object('variante', v_harina, 'existencia_vista', '9.5', 'contado', '10', 'motivo', 'Apareció en el depósito')));
+    select c.delta_valor into v_antes_valor from public.movimientos m join public.movimientos_costo c on c.movimiento_id = m.id
+     where m.variante_id = v_harina and m.tipo = 'ajuste_sobrante';
+    if v_antes_valor <> 250 then raise exception 'FALLO N55c: sobrante %', v_antes_valor; end if;
+    v_ok := v_ok + 1;
+
+    -- N56 · anular un uso devuelve EXACTAMENTE a los mismos lotes
+    select sum(l.cantidad_restante), sum(lc.valor_restante) into v_antes_cant, v_antes_valor
+      from public.lotes l join public.lotes_costo lc on lc.lote_id = l.id where l.variante_id = v_harina;
+    v_uso := gen_random_uuid();
+    perform public.usar_insumos(v_uso, v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '9.75')));
+    perform public.anular(gen_random_uuid(), 'uso', v_uso, 'Se registró en el grupo equivocado');
+    select (sum(l.cantidad_restante) = v_antes_cant and sum(lc.valor_restante) = v_antes_valor)::text into v_texto
+      from public.lotes l join public.lotes_costo lc on lc.lote_id = l.id where l.variante_id = v_harina;
+    if v_texto <> 'true' then raise exception 'FALLO N56a: la anulación no devolvió lo mismo'; end if;
+    begin
+      perform public.anular(gen_random_uuid(), 'uso', v_uso, 'Otra vez');
+      raise exception 'FALLO N56b: anuló dos veces';
+    exception when others then
+      if sqlerrm <> 'ya_anulado' then raise exception 'FALLO N56b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+
+    -- N57 · compra en efectivo: sale de la caja; anulada, vuelve; con movimientos posteriores no se anula
+    v_res := public.registrar_compra(gen_random_uuid(), v_la_paz, null, 'Limpieza SRL', 'recibo', '9', 'efectivo', null,
+      jsonb_build_array(jsonb_build_object('variante', v_detergente, 'cantidad', '5', 'costo_total', '2500')));
+    v_compra := (v_res ->> 'compra')::uuid;
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    v_antes_valor := (v_caja ->> 'salidas_efectivo')::bigint;
+    perform public.anular(gen_random_uuid(), 'compra', v_compra, 'Se registró dos veces');
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    if (v_caja ->> 'salidas_efectivo')::bigint <> v_antes_valor or (v_caja ->> 'entradas_efectivo')::bigint < 2500 then
+      raise exception 'FALLO N57a: la compra anulada no volvió a la caja %', v_caja;
+    end if;
+    v_res := public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R4-8',
+      jsonb_build_array(jsonb_build_object('variante', v_detergente, 'cantidad', '4', 'costo_total', '2000')));
+    v_compra_d := (v_res ->> 'compra')::uuid;
+    perform public.usar_insumos(gen_random_uuid(), v_la_paz, 'uso_interno', null, null, jsonb_build_array(jsonb_build_object('variante', v_detergente, 'cantidad', '1')));
+    begin
+      perform public.anular(gen_random_uuid(), 'compra', v_compra_d, 'Prueba');
+      raise exception 'FALLO N57b: anuló una compra ya usada';
+    exception when others then
+      if sqlerrm <> 'compra_con_movimientos_posteriores' then raise exception 'FALLO N57b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N58 · recepción: usa en su sede, no compra, no ve costos, no anula, no usa uniformes en clase
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '0.5')));
+    if v_res ->> 'valor' is not null then raise exception 'FALLO N58a: recepción recibió el costo %', v_res; end if;
+    v_ok := v_ok + 1;
+    begin
+      perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'efectivo', null,
+        jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '1', 'costo_total', '100')));
+      raise exception 'FALLO N58b: recepción compró';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.usar_insumos(gen_random_uuid(), v_el_alto, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_harina, 'cantidad', '0.1')));
+      raise exception 'FALLO N58c: recepción usó en otra sede';
+    exception when others then
+      if sqlerrm <> 'sede_no_operable' then raise exception 'FALLO N58c: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      perform public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null, jsonb_build_array(jsonb_build_object('variante', v_juego_m, 'cantidad', '1')));
+      raise exception 'FALLO N58d: usó un uniforme en clase';
+    exception when others then
+      if sqlerrm <> 'uso_no_admitido' then raise exception 'FALLO N58d: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    select (select count(*) from public.existencias_costo) + (select count(*) from public.lotes_costo) + (select count(*) from public.compras)
+         + (select count(*) from public.v_existencias_valorizadas) + (select count(*) from public.movimiento_lotes)
+      into v_n;
+    if v_n <> 0 then raise exception 'FALLO N58e: recepción ve % filas con costo', v_n; end if;
+    select count(*) into v_n from public.v_existencias where variante_id = v_harina;
+    if v_n < 2 then raise exception 'FALLO N58f: recepción no ve las existencias de las dos sedes'; end if;
+    begin
+      perform public.anular(gen_random_uuid(), 'uso', v_uso, 'Prueba');
+      raise exception 'FALLO N58g: recepción anuló un uso';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N59 · el libro no se edita (fuera del modo mantenimiento)
+    select id into v_mov from public.movimientos where variante_id = v_harina order by numero limit 1;
+    begin
+      update public.movimientos set detalle = 'x' where id = v_mov;
+      raise exception 'FALLO N59a: se editó el libro';
+    exception when others then
+      if sqlerrm <> 'libro_inmutable' then raise exception 'FALLO N59a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    begin
+      update public.lotes set cantidad_inicial = cantidad_inicial + 1 where variante_id = v_harina;
+      raise exception 'FALLO N59b: se cambió lo que entró en un lote';
+    exception when others then
+      if sqlerrm <> 'libro_inmutable' then raise exception 'FALLO N59b: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N60 · cuadre: lotes = saldo (PEPS); sin existencia no hay valor; compras = suma de sus líneas
+    select count(*) into v_n from (
+      select e.disponible, e.total, c.valor, a.valuacion,
+             (select coalesce(sum(l.cantidad_restante), 0) from public.lotes l where l.variante_id = e.variante_id and l.sede_id = e.sede_id) as cantidad_lotes,
+             (select coalesce(sum(lc.valor_restante), 0) from public.lotes l join public.lotes_costo lc on lc.lote_id = l.id
+               where l.variante_id = e.variante_id and l.sede_id = e.sede_id) as valor_lotes
+        from public.existencias e
+        join public.existencias_costo c on c.variante_id = e.variante_id and c.sede_id = e.sede_id
+        join public.variantes v on v.id = e.variante_id
+        join public.articulos a on a.id = v.articulo_id
+    ) x
+    where (x.valuacion = 'peps' and (x.cantidad_lotes <> x.disponible or x.valor_lotes <> x.valor)) or (x.total = 0 and x.valor <> 0);
+    if v_n <> 0 then raise exception 'FALLO N60a: % saldos no cuadran con sus lotes', v_n; end if;
+    select count(*) into v_n from public.compras c
+     where c.total <> (select coalesce(sum(mc.delta_valor), 0) from public.movimientos m join public.movimientos_costo mc on mc.movimiento_id = m.id
+                        where m.compra_id = c.id and m.tipo = 'compra');
+    if v_n <> 0 then raise exception 'FALLO N60b: % compras no suman sus líneas', v_n; end if;
+    select count(*) into v_n from public.movimientos m
+      join public.movimientos_costo mc on mc.movimiento_id = m.id
+      join public.movimientos o on o.id = m.anula_a
+      join public.movimientos_costo oc on oc.movimiento_id = o.id
+     where m.tipo = 'anulacion' and mc.delta_valor <> -oc.delta_valor;
+    if v_n <> 0 then raise exception 'FALLO N60c: % anulaciones no deshacen el valor exacto', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N61 · el estudiante no ve el inventario
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    select (select count(*) from public.articulos) + (select count(*) from public.existencias) + (select count(*) from public.v_kardex) into v_n;
+    if v_n <> 0 then raise exception 'FALLO N61: el estudiante ve % filas de inventario', v_n; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+  end;
+
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
 $$;

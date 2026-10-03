@@ -19,6 +19,7 @@ import type { AlumnosPort } from '@core/application/ports/alumnos.port';
 import type { AutenticacionPort } from '@core/application/ports/autenticacion.port';
 import type { CajaPort } from '@core/application/ports/caja.port';
 import type { CatalogoAcademicoPort } from '@core/application/ports/catalogo-academico.port';
+import type { InventarioPort } from '@core/application/ports/inventario.port';
 import type { PanelPort } from '@core/application/ports/panel.port';
 import type { PortalRepositoryPort } from '@core/application/ports/portal-repository.port';
 import type { Id } from '@core/domain/shared/tipos-base';
@@ -67,6 +68,14 @@ export async function cajaRepository(): Promise<CajaPort> {
     import('../supabase/panel-caja.supabase'),
   ]);
   return new PanelCajaSupabase(await crearClienteDeServidor());
+}
+
+export async function inventarioRepository(): Promise<InventarioPort> {
+  const [{ crearClienteDeServidor }, { PanelInventarioSupabase }] = await Promise.all([
+    import('../supabase/cliente-servidor'),
+    import('../supabase/panel-inventario.supabase'),
+  ]);
+  return new PanelInventarioSupabase(await crearClienteDeServidor());
 }
 
 /** Contexto del panel interno (quién, qué permisos, qué sedes) de ESTA petición. */

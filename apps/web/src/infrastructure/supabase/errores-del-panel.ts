@@ -87,6 +87,48 @@ export const MENSAJES_DE_PANEL: Readonly<Record<string, (detalle: Detalle) => st
   sin_plan_de_pagos: () => 'Este grupo aún no tiene precio. Defínelo primero.',
   plan_congelado: () => 'Este precio ya tiene cuotas cargadas y no se puede cambiar. Si hace falta, anula las cuotas primero.',
   libro_inmutable: () => 'Ese registro no se puede cambiar: si algo quedó mal, anúlalo y regístralo de nuevo.',
+
+  // Inventario (R4)
+  cantidad_invalida: () => 'Revisa la cantidad: debe ser mayor que cero y con hasta 3 decimales (por ejemplo 2,5).',
+  cantidad_no_entera: () => 'Uniformes y utensilios se cuentan por piezas enteras: escribe 1, 2, 3…',
+  stock_insuficiente: (d) => {
+    const articulo = typeof d.articulo === 'string' ? d.articulo : 'ese artículo';
+    const unidad = typeof d.unidad === 'string' ? ` ${d.unidad}` : '';
+    const hay = typeof d.disponible === 'number' ? ` Hay ${d.disponible.toLocaleString('es-BO')}${unidad}.` : '';
+    const vencido =
+      typeof d.vencido === 'number' && d.vencido > 0 ? ` Otros ${d.vencido.toLocaleString('es-BO')}${unidad} están vencidos y no se usan.` : '';
+    return `No alcanza ${articulo}.${hay}${vencido}`;
+  },
+  tipo_bloqueado: () => 'Este artículo ya tiene movimientos: su tipo y su unidad ya no se pueden cambiar.',
+  insumo_una_variante: () => 'Un insumo no lleva tallas: regístralo con una sola variante.',
+  lote_solo_insumos: () => 'Solo los insumos se guardan por compra y vencimiento.',
+  nombre_repetido: () => 'Ya existe un artículo con ese nombre. Búscalo en la lista o elige otro nombre.',
+  unidad_no_admitida: () => 'Uniformes y utensilios se cuentan por unidad o por paquete, no por peso ni volumen.',
+  precio_solo_uniforme: () => 'Solo el juego de uniforme lleva precio de venta.',
+  variantes_invalidas: () => 'Revisa las tallas: cada una con hasta 20 letras; solo los uniformes llevan varias.',
+  articulo_inactivo: () => 'Ese artículo ya no está activo. Elige otro de la lista.',
+  sin_lineas: () => 'Agrega al menos un artículo con su cantidad.',
+  demasiadas_lineas: () => 'Son demasiados artículos para una sola nota: registra hasta 30 por vez.',
+  linea_repetida: (d) =>
+    `${typeof d.articulo === 'string' ? d.articulo : 'Un artículo'} aparece dos veces: júntalo en una sola línea.`,
+  vencimiento_requerido: (d) =>
+    `Escribe la fecha de vencimiento${typeof d.articulo === 'string' ? ` de ${d.articulo}` : ''}.`,
+  vencimiento_pasado: (d) =>
+    `La fecha de vencimiento${typeof d.articulo === 'string' ? ` de ${d.articulo}` : ''} ya pasó. Revisa la nota.`,
+  ya_tiene_movimientos: (d) =>
+    `${typeof d.articulo === 'string' ? d.articulo : 'Ese artículo'} ya tiene movimientos en esta sede: el saldo inicial se registra una sola vez. Usa «Contar».`,
+  uso_no_admitido: (d) =>
+    `${typeof d.articulo === 'string' ? d.articulo : 'Ese artículo'} no se usa en clase: los uniformes se entregan y los utensilios se prestan.`,
+  lote_requerido: () => 'Elige la compra vencida que vas a dar de baja.',
+  lote_no_corresponde: () => 'Esa compra no es de este artículo o de esta sede. Vuelve a la ficha del artículo.',
+  lote_no_vencido: () => 'Esa compra todavía no venció. Si se dañó, elige «Se dañó» como motivo.',
+  existencia_cambio: () =>
+    'Alguien movió uno de estos artículos mientras contabas. Vuelve a abrir el conteo: las cantidades del sistema ya cambiaron.',
+  costo_requerido: (d) =>
+    `${typeof d.articulo === 'string' ? d.articulo : 'Ese artículo'} nunca tuvo compras: escribe cuánto vale lo que sobró.`,
+  compra_con_movimientos_posteriores: () =>
+    'Esto ya se usó o se movió después: no se puede anular sin deshacer primero lo que vino luego.',
+  baja_de_prestamo: () => 'Esa baja viene de un préstamo y se corrige desde el préstamo.',
 };
 
 const GENERICO = 'No pudimos guardar. Revisa tu conexión e inténtalo otra vez. Si se repite, avisa a administración.';
