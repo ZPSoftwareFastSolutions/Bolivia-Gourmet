@@ -591,11 +591,10 @@ export class PanelAlumnosSupabase implements AlumnosPort {
     return lista.exito ? exito(lista.valor[0] ?? null) : lista;
   }
 
-  async contarSolicitudesAbiertas(): Promise<Resultado<number>> {
-    const { count, error } = await this.cliente
-      .from('solicitudes')
-      .select('id', { count: 'exact', head: true })
-      .in('estado', ['pendiente', 'en_revision']);
+  async contarSolicitudesAbiertas(sedeId?: Id): Promise<Resultado<number>> {
+    let consulta = this.cliente.from('solicitudes').select('id', { count: 'exact', head: true }).in('estado', ['pendiente', 'en_revision']);
+    if (sedeId) consulta = consulta.eq('sede_id', sedeId);
+    const { count, error } = await consulta;
     if (error) return fallo(traducirErrorDePanel(error));
     return exito(count ?? 0);
   }

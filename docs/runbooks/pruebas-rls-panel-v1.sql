@@ -1558,6 +1558,151 @@ begin
     execute 'reset role';
   end;
 
+  -- ============================================================ R9 · anular lo que vino después y ya se deshizo
+  declare
+    v_jabon uuid;
+    v_aceite uuid;
+    v_uso uuid;
+    v_compra uuid;
+    v_saldo uuid;
+    v_texto text;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Jabón R9","tipo":"otro","unidad":"l"}'::jsonb, null);
+    select id into v_jabon from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Aceite R9","tipo":"insumo","unidad":"l"}'::jsonb, null);
+    select id into v_aceite from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+
+    -- N84 · costo promedio: se anula el uso y DESPUÉS la compra; vuelve a cero exacto
+    v_res := public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-R9-1',
+      jsonb_build_array(jsonb_build_object('variante', v_jabon, 'cantidad', '4', 'costo_total', '2000')));
+    v_compra := (v_res ->> 'compra')::uuid;
+    v_uso := gen_random_uuid();
+    perform public.usar_insumos(v_uso, v_la_paz, 'uso_interno', null, null, jsonb_build_array(jsonb_build_object('variante', v_jabon, 'cantidad', '1')));
+    begin
+      perform public.anular(gen_random_uuid(), 'compra', v_compra, 'Prueba');
+      raise exception 'FALLO N84a: anuló una compra con un uso vigente';
+    exception when others then
+      if sqlerrm <> 'compra_con_movimientos_posteriores' then raise exception 'FALLO N84a: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    perform public.anular(gen_random_uuid(), 'uso', v_uso, 'Se registró en el destino equivocado');
+    perform public.anular(gen_random_uuid(), 'compra', v_compra, 'La nota era de otro proveedor');
+    select e.total::text || '|' || c.valor into v_texto
+      from public.existencias e join public.existencias_costo c using (variante_id, sede_id) where e.variante_id = v_jabon and e.sede_id = v_la_paz;
+    if v_texto <> '0.000|0' then raise exception 'FALLO N84b: quedó %', v_texto; end if;
+    v_ok := v_ok + 1;
+
+    -- N85 · saldo inicial: anular dos veces responde «ya anulado»
+    perform public.registrar_saldo_inicial(gen_random_uuid(), v_el_alto, jsonb_build_array(
+      jsonb_build_object('variante', v_aceite, 'cantidad', '3', 'valor', '3000')));
+    select id into v_saldo from public.movimientos where variante_id = v_aceite and sede_id = v_el_alto and tipo = 'saldo_inicial';
+    perform public.anular(gen_random_uuid(), 'saldo_inicial', v_saldo, 'Se contó mal');
+    begin
+      perform public.anular(gen_random_uuid(), 'saldo_inicial', v_saldo, 'Otra vez');
+      raise exception 'FALLO N85: anuló dos veces el saldo inicial';
+    exception when others then
+      if sqlerrm <> 'ya_anulado' then raise exception 'FALLO N85: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+
+    -- N86 · saldo inicial con un uso que ya se anuló: se puede anular
+    perform public.registrar_saldo_inicial(gen_random_uuid(), v_la_paz, jsonb_build_array(
+      jsonb_build_object('variante', v_aceite, 'cantidad', '2', 'valor', '2400')));
+    select id into v_saldo from public.movimientos where variante_id = v_aceite and sede_id = v_la_paz and tipo = 'saldo_inicial';
+    v_uso := gen_random_uuid();
+    perform public.usar_insumos(v_uso, v_la_paz, 'practica', null, null, jsonb_build_array(jsonb_build_object('variante', v_aceite, 'cantidad', '0.5')));
+    perform public.anular(gen_random_uuid(), 'uso', v_uso, 'Se registró dos veces');
+    perform public.anular(gen_random_uuid(), 'saldo_inicial', v_saldo, 'Se cargó en la sede equivocada');
+    select e.total::text || '|' || c.valor into v_texto
+      from public.existencias e join public.existencias_costo c using (variante_id, sede_id) where e.variante_id = v_aceite and e.sede_id = v_la_paz;
+    if v_texto <> '0.000|0' then raise exception 'FALLO N86: quedó %', v_texto; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+  end;
+
+  -- ============================================================ R7 (2) · el tablero dice dónde está el problema y cuenta en la base
+  declare
+    v_hoy date := app.hoy();
+    v_antes date;
+    v_tb jsonb;
+    v_d jsonb;
+    v_lp jsonb;
+    v_ea jsonb;
+    v_alumnos integer;
+    v_con_vencido integer;
+    v_vencido bigint;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    -- El día anterior al efectivo sin arqueo más antiguo que ya haya (del ensayo o de la demostración).
+    select min(x.fecha) into v_antes from (
+      select p.fecha from public.pagos p where p.medio = 'efectivo' and p.cierre_id is null
+      union all select g.fecha from public.gastos g where g.medio = 'efectivo' and g.cierre_id is null
+      union all select c.fecha from public.compras c where c.medio = 'efectivo' and c.cierre_id is null
+      union all select p.anulado_el from public.pagos p where p.medio = 'efectivo' and p.anulado_el is not null and p.anulacion_cierre_id is null
+      union all select g.anulado_el from public.gastos g where g.medio = 'efectivo' and g.anulado_el is not null and g.anulacion_cierre_id is null
+      union all select c.anulado_el from public.compras c where c.medio = 'efectivo' and c.anulado_el is not null and c.anulacion_cierre_id is null) x;
+    v_antes := least(coalesce(v_antes, v_hoy), v_hoy) - 1;
+    execute 'reset role';
+
+    -- Una venta en efectivo en El Alto, la más antigua sin arqueo (fecha simulada).
+    perform set_config('app.mantenimiento', 'si', true);
+    perform set_config('app.hoy_simulada', v_antes::text, true);
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.registrar_cobro(gen_random_uuid(), v_el_alto, null, 'efectivo', null, null, null,
+      '{"concepto":"otro-ingreso","descripcion":"Recetario R7 en El Alto","monto":2000,"cliente":"Cliente R7"}'::jsonb, null);
+    execute 'reset role';
+    perform set_config('app.hoy_simulada', '', true);
+    perform set_config('app.mantenimiento', 'no', true);
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    -- N87 · con todas las sedes, el aviso del efectivo lleva a la sede del registro más antiguo
+    v_tb := public.tablero_de_administracion(null);
+    if (v_tb -> 'efectivo_sin_arqueo' ->> 'sede')::uuid is distinct from v_el_alto
+       or (v_tb -> 'efectivo_sin_arqueo' ->> 'desde')::date <> v_antes
+       or (v_tb -> 'efectivo_sin_arqueo' ->> 'sedes')::integer < 2 then
+      raise exception 'FALLO N87a: %', v_tb -> 'efectivo_sin_arqueo';
+    end if;
+    -- con una sede elegida, el aviso es de esa sede (La Paz tiene el cobro atrasado de N79)
+    v_tb := public.tablero_de_administracion(v_la_paz);
+    if (v_tb -> 'efectivo_sin_arqueo' ->> 'sede')::uuid is distinct from v_la_paz
+       or (v_tb -> 'efectivo_sin_arqueo' ->> 'sedes')::integer <> 1 then
+      raise exception 'FALLO N87b: %', v_tb -> 'efectivo_sin_arqueo';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N88 · lo que deben se cuenta en la base, sin tope de filas; las dos sedes suman el total
+    v_d := public.resumen_de_deudores(null);
+    select count(*), count(*) filter (where s.total_vencido > 0), coalesce(sum(s.total_vencido), 0)
+      into v_alumnos, v_con_vencido, v_vencido from public.v_saldos_de_alumno s;
+    if (v_d ->> 'alumnos')::integer <> v_alumnos or (v_d ->> 'alumnos_con_vencido')::integer <> v_con_vencido
+       or (v_d ->> 'vencido')::bigint <> v_vencido then
+      raise exception 'FALLO N88a: % frente a % / % / %', v_d, v_alumnos, v_con_vencido, v_vencido;
+    end if;
+    v_lp := public.resumen_de_deudores(v_la_paz);
+    v_ea := public.resumen_de_deudores(v_el_alto);
+    if (v_lp ->> 'alumnos')::integer + (v_ea ->> 'alumnos')::integer <> (v_d ->> 'alumnos')::integer
+       or (v_lp ->> 'pendiente')::bigint + (v_ea ->> 'pendiente')::bigint <> (v_d ->> 'pendiente')::bigint then
+      raise exception 'FALLO N88b: La Paz % + El Alto % <> %', v_lp, v_ea, v_d;
+    end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N89 · una estudiante no lee lo que deben los alumnos
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.resumen_de_deudores(null);
+      raise exception 'FALLO N89: una estudiante leyó lo que deben los alumnos';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+  end;
+
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
 $$;

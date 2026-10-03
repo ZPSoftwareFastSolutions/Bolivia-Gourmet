@@ -23,6 +23,7 @@ import type { ContabilidadPort } from '@core/application/ports/contabilidad.port
 import type { InventarioPort } from '@core/application/ports/inventario.port';
 import type { PanelPort } from '@core/application/ports/panel.port';
 import type { PortalRepositoryPort } from '@core/application/ports/portal-repository.port';
+import type { TableroPort } from '@core/application/ports/tablero.port';
 import type { Id } from '@core/domain/shared/tipos-base';
 import { CatalogoEstaticoRepository } from '../catalogo/catalogo-estatico.repository';
 
@@ -86,6 +87,15 @@ export async function contabilidadRepository(): Promise<ContabilidadPort> {
     import('../supabase/panel-contabilidad.supabase'),
   ]);
   return new PanelContabilidadSupabase(await crearClienteDeServidor());
+}
+
+/** Tablero de administración (lo que suma `tablero_de_administracion`), con la sesión de ESTA petición. */
+export async function tableroRepository(): Promise<TableroPort> {
+  const [{ crearClienteDeServidor }, { PanelTableroSupabase }] = await Promise.all([
+    import('../supabase/cliente-servidor'),
+    import('../supabase/panel-tablero.supabase'),
+  ]);
+  return new PanelTableroSupabase(await crearClienteDeServidor());
 }
 
 /** Contexto del panel interno (quién, qué permisos, qué sedes) de ESTA petición. */

@@ -288,7 +288,8 @@ export interface AlumnosPort {
 
   listarSolicitudes(estados: readonly EstadoDeSolicitudEnBandeja[]): Promise<Resultado<readonly SolicitudEnBandeja[]>>;
   solicitud(id: Id): Promise<Resultado<SolicitudEnBandeja | null>>;
-  contarSolicitudesAbiertas(): Promise<Resultado<number>>;
+  /** Pendientes y en revisión. Sin sede = todas. */
+  contarSolicitudesAbiertas(sedeId?: Id): Promise<Resultado<number>>;
   aprobarSolicitud(clave: string, datos: DatosDeAprobacion): Promise<Resultado<InscripcionHecha>>;
   responderSolicitud(id: Id, estado: 'en_revision' | 'rechazada', respuesta: string): Promise<Resultado<void>>;
 }

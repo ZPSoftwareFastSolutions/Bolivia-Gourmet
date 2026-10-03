@@ -3754,6 +3754,7 @@ export type Database = {
         Args: { p_clave: string; p_lineas: Json; p_sede: string };
         Returns: Json;
       };
+      resumen_de_deudores: { Args: { p_sede: string }; Returns: Json };
       resumen_del_mes: {
         Args: { p_mes: string; p_sede: string };
         Returns: Json;
