@@ -51,3 +51,16 @@ export function haceCuanto(iso: string, ahora: Date = new Date()): string {
   if (dias < 60) return `hace ${Math.floor(dias / 7)} semanas`;
   return `hace ${Math.floor(dias / 30)} meses`;
 }
+
+const DIA_CORTO = new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
+
+/** Fecha de negocio `AAAA-MM-DD` en largo («5 de septiembre de 2026»), sin correrse de día. */
+export function formatearDia(fecha: string): string {
+  return formatearFecha(`${fecha}T12:00:00Z`);
+}
+
+/** «05/09»: así se nombra un lote en pantalla («la compra del 05/09»). */
+export function formatearDiaCorto(fecha: string): string {
+  const valor = new Date(`${fecha}T12:00:00Z`);
+  return Number.isNaN(valor.getTime()) ? '—' : DIA_CORTO.format(valor);
+}

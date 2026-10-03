@@ -70,6 +70,26 @@ export function rutaDeRecibo(id: string): string {
   return `${RUTAS_CAJA.recibos}/${encodeURIComponent(id)}`;
 }
 
+/** Inventario del panel: existencias, ficha del artículo y cada operación. */
+export const RUTAS_INVENTARIO = {
+  inicio: '/panel/inventario',
+  historial: '/panel/inventario/historial',
+  usar: '/panel/inventario/usar',
+  baja: '/panel/inventario/baja',
+  compra: '/panel/inventario/compra',
+  contar: '/panel/inventario/contar',
+  saldoInicial: '/panel/inventario/saldo-inicial',
+  articuloNuevo: '/panel/inventario/articulos/nuevo',
+  anular: '/panel/inventario/anular',
+  entregar: '/panel/inventario/entregar',
+  prestar: '/panel/inventario/prestar',
+  prestamos: '/panel/inventario/prestamos',
+} as const;
+
+export function rutaDeArticulo(codigo: string): string {
+  return `${RUTAS_INVENTARIO.inicio}/${encodeURIComponent(codigo)}`;
+}
+
 /** La carrera tiene página propia; los cursos cuelgan de /cursos. */
 export function rutaDePrograma(codigo: string): string {
   return codigo === 'gastronomia' ? RUTAS.carrera : `${RUTAS.cursos}/${codigo}`;
