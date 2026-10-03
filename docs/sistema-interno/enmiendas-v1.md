@@ -44,6 +44,7 @@
 | Auditoría (`auditoria`, `app.auditar`, pantalla) | No existe. Los documentos ya llevan autor y fecha |
 | `caja.supervisar`: verificar QR y revisar arqueos | No existe. Los arqueos con diferencia se ven en la lista de arqueos |
 | Ajustes › Conceptos (pantalla) | Conceptos de la semilla fija (tabla `conceptos` sí existe) |
+| Ajustes › Personal (pantalla; añadido el 2026-10-03, ninguna rebanada de §C lo incluía) | La base ya lo permite (`perfiles.rol`, `activo` y `sede_id` con `perfiles.gestionar`; guarda del último administrador). El acceso del personal se da por SQL desde el editor de Supabase (CLAUDE.md §4); `/panel/ajustes` muestra un aviso |
 | Devolver un sobrante de insumos a los mismos lotes | Práctica documentada: «registra lo usado al terminar la clase»; administración puede anular el uso y registrarlo bien |
 | Ajuste de valor sin cantidad | Documentado: anular los usos posteriores y la compra, y registrarla bien |
 | Prueba de uso con adultos reales | Pendiente del usuario, no condiciona la rama |
@@ -139,7 +140,10 @@ anon` en cada función nueva.
 - Crítica 13: `crear_cargo` con `p_entrega` y `p_cliente`.
 - Crítica 14: devolver uniforme sin cambio de talla → si el cargo no tiene
   cobros, la RPC lo anula; si está cobrado, devuelve el aviso «anula el
-  cobro» (administración).
+  cobro» (administración). *Hecho en la revisión final (2026-10-03,
+  migración `20261003120100`): «sin cambio de talla» se mide sobre toda la
+  cadena de cambios de talla de la entrega; si queda alguna pieza, el aviso es
+  `devolucion_parcial`.*
 - Crítica 15: retirar (recepción y administración) **anula automáticamente las
   cuotas sin cobros con `vence_el > hoy`**; las vencidas quedan.
 - Crítica 16: si un lote nuevo vence antes que uno antiguo, `usar_insumos`

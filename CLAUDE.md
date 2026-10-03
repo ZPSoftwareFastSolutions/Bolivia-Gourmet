@@ -7,17 +7,17 @@
 > `docs/analisis/aclaraciones-2026-10-01.md` y `docs/`, sin depender del
 > historial de conversaciones.
 >
-> - **Última actualización:** 2026-10-01 · **Entrega 3** (mejoras pedidas tras
->   la presentación): logotipos de socios en carrusel (inicio) y panal
->   (convenios), universidades con logotipo, cursos y emprende unidos en
->   `/cursos`, mapas de las sedes con los enlaces del usuario y sin huecos entre
->   secciones; 124 pruebas. Entrega 2: GitHub, Supabase con RLS (39 pruebas),
->   web y portal con CSP estricta; cuentas de demostración cargadas y probadas.
->   Contexto de la conversación que no está en otros documentos: §15 y §16.
-> - **Rama de la web:** `feat/pagina-web` (sale de `main`; ver §16.1 para el
->   último commit y si está publicado). **Rama del sistema interno:** `feat/sistema-interno`
->   (igual a `main` en `25500d8`, sin trabajo propio aún). **`feat/pagina-web`
->   NO está fusionada con `main`**: espera la aprobación del usuario.
+> - **Última actualización:** 2026-10-03 · **Entrega 4: sistema interno v1**
+>   (panel del personal: alumnos y grupos, caja, inventario con PEPS y costo
+>   promedio, uniformes y utensilios, contabilidad básica y tableros de
+>   inicio), con datos de demostración del panel y revisión final; 277
+>   pruebas y batería de la base del panel (§8). Entregas 2 y 3: web pública y
+>   portal de estudiantes con CSP estricta. Contexto de la conversación que no
+>   está en otros documentos: §15 y §16.
+> - **Ramas:** `feat/sistema-interno` lleva TODO (la web de `feat/pagina-web`
+>   más el panel, R0–R9); la rama **`v1`** marca la entrega (§16.1).
+>   `feat/pagina-web` sigue con la web sola. **Ninguna está fusionada con
+>   `main`**: espera la aprobación del usuario.
 > - **Regla de mantenimiento:** se actualiza al cerrar cada avance importante
 >   y al final de cada sesión. Cambian sobre todo §9 (estado y pendientes) y
 >   §13 (historial).
@@ -32,10 +32,10 @@
 | **Cliente** | **TEC-NIB** (Instituto Técnico Nacional de la Integración Boliviana) es la institución madre; **Corporación Bolivia Gourmet** es su área de gastronomía; **Bolivia Gastronómica** es la marca del instituto. Sedes: La Paz (Miraflores) y El Alto (La Ceja). |
 | **Stack** | Next.js 16.3.8 · React 19.1 · TypeScript 5.9 estricto · Tailwind v4 · Supabase (`@supabase/ssr` 0.12.7, `supabase-js` 2.117.2) · `node --test` |
 | **Repositorio** | https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet |
-| **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 5 tablas, todas con RLS |
-| **Estado** | Web pública (8 páginas + 5 de cursos; `/emprende` redirige a `/cursos`) y portal (7 páginas) **funcionando en local**, verificados. Cuentas de demostración cargadas (§4). Sin desplegar. Sistema interno: solo dominio, sin pantallas |
+| **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 29 tablas, todas con RLS; 18 migraciones (§4) |
+| **Estado** | Web pública (8 páginas + 5 de cursos; `/emprende` redirige a `/cursos`) y portal (7 páginas) **funcionando en local**, verificados. **Sistema interno v1** en `/panel` (43 páginas) para administración y recepción, con datos de demostración del panel cargados (§4). Sin desplegar. Las pantallas del personal con sesión las prueba el usuario (el asistente no inicia sesión) |
 | **Fuentes de verdad** | `INFORMACION-INSTITUTO.md` + `docs/analisis/aclaraciones-2026-10-01.md` (datos), `FOTOS-GASTRO/` + `FOTOS-WEB/` + `docs/brand/identidad-visual.md` (identidad), `docs/domain/modelo-de-dominio.md` (reglas), `docs/architecture/` (decisiones), `TASKS.md` (avance) |
-| **Siguiente** | 0) Esperar la respuesta del cliente sobre precios y detalles de cursos y licenciatura (pedida por correo); el usuario avisará para seguir con el portal · 1) Que configure Supabase Auth (§9, E2.D1) y pruebe el registro real · 2) Que confirme las decisiones de §16.3 · 3) Pedir al cliente los recursos de `aclaraciones §8` · 4) Aprobar la web y fusionar `feat/pagina-web` en `main` · 5) Desplegar en Vercel cuando el usuario lo pida · 6) Sistema interno (`feat/sistema-interno`): panel de recepción y administración |
+| **Siguiente** | 0) Que el usuario entre al panel como Carla (administración) y como Rosa (recepción) y revise las pantallas con los datos de demostración · 1) Esperar la respuesta del cliente sobre precios y detalles de cursos y licenciatura · 2) Que configure Supabase Auth (§9, E2.D1) y desactive las claves API heredadas · 3) Que confirme las decisiones de §16.3 · 4) Aprobar y fusionar en `main` · 5) Desplegar en Vercel cuando el usuario lo pida (antes, borrar los datos de demostración) · 6) v1.1 del panel (§9) |
 
 **Antes de tocar nada, léase:** §2 (reglas), §3 (arquitectura), §4 (base de
 datos), §9 (pendientes) y §11 (ambigüedades).
@@ -57,6 +57,10 @@ datos), §9 (pendientes) y §11 (ambigüedades).
    que se verificó y se anotó cómo.
 7. **Cero secretos en el repositorio.** `service_role` jamás. No se crean
    cuentas con contraseña en servicios remotos desde el asistente.
+8. **El panel escribe solo por RPC** (ADR 0008): fachada `public.*` SECURITY
+   INVOKER que llama a un motor `app.*` DEFINER; la base exige el permiso, la
+   sede y la clave de la operación (no repite un cobro por doble clic).
+   Dinero en centavos enteros y cantidades en milésimas, de punta a punta.
 
 ---
 
@@ -66,21 +70,21 @@ datos), §9 (pendientes) y §11 (ambigüedades).
 |---|---|---|
 | **Página web** | Presentación institucional, carrera, cursos de capacitación (con «¿Sueñas emprender?»), convenios con logotipos (carrusel y panal), contacto con mapas, sedes y redes, fiel a la identidad del folleto | ✅ Completa en `feat/pagina-web`, verificada en escritorio y móvil |
 | **Portal de estudiantes** (parte de la web) | Registro, acceso, recuperación de clave, solicitud de inscripción, solicitud de renovación, estado de solicitudes, información de pago por QR | ✅ Implementado y probado hasta donde no exige crear cuentas reales (§9) |
-| **Sistema interno** | Recepción (informar oferta, cupos, precios; inscribir; inventario) y administración (todo + contabilidad) | Dominio de inventario, académico y estudiantes con pruebas; tablas de identidad listas; sin pantallas |
+| **Sistema interno** (`/panel`) | Recepción (atender a quien llega, inscribir, cobrar, cerrar caja, usar insumos, entregar uniformes, prestar utensilios) y administración (todo + compras, gastos y contabilidad) | ✅ **v1** (R0–R9): alumnos y grupos, bandeja de solicitudes del portal, caja con recibos y arqueos, inventario PEPS/promedio, uniformes y préstamos, contabilidad básica, tableros de inicio. Base con batería RLS; pantallas con sesión pendientes de la prueba del usuario |
 
-Roles (ADR 0005): **administrador** y **recepción** en el sistema interno;
-**estudiante** en el portal. Medio de cobro: **QR**.
+Roles (ADR 0005, ADR 0008): **administrador** y **recepción** en el sistema
+interno; **estudiante** en el portal. Medios de cobro: efectivo, QR y
+transferencia (el QR bancario de la web sigue pendiente del cliente).
 
 Evolución:
 
 ```text
-Fase 0 ✅  Análisis, arquitectura, documentación, dominio con pruebas
-Entrega 2 ✅  GitHub, Supabase + RLS, aclaraciones, web pública + portal + seguridad
-Fase 1     Interno · panel con login de personal, bandeja de solicitudes (recepción)
-Fase 2     Interno · inventario (artículos, variantes, movimientos, entregas)
-Fase 3     Interno · estudiantes, cohortes, inscripciones (desde solicitudes aprobadas)
-Fase 4     Interno · contabilidad (pagos por QR, gastos, tablero)
-Fase 5     Web · despliegue, dominio, SEO, QR de pago en el portal
+Fase 0 ✅    Análisis, arquitectura, documentación, dominio con pruebas
+Entrega 2 ✅ GitHub, Supabase + RLS, aclaraciones, web pública + portal + seguridad
+Entrega 3 ✅ Mejoras de la web tras la presentación
+Entrega 4 ✅ Sistema interno v1 (especificación, crítica, enmiendas; R0–R9) → rama v1
+v1.1         Cierre de mes, auditoría, roles por sede y lo demás de enmiendas §A.2
+Web          Despliegue, dominio, SEO, QR de pago en el portal
 ```
 
 ---
@@ -125,8 +129,11 @@ pregunta.
 
 - **Server Components por defecto.** Cliente solo en: `MenuMovil`,
   `NavegacionPrincipal` (sección activa), `MapaBajoDemanda`, piezas de
-  formulario (`BotonEnviar`, `CampoClave`, `ResumenDeErrores`) y los
-  formularios del portal (`useActionState`).
+  formulario (`BotonEnviar`, `CampoClave`, `ResumenDeErrores`), los
+  formularios del portal (`useActionState`) y, en el panel,
+  `NavegacionDelPanel`, `presentation/panel/Formulario.tsx` (formulario con
+  confirmación animada), `presentation/panel/Caja.tsx` (cálculo en vivo del
+  arqueo) y `presentation/formularios/Interactivos.tsx`.
 - Variantes como **enum**. Átomos en `presentation/ui` sin dominio.
 - **Nunca un color literal** en componentes: tokens (`bg-accion`, `text-estructural`, `bg-cursos`…). Única excepción: `COLOR_DE_TEMA` en `lib/marca.ts` (meta theme-color).
 - **El amarillo siempre lleva azul marino encima** (`bg-accion text-sobre-accion`).
@@ -186,13 +193,15 @@ usuario lo pide. Detalle: `docs/git/estrategia-de-ramas.md`.
  Navegador ──► Next.js 16 (local; Vercel pendiente)
                ├─ proxy.ts ───────── CSP con nonce en cada página; renueva la sesión en /portal y /auth
                ├─ (publico)/ ─────── sitio informativo (dinámico por el nonce; datos del catálogo estático)
-               ├─ portal/ ────────── registro, acceso, panel, solicitudes (Server Components + Server Actions)
+               ├─ portal/ ────────── registro, acceso, panel del estudiante, solicitudes (Server Components + Server Actions)
+               ├─ panel/ ─────────── sistema interno del personal (el personal entra por /portal/acceso y se le envía aquí)
                └─ auth/confirmar ─── canje de enlaces de correo (PKCE / token_hash)
                         │  cliente de servidor con la cookie HttpOnly del usuario (nunca service_role)
                         ▼
                Supabase Bolivia-Gourmet (sa-east-1)
                ├─ Auth ─────── cuentas; disparador crea el perfil como «estudiante»
-               └─ PostgreSQL ─ sedes · perfiles · permisos_de_rol · programas · solicitudes (RLS en todas)
+               └─ PostgreSQL ─ 29 tablas con RLS; el panel lee vistas security_invoker y escribe
+                               solo por RPC (fachada public INVOKER → motor app DEFINER)
 ```
 
 ### 3.2 Mapa del código (`apps/web`)
@@ -216,21 +225,36 @@ src/
       actions.ts          Server Actions (cada una vuelve a exigir sesión)
       _sesion.ts          exigirSesion / salirSiHaySesion (React cache)
       _componentes/       formularios, marco de acceso, panel, página de solicitud
+    panel/                sistema interno (43 páginas): layout (menú lateral / inferior por permisos) · page (tableros de inicio)
+      _sesion.ts          exigirPersonal / exigirPermiso (cada página y cada Server Action)
+      alumnos/            fichas, grupos (cupo, precio por paquete), inscribir en 3 pasos, solicitudes del portal
+      caja/               cobrar, recibos imprimibles, lo que deben, cerrar caja (arqueo), arqueos
+      inventario/         existencias, ficha y kárdex, compra, usar, baja, contar, saldo inicial, anular,
+                          entregar uniforme, prestar y recibir utensilios, historial
+      contabilidad/       resumen del mes, gastos, compras, inventario valorizado, tarjeta PEPS
+      ajustes/            solo un aviso «en preparación»: Ajustes › Personal pasa a la v1.1 (hasta entonces, el acceso
+                          del personal se da por SQL, §4)
+      mas/                menú «Más» del teléfono (Contabilidad, Ajustes, la persona, cerrar sesión)
     auth/confirmar/route.ts
   core/
-    domain/               shared · academico/programa (formatearMonto) · estudiantes · inventario
-                          · identidad/credenciales, rol · portal/solicitud
-    application/          ports (catálogo, inventario, autenticación, portal) · inventario · portal (acceso, solicitudes)
+    domain/               shared (centavos, milésimas, Resultado) · academico (programa, grupo, cuotas) · estudiantes
+                          · inventario (PEPS, promedio, movimientos, conteo, préstamo, entrega) · caja (cobro, arqueo, recibo)
+                          · contabilidad (resumen del mes, tarjeta PEPS, tablero) · identidad (rol, contexto del panel) · portal
+    application/          ports (catálogo, autenticación, portal, panel, alumnos, caja, inventario, contabilidad, tablero)
+                          · portal · panel/{alumnos, caja, inventario, contabilidad, tablero} (casos de uso)
   infrastructure/
     config/composition-root.ts
     catalogo/             oferta académica validada en el build
     supabase/             configuracion · cookies · cliente-servidor · autenticacion · portal · errores · tipos generados
+                          · panel-*.supabase.ts (un adaptador por puerto) · rpc.ts · errores-del-panel.ts (código → frase)
+                          · cantidades.ts · contabilidad-desde-base.ts · tablero-desde-base.ts (lecturas puras, con pruebas)
   presentation/
     icons/Icono.tsx · ui/ (Boton, Foto, Logos, LogoHexagonal, Marca) · patterns/ (Cabecera, Pie, menús, mapa, redes, WhatsApp)
     sections/ (Hero, Institucion, Oferta, Convenios [carrusel, panal, universidades], panal.ts, Llamadas) · formularios/ · programas.ts
+    panel/                Piezas (Indicador, Mosaico, Chip, EstadoVacio…) · Formulario · Caja · GraficoSemanal · navegación
   lib/                    cn · rutas · redirecciones · politica-de-contenido · fechas · marca
   styles/globals.css      tokens de marca y semánticos; @layer base y @layer components
-tests/                    124 pruebas (node --test)
+tests/                    277 pruebas (node --test, en serie)
 ```
 
 ### 3.3 Flujos del portal
@@ -253,23 +277,39 @@ tests/                    124 pruebas (node --test)
 `sa-east-1` · organización «Z&P Software Fast Solutions» (free). Conector de
 Supabase disponible en la sesión.
 
-| Tabla | Qué guarda | Quién lee | Quién escribe |
+29 tablas, todas con RLS (44 políticas), 12 vistas `security_invoker`.
+Detalle de cada migración: `supabase/migrations/README.md`.
+
+| Grupo | Tablas | Quién lee | Cómo se escribe |
 |---|---|---|---|
-| `sedes` | 2 sedes | todos (activas) | nadie por API |
-| `perfiles` | perfil de cada cuenta (rol, nombres, contacto) | uno mismo; `perfiles.leer` | uno mismo (nombres, contacto); rol/estado/sede solo `perfiles.gestionar` |
-| `permisos_de_rol` | permisos de administrador (6) y recepción (3) | el propio rol | nadie por API |
-| `programas` | 6 programas (referencia de FK) | todos (activos) | `programas.gestionar` |
-| `solicitudes` | inscripciones y renovaciones del portal | el propio estudiante; `solicitudes.leer` | alta propia (columnas concedidas); cancelar propia pendiente; decidir con `solicitudes.gestionar` |
+| Identidad y portal | `sedes` (2) · `perfiles` · `permisos_de_rol` · `programas` (6) · `solicitudes` | perfiles: uno mismo o `perfiles.leer`; solicitudes: el propio estudiante o `solicitudes.leer` | perfiles por columnas concedidas (rol, estado y sede solo con `perfiles.gestionar`; guarda del último administrador); solicitudes: alta y cancelación propias, decisión con `aprobar_solicitud` / `solicitudes.gestionar` |
+| Núcleo del panel | `operaciones` (clave de cada operación; sin políticas: solo la tocan funciones DEFINER) | nadie por API | `app.iniciar_operacion` / `app.terminar_operacion` |
+| Alumnos | `conceptos` (semilla fija) · `estudiantes` (código BG-AAAA-NNNN) · `cohortes` (grupos) · `planes_de_pago` · `inscripciones` | `estudiantes.leer`, `cohortes.leer` | RPC `crear_estudiante`, `inscribir`, `aprobar_solicitud`, `cambiar_estado_de_inscripcion`, `cerrar_grupo`; fichas y grupos por columnas concedidas |
+| Caja | `cargos` · `pagos` (recibo sin huecos por sede y año) · `pago_aplicaciones` · `gastos` · `cierres_de_caja` | `caja.leer` (gastos: `contabilidad.leer`) | RPC `registrar_cobro`, `crear_cargo`, `registrar_gasto`, `cerrar_caja`, `anular`, `generar_cuotas_de_grupo`. El libro no se edita: solo se anula (`app.solo_sellos`) |
+| Inventario | `articulos` · `variantes` · `existencias` · `existencias_costo` · `compras` · `conteos` · `entregas` · `prestamos` · `movimientos` (kárdex inmutable) · `movimientos_costo` · `lotes` · `lotes_costo` · `movimiento_lotes` | `inventario.leer`; todo lo que tiene costo, solo `contabilidad.leer` | RPC `guardar_articulo`, `registrar_saldo_inicial`, `registrar_compra`, `usar_insumos`, `dar_de_baja`, `registrar_conteo`, `entregar_uniforme`, `devolver_uniforme`, `prestar_utensilios`, `recibir_devolucion`, `anular` |
+| Lecturas sumadas | — | `resumen_del_mes`, `verificar_cuadre`, `tablero_de_administracion` (`contabilidad.leer`); `resumen_de_deudores` (`caja.leer`); `variantes_con_movimientos` (`inventario.leer`) | — |
 
-Funciones `app.*` (fuera de la API): `tiene_permiso`, `rol_actual`,
-`crear_perfil_de_usuario` (disparador de alta), `sincronizar_correo_de_perfil`,
-`proteger_perfil` (rol y último administrador), `validar_alta_de_solicitud`
-(estado inicial, programa activo, paquete solo en carrera, sin duplicados,
-máximo 5 abiertas), `validar_cambio_de_solicitud` (transiciones).
+Permisos (`permisos_de_rol`): administrador 26 (todo, incluidos
+`contabilidad.*`, `inventario.comprar/ajustar/anular/catalogo`,
+`caja.anular`, `sedes.todas`, `perfiles.gestionar`); recepción 13
+(`panel.entrar`, `caja.leer/cobrar/cerrar`, `estudiantes.leer/gestionar`,
+`inscripciones.gestionar`, `cohortes.leer`, `solicitudes.leer/gestionar`,
+`inventario.leer/operar`, `perfiles.leer`). Recepción opera solo en su sede
+(`perfiles.sede_id`; `app.exigir_sede`). Detalle: ADR 0008.
 
-Migraciones y reglas: `supabase/migrations/README.md`. Batería:
-`docs/runbooks/pruebas-rls-entrega2.sql` (39/39). Tipos:
-`src/infrastructure/supabase/tipos-de-base.generados.ts` (regenerar tras cada migración).
+Piezas `app.*` (fuera de la API): `tiene_permiso`, `rol_actual`,
+`exigir_permiso`, `exigir_sede`, `hoy` (fecha de Bolivia; simulable solo con
+`app.mantenimiento = 'si'`), `iniciar_operacion` / `terminar_operacion`,
+`candado_de_caja`, `sacar` / `entrar` / `valorizar` / `revertir` (motor PEPS y
+promedio), `anular`, disparadores de perfiles y de solicitudes. Los errores
+llevan el código en `message` y su frase está en
+`errores-del-panel.ts` (una prueba exige que cada código tenga frase).
+
+Baterías: `docs/runbooks/pruebas-rls-entrega2.sql` (portal, 39/39) y
+`docs/runbooks/pruebas-rls-panel-v1.sql` (panel R1–R9, crece con cada
+rebanada; resultado en §8). Tipos:
+`src/infrastructure/supabase/tipos-de-base.generados.ts` (regenerar o
+completar a mano tras cada migración).
 
 **Promover al primer administrador** (no hay pantalla para autoasignarse un
 rol; se hace desde el editor SQL de Supabase, sin sesión de usuario):
@@ -296,10 +336,18 @@ where id = (select id from auth.users where email = 'correo-del-administrador@ej
 - Reiniciar la demo: `borrar-datos-demo.sql` y volver a cargar.
 - El dominio `.test` no recibe correo: «recuperar contraseña» no sirve con
   estas cuentas.
-- Las cuentas del personal entran al portal y ven el aviso de «panel en
-  construcción»: el sistema interno aún no tiene pantallas.
-- **Antes de producción, borrarlas** (`borrar-datos-demo.sql`): la cuenta de
-  administración tiene una contraseña conocida.
+- Las cuentas del personal entran por `/portal/acceso` y van al panel:
+  Carla ve el tablero de administración y Rosa el de recepción (La Paz).
+- **Datos del panel** (`datos-panel-demo.sql`, va DESPUÉS de las cuentas):
+  8 semanas de actividad hasta el día de la carga (catálogo y saldo inicial
+  en las dos sedes, grupos, 14 alumnos con cobros y deudas, uniformes,
+  compras, usos, préstamos, bajas, un conteo, gastos y arqueos). Pasa por las
+  RPC y la RLS reales simulando la sesión de Carla y Rosa, con la fecha
+  simulada en modo mantenimiento. No crea cuentas ni contraseñas. Ensayo con
+  `c_simular := true`; se detiene si ya existe «Harina de trigo».
+- **Antes de producción, borrar todo** (`borrar-datos-demo.sql`: primero los
+  datos del panel, después las cuentas): la cuenta de administración tiene
+  una contraseña conocida.
 
 ---
 
@@ -316,6 +364,22 @@ Completo en `docs/domain/modelo-de-dominio.md`. Lo nuevo de esta entrega:
   palabras triviales ni el correo; permite pegar y gestores de contraseñas.
 - **Catálogo**: Gastronomía con Paquete Económico Bs 650 y uniforme Bs 650
   (Ahorrador y cursos: pendientes).
+
+Del sistema interno (reglas numeradas con su prueba en el modelo de dominio
+§3–§6; diseño en `docs/sistema-interno/` y ADR 0007 y 0008):
+
+- **Inventario valorizado:** insumos por PEPS (lotes, lo vencido aparte) y el
+  resto por costo promedio; la salida que agota un lote o la capa se lleva el
+  resto exacto; una devolución vuelve al costo con que salió; prestar no
+  cambia el valor (custodia); el conteo es todo o nada.
+- **Caja:** el cobro se aplica a cargos; recibo sin huecos por sede y año; el
+  arqueo cuenta el efectivo (también compras y gastos en efectivo y sus
+  anulaciones); nada se edita, solo se anula con motivo.
+- **Contabilidad (vista de gestión, no estado oficial):** resultado = ingresos
+  − costo de lo usado − gastos − diferencias de caja; una anulación cuenta en
+  el mes en que se hace; las compras son dinero e inventario, nunca gasto.
+- **Grupos:** el precio se congela con el primer cargo; la carrera tiene un
+  plan por paquete.
 
 ---
 
@@ -341,6 +405,7 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 | Git | `ZPSoftwareFastSolutions`. Remoto `origin` = https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet.git; las tres ramas siguen a su rama remota. **El push depende del Git Credential Manager de Windows**: a veces pide iniciar sesión con una ventana que el asistente no puede usar. Si un push falla por credenciales (`could not read Username`), no insistir: pedir al usuario que ejecute `git push` en su terminal. Leer (`ls-remote`, `fetch`) sí funciona. Comprobar `git ls-remote --heads origin` antes de afirmar que algo no está publicado |
 | Variables | `apps/web/.env.local` (no versionado) con `NEXT_PUBLIC_SUPABASE_URL=https://bnobhnmurzsnffdrxeck.supabase.co` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (empieza por `sb_publishable_`; se obtiene con el conector `get_publishable_keys`). Plantilla en `.env.example`. `NEXT_PUBLIC_SITE_URL` obligatoria al desplegar. **Cuidado:** copiar la plantilla encima deja valores de ejemplo (`https://<ref>.supabase.co`) y el portal deja de conectar; `configuracionSupabase()` los rechaza y falla cerrado. Pasó una vez el 2026-10-01 y se restauró |
 | Arranque | `cd apps/web && npm install && npm run dev`. Producción local: `npm run build && npm run start` |
+| Memoria de la máquina | Justa. Con el panel, `npm run build` y `npm run typecheck` se quedaron sin memoria: usar `CIRCLE_NODE_TOTAL=2 npm run build` (menos procesos de Next) y `NODE_OPTIONS=--max-old-space-size=1536 npm run typecheck`, y antes cerrar servidores de vista previa que hayan quedado vivos. Si `tsc` muere con «Zone Allocation failed» con poca memoria usada, lo que se agotó es la memoria comprometida de Windows (límite ~17 GB con el archivo de paginación): mirar `Win32_OperatingSystem.FreeVirtualMemory` y pedir al usuario que cierre programas pesados; el asistente no cierra programas del usuario |
 | Vista previa del asistente | `.claude/launch.json`: `web` (dev) y `web-produccion` (start), con puerto automático (el 3000 lo usa Docker) |
 | Capturas reales | `node scripts/capturar-pagina.mjs <url> <ancho> <salida.png> [movil]` (desde `apps/web`): Edge por CDP con emulación de dispositivo; informa desbordamiento y errores de consola. Edge sin interfaz «normal» impone ~500 px y recorta. **Huecos entre secciones:** `node scripts/auditar-espacios.mjs <url> <ancho> movil/- [captura.png]` (tramos vacíos; `fondoUniforme: true` = hueco visible). Ambos cierran Edge por CDP y borran su perfil temporal: un script propio que lance Edge debe hacer lo mismo (el 2026-10-01 quedaron 417 procesos y el disco C: casi lleno) |
 | Vercel | Sin proyecto. Desplegar solo cuando el usuario lo pida (`regions: ["gru1"]`, variables de entorno de Supabase y `NEXT_PUBLIC_SITE_URL`) |
@@ -351,11 +416,18 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 
 ```bash
 cd apps/web
-npm run typecheck     # tsc --noEmit
-npm test              # 124 pruebas: dominio, catálogo, casos de uso, portal, convenios, seguridad, coherencia SQL
-npm run build         # todas las páginas dinámicas + proxy
+NODE_OPTIONS=--max-old-space-size=1536 npm run typecheck   # tsc --noEmit
+npm test              # 277 pruebas: dominio, catálogo, casos de uso, portal, panel, lecturas de la base, seguridad, coherencia SQL
+CIRCLE_NODE_TOTAL=2 npm run build                         # todas las páginas dinámicas + proxy
 npm audit             # 0
 ```
+
+Base del panel: pegar `docs/runbooks/pruebas-rls-panel-v1.sql` en el editor
+SQL (o `execute_sql`). Simula sesiones con `set local role` y termina con
+una excepción a propósito para revertirlo todo: el resultado esperado es
+`ERROR: OK · N pruebas superadas (todo revertido)`; un mensaje «FALLO Nxx»
+dice qué regla se rompió. Necesita las cuentas de demostración y funciona con
+o sin los datos del panel cargados (sus comprobaciones miden diferencias).
 
 ```bash
 # Dependency Rule, colores, voseo, secretos (salida vacía)
@@ -388,6 +460,11 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 - Entrega 3 (TASKS.md): logotipos de socios y universidades, carrusel y
   panal, cursos + emprende en `/cursos`, mapas con los enlaces del usuario,
   auditoría y corrección de huecos entre secciones.
+- Entrega 4, sistema interno v1 (TASKS.md E4): especificación, crítica y
+  enmiendas; R0 dominio puro; R1 núcleo y esqueleto; R2 alumnos, grupos y
+  solicitudes; R3 caja; R4 inventario; R5 uniformes y utensilios; R6
+  contabilidad; R7 tableros; R8 datos de demostración del panel (cargados el
+  2026-10-03); R9 revisión final, documentación y rama `v1`.
 
 ### Pendiente del usuario
 
@@ -395,13 +472,14 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 |---|---|---|
 | E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio. Estado real (2026-10-01): confirmación de correo activada, registro abierto, solo proveedor de correo | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
 | E2.D3 | ~~Push de los commits locales~~ | **Hecho** por el usuario el 2026-10-01: las tres ramas están en GitHub con los mismos commits que en local |
-| — | Aprobar la web y fusionar | `git checkout main && git merge feat/pagina-web` (y luego actualizar `feat/sistema-interno` desde `main`) |
+| — | **Revisar el panel con sesión** | Entrar por `/portal/acceso` como Carla (administración) y como Rosa (recepción) con la contraseña de `datos-demo.local.sql`; recorrer inicio, alumnos, caja, inventario y contabilidad con los datos de demostración. El asistente no inicia sesión |
+| — | Aprobar y fusionar | `feat/sistema-interno` ya contiene la web: `git checkout main && git merge feat/sistema-interno` (o la rama `v1`) |
 | E2.D4 | ~~Cargar las cuentas de demostración~~ | **Hecho**: 5 cuentas cargadas; Camila, Diego y Valeria ya iniciaron sesión. **Borrarlas antes de producción** (`borrar-datos-demo.sql`) |
 | — | Respuesta del cliente sobre precios y detalles de cursos y licenciatura | Pedida por correo el 2026-10-01; el usuario avisa. Hasta entonces, «Consultar» |
-| — | Push de los commits de la entrega 3 | `git push origin feat/pagina-web` (§16.1) |
+| — | Activar la protección de contraseñas filtradas | Authentication → Settings (aviso de `get_advisors`) |
 | — | Desactivar las claves API heredadas (JWT `anon`/`service_role`) | Una `service_role` se pegó en el chat el 2026-10-01: darla por filtrada. Project Settings → API Keys → Legacy API keys. La web solo usa la clave publicable, no se ve afectada |
-| — | Promover al primer administrador real cuando exista su cuenta | SQL de §4 |
-| — | Desplegar en Vercel | Cuando el usuario lo pida |
+| — | Promover al primer administrador real cuando exista su cuenta | SQL de §4 (Ajustes › Personal llega en la v1.1) |
+| — | Desplegar en Vercel | Cuando el usuario lo pida. Antes: `borrar-datos-demo.sql` (datos del panel y cuentas ficticias) |
 
 ### Pendiente del cliente (`docs/analisis/aclaraciones-2026-10-01.md` §8)
 
@@ -413,16 +491,24 @@ son mensuales. (Logotipos de socios: recibidos.)
 
 ### Siguiente trabajo técnico
 
-1. Sistema interno, fase 1: login de personal (`/panel`), bandeja de
-   solicitudes para recepción (leer, poner en revisión, aprobar, rechazar con
-   respuesta) usando los permisos ya creados.
-2. Inventario (fase 2) y contabilidad con pagos por QR (fase 4).
+1. Correcciones que salgan de la revisión del usuario con sesión.
+2. Panel v1.1 (TASKS «Pasa a la v1.1»): Ajustes › Personal y Conceptos,
+   cierre y reapertura de mes, auditoría, verificación de QR y revisión de
+   arqueos.
 3. Web: QR de pago en el portal cuando llegue; dominio, `NEXT_PUBLIC_SITE_URL`,
    quitar `noindex`, `sitemap.xml`.
 
 ### Deuda reconocida
 
-- Sin CI ni ESLint (comprobaciones a mano, §8).
+- Sin CI ni ESLint (comprobaciones a mano, §8). La batería de la base se
+  corre a mano (`execute_sql` o el editor SQL).
+- Pantallas del panel con sesión sin verificar por el asistente (no inicia
+  sesión): las prueba el usuario.
+- `/panel/ajustes` es un aviso hasta la v1.1 (acceso del personal por SQL).
+- La guarda del último administrador (`app.proteger_perfil`) no se bloquea:
+  dos bajas simultáneas de los dos últimos administradores podrían pasar
+  ambas. Improbable con un solo instituto; se cierra en la v1.1 con
+  Ajustes › Personal.
 - Catálogo académico en archivo estático (la tabla `programas` solo es referencia).
 - Aviso de privacidad en borrador, a revisar por el cliente.
 - A 320 px la portada desborda 14 px por la sección de cifras y el botón
@@ -449,6 +535,10 @@ son mensuales. (Logotipos de socios: recibidos.)
 | Logotipos de socios publicados como hexágonos horneados (sin color por socio en CSS) | docs/brand §16 |
 | Carrusel sin flechas pero con «Pausar movimiento» (WCAG 2.2.2) | Pedido del usuario + skill ui-ux-pro-max |
 | Dos secciones seguidas del mismo fondo: la segunda sin relleno superior (regla global) | `globals.css` «Ritmo entre secciones» |
+| Sistema interno: especificación, crítica independiente y enmiendas antes de construir; v1 en rebanadas R0–R9 | `docs/sistema-interno/` (enmiendas §A alcance, §B resoluciones, §C rebanadas) |
+| Libro de inventario valorizado: PEPS en insumos, promedio en el resto, resto exacto, anulación solo de lo que no se movió después (o ya se deshizo), conteo todo o nada | ADR 0007 |
+| Panel: un solo inicio de sesión; permisos por rol en tabla; alcance por sede; RPC fachada INVOKER + motor DEFINER; idempotencia con la clave del formulario; fecha de Bolivia; caja sin edición; precio del grupo congelado; contabilidad como vista de gestión | ADR 0008 |
+| Ajustes › Personal y Conceptos, cierre de mes, auditoría y `caja.supervisar` pasan a la v1.1; el acceso del personal se da por SQL (§4) | enmiendas §A.2; decisión del 2026-10-03 para Personal (§16.3) |
 
 ---
 
@@ -485,6 +575,13 @@ son mensuales. (Logotipos de socios: recibidos.)
 | Franja blanca entre una onda y el pie | La onda SVG es transparente y deja ver el blanco del `body` | El pie toma el fondo de la última sección (`main:has(...)+footer`); `BandaEmprende final` |
 | Disco C: casi lleno y cientos de `msedge.exe` | Los scripts de captura mataban solo el proceso lanzado; Edge seguía en otros y el perfil quedaba en %TEMP% | Cerrar por CDP (`Browser.close`) y borrar el perfil |
 | Logotipo de Fusión Gourmet cortado en el hexágono | Su fondo es un degradado: no se puede recortar el margen | `aclararFondo`: grises claros a blanco antes de recortar |
+| `npm run build` y `typecheck` sin memoria | El panel duplicó el código; Next lanza un proceso por CPU; quedaban servidores de vista previa vivos | `CIRCLE_NODE_TOTAL=2` en el build, `--max-old-space-size=1536` en tsc, cerrar servidores huérfanos (§7) |
+| Texto con acentos graves perdido al editar | Dentro de `node -e "…"` con comillas dobles, Bash ejecuta lo que va entre acentos graves | Editar con la herramienta de edición o con un script escrito a archivo |
+| Error de sintaxis en la batería | Un `case … then` dentro de la condición de un `IF` de PL/pgSQL | Poner el `case` entre paréntesis |
+| Una compra de costo promedio no se podía anular nunca tras un uso, aunque el uso ya estuviera anulado | `app.anular` contaba los movimientos posteriores anulados y sus anulaciones | Migración `20261002190000`: solo cuentan los posteriores vigentes (N84–N86) |
+| Con «Ambas», los avisos de caja del tablero llevaban a otra sede; lo que deben y los lotes se contaban sobre listas de 100 y 50 filas | La página contaba sobre listas recortadas y no sabía dónde estaba el problema | Migración `20261002180100` (sede del problema, `resumen_de_deudores`) y conteos exactos (N87–N89) |
+| `tsc` del proyecto murió con «Zone Allocation failed» (2026-10-03) | La memoria comprometida de Windows estaba casi agotada (0,5 GB libres de 17 GB), sobre todo por programas abiertos del usuario | Comprobaciones pesadas (tipos, build) cuando el usuario libera memoria; pruebas unitarias y baterías de la base no la necesitan |
+| Flujos de agentes en segundo plano se perdieron | Mueren si la sesión termina mientras corren | Esperar activamente a que terminen antes de cerrar el turno; reanudar con `resumeFromRunId` |
 
 ---
 
@@ -498,6 +595,8 @@ son mensuales. (Logotipos de socios: recibidos.)
 | 2026-10-01 | `feat/pagina-web` | Cookie renovada propagada en el proxy; HTML válido en la tarjeta de pago; etiqueta del menú móvil; fotos verticales en el portal (`978cdbc`, `91f0d6d`). Push de las tres ramas hecho por el usuario |
 | 2026-10-01 | `feat/pagina-web` | Cuentas y datos de demostración en `supabase/seed/` (5 cuentas `.test`, historial de 3 gestiones), ensayados y revertidos; contraseña fuera del repositorio. El usuario los cargó y probó el acceso |
 | 2026-10-01 | `feat/pagina-web` | Entrega 3: logotipos de socios horneados como hexágonos; carrusel automático sin flechas (inicio); panel de universidades; panal del folleto (convenios); cursos + emprende en `/cursos` (308 desde `/emprende`); mapas con los enlaces del usuario; ritmo entre secciones y ondas del pie; `auditar-espacios.mjs`; fuga de procesos de Edge corregida. Auditoría base y revisión con 4 revisores + verificadores; 11 defectos confirmados y corregidos; 124 pruebas |
+| 2026-10-02 | `feat/sistema-interno` | Diseño del sistema interno: especificación, crítica independiente y enmiendas (`01557f2`). R0 dominio puro (`b3005d0`); R1 núcleo de base y esqueleto del panel (`60772e5`); R2 alumnos, grupos y solicitudes (`a558eaa`, `237f70e`); R3 caja (`164d338`, `2413fa3`); R4 inventario PEPS y promedio (`685e4aa`, `277b585`); R5 uniformes y utensilios (`1fc3d6c`); R6 contabilidad (`3e5bf35`). Cada rebanada con su batería de la base y revisores escépticos |
+| 2026-10-03 | `feat/sistema-interno` | R7 tableros de inicio y anulación de lo ya deshecho (`411883a`); R8 datos de demostración del panel, cargados (`9f268bc`); batería del panel 145/145 sobre los datos cargados; ADR 0007 y 0008; R9 revisión final |
 
 ---
 
@@ -506,11 +605,17 @@ son mensuales. (Logotipos de socios: recibidos.)
 1. Leer §0, §9, §15, §16 y `TASKS.md`.
 2. `git status`, `git branch -vv`, `git ls-remote --heads origin`.
 3. Comprobar que `apps/web/.env.local` tiene la URL real del proyecto (§7).
-4. `cd apps/web && npm install && npm run typecheck && npm test && npm run build && npm audit`.
+4. `cd apps/web && npm install`, y las comprobaciones de §8 (con las
+   opciones de memoria de §7).
 5. Si hay respuestas o recursos del cliente: actualizar `contenido/`,
    `oferta-academica.ts`, `npm run imagenes`, y los documentos.
-6. Web: seguir en `feat/pagina-web`. Sistema interno: `git checkout feat/sistema-interno && git merge main` (o rebase; si la web ya se fusionó, traerá también la capa Supabase y el portal) y empezar la fase 1 (§9).
-7. Al cerrar: `TASKS.md` con validaciones y este archivo (§9, §13).
+6. Trabajo nuevo del panel o de la web: en `feat/sistema-interno` (lleva las
+   dos cosas), con una rama por línea de trabajo si hace falta, nunca por
+   botón. Si se toca la base: migración nueva en `supabase/migrations/` (y su
+   fila en el README), sus casos en `pruebas-rls-panel-v1.sql`, tipos
+   generados, `errores-del-panel.ts` si hay códigos nuevos, y
+   `get_advisors`.
+7. Al cerrar: `TASKS.md` con validaciones y este archivo (§9, §13, §16).
 
 ---
 
@@ -578,44 +683,41 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
 
 ---
 
-## 16. Estado exacto al cierre de la entrega 3 (2026-10-01)
+## 16. Estado exacto al cierre de la v1 del sistema interno (2026-10-03)
 
 ### 16.1 Repositorio y entorno
 
 | | |
 |---|---|
-| Rama activa | `feat/pagina-web`: commit de la entrega 3 sobre `2ffbd35` (que ya está en GitHub). El de la entrega 3 queda **solo en local** hasta que el usuario haga `git push origin feat/pagina-web` |
-| `main` y `feat/sistema-interno` | `25500d8`, igual que en GitHub; `feat/pagina-web` sin fusionar |
+| Rama activa | `feat/sistema-interno` (la web de las entregas 2 y 3 + el panel R0–R9). Último commit y si está publicado: `git log -1` y `git ls-remote --heads origin` |
+| `v1` | Rama que marca la entrega del sistema interno v1; sale del último commit de `feat/sistema-interno` |
+| `main` | `25500d8` (fase 0 y entrega 2). Nada fusionado: espera la aprobación del usuario |
+| `feat/pagina-web` | `08df150` (entrega 3), en GitHub; `feat/sistema-interno` la contiene |
 | `.env.local` | Con los valores reales del proyecto (§7) |
-| Base de datos | 5 cuentas de demostración cargadas por el usuario (§4); Valeria tiene una solicitud creada desde el portal |
-| Servidor de vista previa | `web-produccion` (`npm run start`, puerto 3100) arrancado por el asistente; efímero |
-| Capturas e informes de revisión | En el scratchpad de la sesión (efímero). Herramientas reproducibles: `scripts/capturar-pagina.mjs` y `scripts/auditar-espacios.mjs` |
+| Base de datos | 18 migraciones aplicadas (§4). Cuentas de demostración y datos de demostración del panel cargados (2026-10-03). Valeria tiene una solicitud creada desde el portal |
+| Servidor de vista previa | `web-produccion` (puerto 3100); el asistente lo arranca para comprobar y lo detiene (la memoria es justa, §7) |
+| Informes de revisión | En el directorio de la sesión (efímero). Lo confirmado y corregido está en `TASKS.md` (E4.R7 y E4.R9) |
 | HawkScan | No ejecutado: la máquina no tiene `HAWK_API_KEY`. El gancho de sesión lo pide tras cada commit; se ignora mientras falte la clave |
 
 ### 16.2 Lo verificado y lo no verificado
 
-- **Verificado (entrega 3):** 124 pruebas; tipos; build; audit 0; greps de
-  §8 vacíos; 0 atributos `style` en el HTML servido. Auditoría de huecos en
-  las rutas públicas a 1440 y 375 (antes y después). Revisión independiente
-  con 4 revisores y verificadores escépticos:
-  - panal con la geometría exacta (hueco de 8 px en horizontal y en diagonal,
-    filas 4/4/5/4 en el orden del folleto);
-  - carrusel en bucle sin salto (68 celdas, periodo 34) y 68/68 imágenes
-    cargadas;
-  - pausa con ratón, teclado, botón y movimiento reducido; árbol de
-    accesibilidad (17 logotipos con nombre y copias ocultas);
-  - mapas con las coordenadas de los enlaces del usuario y sin violaciones de
-    CSP; `/emprende` responde 308.
-  
-  Los 11 defectos que encontró se corrigieron y se volvieron a verificar
-  (TASKS.md, entrega 3).
-- **Verificado (entrega 2):** RLS 39/39; 23 rutas con su código esperado; CSP
-  con nonce; API REST con clave pública (solo sedes y programas). Inicio de
-  sesión real con las cuentas de demostración (hecho por el usuario).
-- **No verificado:** registro → correo → confirmación con un correo real
-  (depende de E2.D1: SMTP o desactivar *Confirm email*).
+- **Verificado (v1 del panel):** pruebas unitarias, tipos, build y greps de
+  §8; batería de la base del panel completa sobre los datos de demostración
+  cargados (resultado en `TASKS.md` E4.R9); `curl` sin sesión → 307 en las
+  rutas del panel; advisors de seguridad sin avisos nuevos. Cada rebanada
+  tuvo revisores escépticos y la v1 una revisión final con verificación
+  adversarial (`TASKS.md` E4.R9).
+- **Verificado (entregas 2 y 3):** RLS del portal 39/39; rutas públicas con
+  su código esperado; CSP con nonce; inicio de sesión real con las cuentas de
+  demostración (hecho por el usuario); maquetación en escritorio y móvil.
+- **No verificado por el asistente:** las pantallas del panel con sesión
+  (Carla y Rosa): el asistente no inicia sesión con contraseñas. Las revisa
+  el usuario. Tampoco el registro → correo → confirmación con un correo real
+  (E2.D1).
 
 ### 16.3 Decisiones tomadas que el usuario debe confirmar
+
+De la web:
 
 1. «Universidad **Unión Bolivariana**» (logotipo y documento) en lugar de
    «Unión Boliviana» (su mensaje).
@@ -645,11 +747,33 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
     - la caja amarilla de contacto tiene margen en móvil;
     - los requisitos se alinean con la ficha.
 
+Del sistema interno (detalle en `docs/sistema-interno/enmiendas-v1.md` y los
+ADR 0007 y 0008):
+
+11. **Recepción opera solo en su sede** (`perfiles.sede_id`) y consulta las
+    dos; administración opera en cualquiera.
+12. **Recepción cobra y cierra la caja (arqueo)**; anular un cobro, un cargo
+    o un movimiento de inventario es solo de administración.
+13. **Ajustes › Personal pasa a la v1.1** (ninguna rebanada lo incluía): el
+    acceso del personal se da por SQL (§4). Es una rebanada pequeña si se
+    quiere en la v1.
+14. El **precio de un grupo se congela con su primer cargo**; para cambiarlo
+    se anulan las cuotas, se cambia el precio y se usa «Crear cuotas
+    pendientes». Una beca (cuotas anuladas con el plan igual) no vuelve, pero
+    si el precio del grupo cambia, las becas de ese grupo vuelven a cargarse
+    y hay que anularlas de nuevo (la pantalla lo avisa; ADR 0008 §8).
+15. La **contabilidad es una vista de gestión**, no un estado financiero
+    oficial; el recibo dice «Recibo interno: no es factura».
+16. **Devolver un uniforme** anula su cargo solo cuando vuelve todo, contando
+    los cambios de talla, y el cargo no está cobrado; si está cobrado,
+    administración anula el cobro y después el cargo.
+17. Los datos de demostración del panel (alumnos, montos, compras) son
+    **ficticios** y se borran antes de producción.
+
 ### 16.4 Ideas de siguiente paso ya conversadas
 
-- Sistema interno, fase 1: login del personal y bandeja de solicitudes para
-  recepción (aprobar, rechazar, poner en revisión con respuesta), sobre los
-  permisos `solicitudes.leer` y `solicitudes.gestionar` que ya existen.
-- Contabilidad con pagos por QR (módulo importante para administración).
+- Revisión del panel con sesión por el usuario y ajustes que salgan de ella.
+- v1.1 del panel: Ajustes › Personal y Conceptos, cierre de mes, auditoría,
+  verificación de QR y revisión de arqueos.
 - Al llegar el QR bancario: mostrarlo en la tarjeta de pago del portal
   (`INSTITUTO.pago.qrDisponible`).
