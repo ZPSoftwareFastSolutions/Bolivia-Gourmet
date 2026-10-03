@@ -131,6 +131,8 @@ export interface FiltroDeKardex {
   readonly operacionId?: Id;
   readonly compraId?: Id;
   readonly movimientoId?: Id;
+  /** Solo estos tipos (vacío o ausente = todos): «Revisar bajas» pide bajas y faltantes. */
+  readonly tipos?: readonly TipoDeMovimiento[];
   readonly limite?: number;
   /** Saltar las primeras N filas (para leer por páginas: la API corta en 1000). */
   readonly desde?: number;
@@ -322,6 +324,29 @@ export interface DatosDeDevolucion {
   readonly cambiarPor?: Id;
 }
 
+/**
+ * Qué pasó con el cargo del uniforme al recibir la devolución (enmiendas
+ * B.12, crítica 14), según la base. El cargo es de la entrega original y
+ * cubre también las tallas por las que se cambió, así que «todo» cuenta las
+ * piezas de toda esa cadena, se devuelvan desde la fila que se devuelvan:
+ * - `anulado`: volvió todo y el cargo no tenía cobros; la base lo anuló.
+ * - `cobrado`: volvió todo, pero ya se había cobrado; el cargo sigue y
+ *   administración tiene que anular el cobro y después el cargo.
+ * - `parcial`: todavía le queda alguna pieza; el cargo sigue igual.
+ */
+export type EstadoDelCargoDevuelto = 'anulado' | 'cobrado' | 'parcial';
+
+export interface CargoDeLaDevolucion {
+  readonly cargoId: Id;
+  readonly monto: Centavos;
+  readonly estado: EstadoDelCargoDevuelto;
+}
+
+export interface DevolucionHecha {
+  /** null: la entrega original no tenía cargo vigente, o fue un cambio de talla (no toca el cargo). */
+  readonly cargo: CargoDeLaDevolucion | null;
+}
+
 export interface DatosDePrestamo {
   readonly sedeId: Id;
   readonly estudianteId?: Id;
@@ -364,7 +389,7 @@ export interface InventarioPort {
   prestamosAbiertos(filtro: { readonly sedeId?: Id; readonly estudianteId?: Id }): Promise<Resultado<readonly PrestamoAbierto[]>>;
   sinUniforme(sedeId?: Id): Promise<Resultado<readonly AlumnoSinUniforme[]>>;
   entregarUniforme(clave: string, datos: DatosDeEntrega): Promise<Resultado<EntregaHecha>>;
-  devolverUniforme(clave: string, datos: DatosDeDevolucion): Promise<Resultado<void>>;
+  devolverUniforme(clave: string, datos: DatosDeDevolucion): Promise<Resultado<DevolucionHecha>>;
   prestarUtensilios(clave: string, datos: DatosDePrestamo): Promise<Resultado<void>>;
   recibirDevolucion(clave: string, lineas: readonly LineaRecibida[]): Promise<Resultado<{ readonly perdidos: number }>>;
 }

@@ -28,6 +28,9 @@ import type {
   TomaDeLote,
   TotalesDelMesEnBase,
 } from '@core/application/ports/contabilidad.port';
+// Tope de filas de una lista del mes (gastos o compras): vive en el puerto
+// porque sus pantallas lo leen para avisar del corte.
+import { TOPE_DE_LISTA_DEL_MES } from '@core/application/ports/contabilidad.port';
 import type { MovimientoEnKardex, TipoDeComprobante } from '@core/application/ports/inventario.port';
 import { cuadreDesdeBase, totalesDesdeBase } from './contabilidad-desde-base';
 import { milesimasDe } from './cantidades';
@@ -36,8 +39,6 @@ import { PanelInventarioSupabase } from './panel-inventario.supabase';
 import { argsDe } from './rpc';
 import type { Database } from './tipos-de-base.generados';
 
-/** Tope de filas de una lista del mes (gastos o compras). */
-const LIMITE_DEL_MES = 300;
 /** Movimientos de la tarjeta PEPS (el más nuevo primero, luego se invierte). */
 /** La API devuelve como mucho 1000 filas por consulta: la tarjeta se lee por páginas. */
 const PAGINA_DE_TARJETA = 1000;
@@ -183,7 +184,7 @@ export class PanelContabilidadSupabase implements ContabilidadPort {
       .select(COLUMNAS_DE_GASTO)
       .or(delMesOAnuladoEnElMes(rango.desde, rango.hasta))
       .order('numero', { ascending: false })
-      .limit(LIMITE_DEL_MES);
+      .limit(TOPE_DE_LISTA_DEL_MES);
     if (sedeId) consulta = consulta.eq('sede_id', sedeId);
     const { data, error } = await consulta.returns<FilaDeGasto[]>();
     if (error) return fallo(traducirErrorDePanel(error));
@@ -231,7 +232,7 @@ export class PanelContabilidadSupabase implements ContabilidadPort {
       .select(COLUMNAS_DE_COMPRA)
       .or(delMesOAnuladoEnElMes(rango.desde, rango.hasta))
       .order('numero', { ascending: false })
-      .limit(LIMITE_DEL_MES);
+      .limit(TOPE_DE_LISTA_DEL_MES);
     if (sedeId) consulta = consulta.eq('sede_id', sedeId);
     const { data, error } = await consulta.returns<FilaDeCompra[]>();
     if (error) return fallo(traducirErrorDePanel(error));

@@ -27,6 +27,7 @@ import type {
   DatosDeBaja,
   DatosDeCompra,
   DatosDeDevolucion,
+  DevolucionHecha,
   DatosDeEntrega,
   DatosDePrestamo,
   DatosDeUso,
@@ -51,6 +52,7 @@ import type {
 } from '@core/application/ports/inventario.port';
 import { traducirErrorDePanel } from './errores-del-panel';
 import { cantidadParaLaBase, milesimasDe } from './cantidades';
+import { devolucionDesdeBase } from './devolucion-desde-base';
 import { argsDe, comoObjeto, numero, texto } from './rpc';
 import type { Database, Json } from './tipos-de-base.generados';
 
@@ -241,6 +243,7 @@ export class PanelInventarioSupabase implements InventarioPort {
     if (filtro.operacionId) consulta = consulta.eq('operacion_id', filtro.operacionId);
     if (filtro.compraId) consulta = consulta.eq('compra_id', filtro.compraId);
     if (filtro.movimientoId) consulta = consulta.eq('id', filtro.movimientoId);
+    if (filtro.tipos && filtro.tipos.length > 0) consulta = consulta.in('tipo', [...filtro.tipos]);
     const { data, error } = await consulta.returns<Partial<FilaDeKardex>[]>();
     if (error) return fallo(traducirErrorDePanel(error));
     return exito((data ?? []).map(movimiento));
@@ -257,10 +260,20 @@ export class PanelInventarioSupabase implements InventarioPort {
     return exito((data ?? []).map((g) => ({ id: (g.id ?? '') as Id, nombre: g.nombre ?? '' })));
   }
 
+  /**
+   * Lo calcula la base (`variantes_con_movimientos`, exige `inventario.leer`):
+   * leer las filas de `movimientos` se cortaba en las 1000 que devuelve la API
+   * como mucho, y una variante con movimientos podía parecer nueva y admitir
+   * un saldo inicial. La base devuelve cada variante una sola vez.
+   */
   async variantesConMovimientos(sedeId: Id): Promise<Resultado<ReadonlySet<Id>>> {
-    const { data, error } = await this.cliente.from('movimientos').select('variante_id').eq('sede_id', sedeId).limit(10000);
+    const { data, error } = await this.cliente.rpc('variantes_con_movimientos', argsDe<'variantes_con_movimientos'>({ p_sede: sedeId }));
     if (error) return fallo(traducirErrorDePanel(error));
-    return exito(new Set((data ?? []).map((f) => f.variante_id as Id)));
+    // Sin movimientos, un `array_agg` sin filas llega como null: conjunto vacío.
+    const ids = new Set<Id>();
+    const lista: readonly unknown[] = Array.isArray(data) ? data : [];
+    for (const id of lista) if (typeof id === 'string' && id.length > 0) ids.add(id as Id);
+    return exito(ids);
   }
 
   // ---------------------------------------------------------------- catálogo
@@ -510,8 +523,8 @@ export class PanelInventarioSupabase implements InventarioPort {
     });
   }
 
-  async devolverUniforme(clave: string, datos: DatosDeDevolucion): Promise<Resultado<void>> {
-    const { error } = await this.cliente.rpc(
+  async devolverUniforme(clave: string, datos: DatosDeDevolucion): Promise<Resultado<DevolucionHecha>> {
+    const { data, error } = await this.cliente.rpc(
       'devolver_uniforme',
       argsDe<'devolver_uniforme'>({
         p_clave: clave,
@@ -522,7 +535,8 @@ export class PanelInventarioSupabase implements InventarioPort {
       }),
     );
     if (error) return fallo(traducirErrorDePanel(error));
-    return exito(undefined);
+    // Qué pasó con el cargo (enmiendas B.12, crítica 14): devolucion-desde-base.ts.
+    return exito(devolucionDesdeBase(data));
   }
 
   async prestarUtensilios(clave: string, datos: DatosDePrestamo): Promise<Resultado<void>> {

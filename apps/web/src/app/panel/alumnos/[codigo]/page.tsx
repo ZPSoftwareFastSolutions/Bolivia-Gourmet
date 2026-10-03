@@ -273,7 +273,14 @@ export default async function FichaDelAlumno({ params, searchParams }: Props) {
       </section>
 
       {tienePermiso(ctx, 'inventario.leer') ? (
-        <UniformeYPrestamos ctx={ctx} estudianteId={a.id} codigo={a.codigo} tieneInscripcion={vigentes.length > 0} confirmar={parametro(valores, 'uniforme')} />
+        <UniformeYPrestamos
+          ctx={ctx}
+          estudianteId={a.id}
+          codigo={a.codigo}
+          tieneInscripcion={vigentes.length > 0}
+          confirmar={parametro(valores, 'uniforme')}
+          cargoDevuelto={{ estado: parametro(valores, 'cargouniforme'), monto: parametro(valores, 'montouniforme') }}
+        />
       ) : null}
 
       <section aria-labelledby="datos" className="grid gap-4 rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta p-5">

@@ -5,7 +5,18 @@ PostgreSQL 17 · región `sa-east-1` (São Paulo) · organización «Z&P Softwar
 Fast Solutions» (plan gratuito). Creado el 2026-10-01.
 
 Cada archivo `.sql` de esta carpeta está **aplicado** en el proyecto con el
-mismo nombre (sin el prefijo de fecha) y en el mismo orden. Se aplican con la
+mismo nombre (sin el prefijo de fecha) y en el mismo orden, con estas
+salvedades, todas sin efecto en el resultado:
+
+- `panel_tablero_sedes` y `panel_anular_lo_deshecho` se aplicaron al revés,
+  y también `panel_revision_final` y `panel_devolver_uniforme_cargo`: cada
+  par toca funciones distintas.
+- `panel_revision_final_ajuste_cuotas` y
+  `panel_devolver_uniforme_cargo_ajuste` aparecen en la base como
+  migraciones aparte: son la segunda ronda de la revisión final, que vuelve a
+  definir `generar_cuotas_de_grupo` y `devolver_uniforme`. En la carpeta, esas
+  definiciones ya están dentro de `20261003120000` y `20261003120100`
+  (comprobado con el md5 del cuerpo de cada función). Se aplican con la
 herramienta `apply_migration` del conector o pegándolos en el editor SQL.
 
 ## Aplicadas
@@ -30,8 +41,10 @@ herramienta `apply_migration` del conector o pegándolos en el editor SQL.
 | `20261002180000_panel_tablero.sql` | Sistema interno (R7): `tablero_de_administracion(p_sede)` para el inicio de administración: efectivo de días anteriores sin arqueo, arqueos del mes con diferencia, bajas y faltantes de 7 días, lo que quedó sin precio, el dinero del mes frente al mes anterior a la misma fecha y el dinero de las últimas 8 semanas. Lectura INVOKER que exige `contabilidad.leer` |
 | `20261002180100_panel_tablero_sedes.sql` | Revisión de R7: el tablero devuelve la sede del efectivo sin arqueo más antiguo y la del arqueo con diferencia más reciente (y en cuántas sedes hay), para que con «Ambas» el aviso lleve a la caja correcta; `resumen_de_deudores(p_sede)` cuenta en la base cuántos alumnos deben, cuánto, y lo vencido (exige `caja.leer`), en lugar de sumar una lista de 100 filas |
 | `20261002190000_panel_anular_lo_deshecho.sql` | Revisión (R9): `app.anular` deja anular una compra de costo promedio o un saldo inicial cuando lo que vino después ya se anuló (enmiendas A.2: «anula los usos y después la compra»), y anular dos veces un saldo inicial responde `ya_anulado` |
+| `20261003120000_panel_revision_final.sql` | Revisión final de la v1: `generar_cuotas_de_grupo` solo crea las cuotas de quien no tiene ninguna vigente de su plan (una beca o un descuento anulados no vuelven); si todas se anularon, solo las vuelve a crear cuando el plan cambió (monto, calendario o número de cuotas, mirando la última tanda) y desde el primer vencimiento anulado. `app.sacar`: un lote elegido también respeta el vencimiento. `registrar_saldo_inicial` vuelve a comprobar los movimientos después del candado. `resumen_del_mes`: un cargo anulado antes de su propia fecha no cuenta en ningún mes. Nueva lectura `variantes_con_movimientos(p_sede)` (`inventario.leer`) |
+| `20261003120100_panel_devolver_uniforme_cargo.sql` | Revisión final (enmiendas B.12, crítica 14): devolver el uniforme sin cambio de talla anula su cargo cuando ya no queda ninguna pieza de la cadena de cambios de talla en poder del alumno y el cargo no tiene cobros; si está cobrado responde `anula_el_cobro`; si queda alguna pieza, `devolucion_parcial` |
 
-Estado tras aplicarlas (2026-10-03): 29 tablas, 29 con RLS, 44 políticas,
+Estado tras aplicarlas (2026-10-03, 22 migraciones en la base): 29 tablas, 29 con RLS, 44 políticas,
 12 vistas `security_invoker`. `get_advisors(security)`: un aviso
 informativo esperado (`operaciones` tiene RLS sin políticas a propósito: solo
 la tocan funciones DEFINER) y uno de configuración de Auth (protección de
@@ -83,10 +96,8 @@ contraseñas filtradas, se activa en el panel de Supabase).
   lo suyo. Se detiene sin borrar nada si el panel tiene registros de cuentas
   que no son de demostración. Obligatorio antes de producción.
 
-## Pendientes previstas
+## Pendientes previstas (v1.1, enmiendas §A.2)
 
-| Fase | Migraciones |
-|---|---|
-| 2 (sistema interno) | `categorias` · `articulos` · `variantes` · `movimientos` · `entregas` · vista `v_stock` |
-| 3 | `cohortes` · `estudiantes` (datos académicos) · `inscripciones`; contenido completo de `programas` |
-| 4 | `pagos` (QR) · `gastos` · vistas por período |
+Cierre y reapertura de mes (`periodos`), auditoría (`auditoria`),
+`caja.supervisar` (verificar QR y revisar arqueos) y las pantallas de
+Ajustes (Personal y Conceptos), que usan tablas que ya existen.

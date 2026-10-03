@@ -213,8 +213,16 @@ export interface DatosDeGasto {
 
 // ---------------------------------------------------------------- puerto
 
+/**
+ * Cuántos alumnos devuelve `deudores` como mucho. Lo aplica el adaptador y lo
+ * lee la pantalla para avisar que la lista se cortó: una sola cifra, así no
+ * se desalinean.
+ */
+export const TOPE_DE_DEUDORES = 100;
+
 export interface CajaPort {
   cuentaDeAlumno(estudianteId: Id): Promise<Resultado<CuentaDeAlumno | null>>;
+  /** Como mucho `TOPE_DE_DEUDORES`, lo más vencido primero. */
   deudores(filtro: FiltroDeDeudores): Promise<Resultado<readonly Deudor[]>>;
   registrarCobro(clave: string, datos: DatosDeCobroNuevo): Promise<Resultado<CobroHecho>>;
   recibo(id: Id): Promise<Resultado<Recibo | null>>;

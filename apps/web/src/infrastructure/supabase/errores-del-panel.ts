@@ -85,7 +85,7 @@ export const MENSAJES_DE_PANEL: Readonly<Record<string, (detalle: Detalle) => st
   ya_anulado: () => 'Eso ya estaba anulado.',
   cargo_con_cobros: () => 'Este cargo ya tiene cobros. Anula primero el cobro.',
   sin_plan_de_pagos: () => 'Este grupo aún no tiene precio. Defínelo primero.',
-  plan_congelado: () => 'Este precio ya tiene cuotas cargadas y no se puede cambiar. Si hace falta, anula las cuotas primero.',
+  plan_congelado: () => 'Este precio ya tiene cuotas cargadas y no se puede cambiar. Si hace falta, anula las cuotas, cambia el precio y luego usa «Crear cuotas pendientes».',
   libro_inmutable: () => 'Ese registro no se puede cambiar: si algo quedó mal, anúlalo y regístralo de nuevo.',
 
   // Inventario (R4)

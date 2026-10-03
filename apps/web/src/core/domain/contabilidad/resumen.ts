@@ -14,7 +14,9 @@
  *   diferencias de caja   faltantes − sobrantes de los arqueos del mes
  *
  * Una anulación cuenta en el mes en que se hace (`anulado_el`), restando; el
- * mes original NO cambia. Las compras son dinero e inventario, nunca gasto.
+ * mes original NO cambia. Excepción: un cargo anulado antes de su propia fecha
+ * (cuota futura de un retiro) no cuenta en ningún mes. Las compras son dinero
+ * e inventario, nunca gasto.
  *
  * Es una vista de gestión, no un estado financiero oficial.
  *
@@ -212,7 +214,16 @@ export function totalesDeDineroDelMes(mes: string, documentos: readonly Document
   return totales as Partial<Record<MedioDePago, TotalesDeMedio>>;
 }
 
-/** Ingresos de un mes: cargos con fecha en el mes y cargos anulados en el mes. */
+/**
+ * Ingresos de un mes: cargos con fecha en el mes y cargos anulados en el mes.
+ *
+ * Un cargo anulado ANTES de su propia fecha (la cuota futura que anula un
+ * retiro) nunca se ganó: no cuenta en el mes de su fecha ni resta en el de la
+ * anulación. Si no, un retiro bajaría el ingreso de este mes por cuotas que
+ * aún no vencían y el mes de cada cuota mostraría un ingreso ya cancelado. Lo
+ * anulado en su fecha o después sigue la regla general. Igual que
+ * `public.resumen_del_mes` (migración `panel_revision_final`).
+ */
 export function ingresosDelMes(
   mes: string,
   cargos: readonly { readonly monto: Centavos; readonly fecha: FechaISO; readonly anuladoEl?: FechaISO }[],
@@ -220,6 +231,8 @@ export function ingresosDelMes(
   let ingresos = 0;
   let anulados = 0;
   for (const cargo of cargos) {
+    // `AAAA-MM-DD` se compara bien como texto.
+    if (cargo.anuladoEl !== undefined && cargo.anuladoEl < cargo.fecha) continue;
     if (mesDe(cargo.fecha) === mes) ingresos += cargo.monto;
     if (cargo.anuladoEl !== undefined && mesDe(cargo.anuladoEl) === mes) anulados += cargo.monto;
   }

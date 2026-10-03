@@ -10,7 +10,8 @@
 import { validarArticulo, validarVariantes, type TipoDeArticulo } from '../../../domain/inventario/articulo';
 import type { MotivoDeBaja } from '../../../domain/inventario/movimiento';
 import { exigeReferencia } from '../../../domain/caja/cobro';
-import { fallo, type Id, type Resultado } from '../../../domain/shared/tipos-base';
+import { formatearMontoExacto } from '../../../domain/shared/dinero';
+import { fallo, type Centavos, type Id, type Resultado } from '../../../domain/shared/tipos-base';
 import type {
   CambiosDeArticulo,
   DatosDeArticuloNuevo,
@@ -20,8 +21,10 @@ import type {
   DatosDeEntrega,
   DatosDePrestamo,
   DatosDeUso,
+  DevolucionHecha,
   DocumentoAnulable,
   EntregaHecha,
+  EstadoDelCargoDevuelto,
   InventarioPort,
   LineaContada,
   LineaDeSaldoInicial,
@@ -225,14 +228,44 @@ export async function entregarUniforme(port: InventarioPort, clave: string, dato
   );
 }
 
-/** Recibir un uniforme devuelto o cambiarle la talla (§6.4): al costo con que salió; el cambio no se cobra. */
-export async function devolverUniforme(port: InventarioPort, clave: string, datos: DatosDeDevolucion): Res<void> {
+/**
+ * Recibir un uniforme devuelto o cambiarle la talla (§6.4): al costo con que
+ * salió; el cambio no se cobra. Sin cambio de talla, la base decide qué pasa
+ * con el cargo de la entrega original, que cubre también las tallas cambiadas
+ * (enmiendas B.12, crítica 14), y lo dice en `cargo`.
+ */
+export async function devolverUniforme(port: InventarioPort, clave: string, datos: DatosDeDevolucion): Res<DevolucionHecha> {
   const errores: string[] = [];
   const motivo = opcionalLimpio(datos.motivo);
   if (!Number.isSafeInteger(datos.cantidad) || datos.cantidad <= 0) errores.push('Escribe cuántas piezas vuelven.');
   if (!motivo || motivo.length < 3) errores.push(datos.cambiarPor ? 'Escribe por qué cambia de talla.' : 'Escribe por qué lo devuelve.');
   if (errores.length > 0) return fallo(errores);
   return comoLista(await port.devolverUniforme(clave, { ...datos, motivo: motivo ?? '' }));
+}
+
+const ESTADOS_DEL_CARGO_DEVUELTO: readonly EstadoDelCargoDevuelto[] = ['anulado', 'cobrado', 'parcial'];
+
+/**
+ * La frase que la confirmación de una devolución dice sobre el cargo del
+ * uniforme. Recibe el estado y el monto (centavos) como texto porque llegan
+ * en la dirección de la ficha (`&cargouniforme=anulado&montouniforme=65000`,
+ * como la entrega con `cargado`): si algo no es válido, no hay frase y la
+ * confirmación solo dice que se registró la devolución. Si estaba cobrado,
+ * nombra los dos pasos: la base no anula un cargo con un cobro vigente.
+ */
+export function fraseDelCargoDevuelto(estado: string, monto: string): string | null {
+  const elegido = ESTADOS_DEL_CARGO_DEVUELTO.find((e) => e === estado);
+  const centavos = /^[1-9][0-9]{0,11}$/.test(monto) ? Number(monto) : Number.NaN;
+  if (!elegido || !Number.isSafeInteger(centavos)) return null;
+  const importe = formatearMontoExacto(centavos as Centavos);
+  switch (elegido) {
+    case 'anulado':
+      return `El cargo de ${importe} se anuló porque el uniforme volvió.`;
+    case 'cobrado':
+      return `El uniforme estaba cobrado: pide a administración que anule el cobro y después el cargo de ${importe}.`;
+    case 'parcial':
+      return 'El cargo sigue igual porque volvió solo una parte.';
+  }
 }
 
 /** Prestar utensilios (§6.5): a un alumno, a un grupo o a otra persona; hasta cuándo. */

@@ -11,7 +11,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
-import type { FiltroDePrograma } from '@core/application/ports/alumnos.port';
+import { TOPE_DE_ALUMNOS, type FiltroDePrograma } from '@core/application/ports/alumnos.port';
 import { alumnosRepository } from '@infra/config/composition-root';
 import { RUTAS_ALUMNOS, RUTAS_PANEL, rutaDeAlumno } from '@/lib/rutas';
 import { Aviso } from '@/presentation/formularios/Campos';
@@ -131,7 +131,7 @@ export default async function Alumnos({ searchParams }: { readonly searchParams:
           </h2>
           <p className="mb-3 text-sm text-tinta-suave">
             {lista.valor.length === 1 ? '1 alumno' : `${lista.valor.length} alumnos`}
-            {lista.valor.length === 100 ? ' (se muestran los primeros 100; afina la búsqueda)' : ''}
+            {lista.valor.length >= TOPE_DE_ALUMNOS ? ` (se muestran los primeros ${TOPE_DE_ALUMNOS}; afina la búsqueda)` : ''}
           </p>
           <ul className="grid gap-3">
             {lista.valor.map((a) => (

@@ -404,7 +404,10 @@ export async function devolverUniformeAccion(_previo: EstadoDeFormulario, datos:
     cambiarPor: opcional(campo(datos, 'cambiarPor')) as Id | undefined,
   });
   if (!r.exito) return errores(r.error);
-  redirect(`${rutaDeAlumno(campo(datos, 'alumno'))}?uniforme=${clave}`);
+  // Qué pasó con el cargo, para la confirmación (enmiendas B.12, crítica 14).
+  // No `cargo=`: la ficha ya lo usa para «Se anuló el cargo» de la caja.
+  const cargo = r.valor.cargo;
+  redirect(`${rutaDeAlumno(campo(datos, 'alumno'))}?uniforme=${clave}${cargo ? `&cargouniforme=${cargo.estado}&montouniforme=${cargo.monto}` : ''}`);
 }
 
 export async function prestarAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {

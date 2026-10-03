@@ -291,6 +291,28 @@ test('§5.8-9 anulación tardía: el arqueo 42 la cuenta como salida; octubre ba
   assert.deepEqual(ingresosDelMes('2026-09', [{ ...cargo, anuladoEl: fecha('2026-10-02') }]), { ingresos: bs(650), ingresosAnulados: 0 });
 });
 
+test('una cuota futura anulada por un retiro no cuenta en ningún mes; lo anulado en su fecha o después, sí', () => {
+  // Retiro el 03/10: la cuota de octubre queda; las de noviembre y diciembre se anulan ese día.
+  const octubre = { monto: bs(400), fecha: fecha('2026-10-03') };
+  const noviembre = { monto: bs(400), fecha: fecha('2026-11-03'), anuladoEl: fecha('2026-10-03') };
+  const diciembre = { monto: bs(400), fecha: fecha('2026-12-03'), anuladoEl: fecha('2026-10-03') };
+  const cuotas = [octubre, noviembre, diciembre];
+  assert.deepEqual(ingresosDelMes('2026-10', cuotas), { ingresos: bs(400), ingresosAnulados: 0 }, 'octubre no resta lo que no ganó');
+  assert.deepEqual(ingresosDelMes('2026-11', cuotas), { ingresos: 0, ingresosAnulados: 0 }, 'noviembre no muestra lo cancelado');
+  assert.deepEqual(ingresosDelMes('2026-12', cuotas), { ingresos: 0, ingresosAnulados: 0 });
+
+  // Anulada el mismo día de su fecha: cuenta en su mes y resta en el de la anulación (§5.7).
+  const delDia = { ...octubre, anuladoEl: fecha('2026-10-03') };
+  assert.deepEqual(ingresosDelMes('2026-10', [delDia]), { ingresos: bs(400), ingresosAnulados: bs(400) });
+  // Anulada después, en otro mes: su mes intacto, resta en el de la anulación.
+  const despues = { ...octubre, anuladoEl: fecha('2026-11-05') };
+  assert.deepEqual(ingresosDelMes('2026-10', [despues]), { ingresos: bs(400), ingresosAnulados: 0 });
+  assert.deepEqual(ingresosDelMes('2026-11', [despues]), { ingresos: 0, ingresosAnulados: bs(400) });
+  // Anulada un día antes de su fecha, aunque sea el mismo mes: tampoco cuenta.
+  const unDiaAntes = { ...noviembre, anuladoEl: fecha('2026-11-02') };
+  assert.deepEqual(ingresosDelMes('2026-11', [unDiaAntes]), { ingresos: 0, ingresosAnulados: 0 });
+});
+
 // ================================================================ monto en letras
 
 test('montoEnLetras: los casos del recibo', () => {

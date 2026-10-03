@@ -6,11 +6,18 @@
  * medio, total y lo que se compró; las anuladas van tachadas, con su chip y su
  * motivo, y se restan en el mes en que se anulan (como en el resumen). Una compra es dinero e inventario, nunca gasto: por
  * eso se registra desde el inventario («Registrar compra»), que crea los lotes.
+ *
+ * La lista llega cortada en `TOPE_DE_LISTA_DEL_MES` filas (el tope del puerto,
+ * el mismo que aplica el adaptador). Si se corta, se avisa y los totales se
+ * toman de `resumen_del_mes`: su dinero por medio suma `compras.total` con
+ * los mismos filtros (fecha en el mes; anuladas en el mes; sede; RLS), sin
+ * tope. No se usa su costo de compras, que sale de los movimientos y no de
+ * las compras.
  */
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { CompraEnLista } from '@core/application/ports/contabilidad.port';
+import { TOPE_DE_LISTA_DEL_MES, type CompraEnLista, type TotalesDelMesEnBase } from '@core/application/ports/contabilidad.port';
 import type { TipoDeComprobante } from '@core/application/ports/inventario.port';
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import { formatearMontoExacto } from '@core/domain/shared/dinero';
@@ -40,6 +47,38 @@ function comprobante(c: CompraEnLista): string {
   return `${ETIQUETA_DE_COMPROBANTE[c.comprobante]}${c.numeroComprobante ? ` n.º ${c.numeroComprobante}` : ''}`;
 }
 
+/** Lo comprado con fecha en el mes y lo anulado en el mes, sumado de la lista o tomado de la base. */
+interface TotalesDeCompras {
+  readonly comprado: Centavos;
+  readonly anulado: Centavos;
+  /** Cuántas tienen fecha en el mes; null si la cifra viene de la base, que no las cuenta. */
+  readonly cuantas: number | null;
+}
+
+/**
+ * Como en el resumen del mes (§5.7): suma lo comprado con fecha en el mes y
+ * resta lo anulado en el mes (aunque la compra fuera de un mes anterior). Así
+ * el total de un mes pasado no cambia cuando algo se anula después.
+ */
+function totalesDeLaLista(mes: string, compras: readonly CompraEnLista[]): TotalesDeCompras {
+  const delMes = compras.filter((c) => c.fecha.startsWith(mes));
+  return {
+    comprado: delMes.reduce((t, c) => t + c.total, 0) as Centavos,
+    anulado: compras.filter((c) => c.anuladoEl?.startsWith(mes) === true).reduce((t, c) => t + c.total, 0) as Centavos,
+    cuantas: delMes.length,
+  };
+}
+
+/** Las mismas cifras del dinero del mes de la base, sumadas en todos los medios (un medio sin movimiento no viene). */
+function totalesDeLaBase(t: TotalesDelMesEnBase): TotalesDeCompras {
+  const medios = Object.values(t.dinero);
+  return {
+    comprado: medios.reduce((s, m) => s + (m?.compras ?? 0), 0) as Centavos,
+    anulado: medios.reduce((s, m) => s + (m?.comprasAnuladas ?? 0), 0) as Centavos,
+    cuantas: null,
+  };
+}
+
 export default async function Compras({ searchParams }: { readonly searchParams: Parametros }) {
   const [lectura, valores] = await Promise.all([exigirPersonal(RUTAS_CONTABILIDAD.compras), searchParams]);
   if (lectura.estado !== 'ok') return null;
@@ -53,15 +92,15 @@ export default async function Compras({ searchParams }: { readonly searchParams:
   const puedeComprar = tienePermiso(ctx, 'inventario.comprar');
   const registrar = `${RUTAS_INVENTARIO.compra}${sede && ctx.sedes.length > 1 ? `?sede=${sede}` : ''}`;
 
-  const leidas = await (await contabilidadRepository()).compras(mes, sede);
+  const repo = await contabilidadRepository();
+  const leidas = await repo.compras(mes, sede);
   const compras = leidas.exito ? leidas.valor : [];
-  // Como en el resumen del mes (§5.7): suma lo comprado con fecha en el mes y
-  // resta lo anulado en el mes (aunque la compra fuera de un mes anterior).
-  // Así el total de un mes pasado no cambia cuando algo se anula después.
-  const delMes = compras.filter((c) => c.fecha.startsWith(mes));
-  const anuladasEnElMes = compras.filter((c) => c.anuladoEl?.startsWith(mes) === true);
-  const comprado = delMes.reduce((t, c) => t + c.total, 0) as Centavos;
-  const anulado = anuladasEnElMes.reduce((t, c) => t + c.total, 0) as Centavos;
+  // La lista se corta en `TOPE_DE_LISTA_DEL_MES` filas (las más nuevas). Si se cortó,
+  // sumarla daría menos: las cifras salen de la base. Solo entonces se pide el
+  // resumen, que es una consulta pesada.
+  const cortada = compras.length >= TOPE_DE_LISTA_DEL_MES;
+  const enBase = cortada ? await repo.totalesDelMes(mes, sede) : null;
+  const { comprado, anulado, cuantas } = enBase?.exito ? totalesDeLaBase(enBase.valor) : totalesDeLaLista(mes, compras);
   const total = (comprado - anulado) as Centavos;
 
   return (
@@ -104,9 +143,19 @@ export default async function Compras({ searchParams }: { readonly searchParams:
           <h2 id="lista-de-compras" className="sr-only">
             Lista de compras
           </h2>
+          {cortada ? (
+            <Aviso tono="info" titulo={`La lista muestra las ${TOPE_DE_LISTA_DEL_MES} compras más nuevas`}>
+              <p>
+                {enBase?.exito
+                  ? 'Puede haber más compras en el mes que no salen abajo. Los totales sí cuentan todas las compras del mes: los suma la base.'
+                  : 'Puede haber más compras en el mes que no salen abajo, y los totales suman solo las de esta lista. El total completo está en el resumen del mes.'}
+              </p>
+            </Aviso>
+          ) : null}
           <p className="text-tinta-suave">
-            {delMes.length === 1 ? '1 compra' : `${delMes.length} compras`} con fecha en el mes por <strong className="text-estructural">{formatearMontoExacto(comprado)}</strong>.
-            {anuladasEnElMes.length > 0 ? ` Se anularon en el mes ${formatearMontoExacto(anulado)}: van tachadas y se restan.` : ''}
+            {cuantas === null ? 'Compras' : cuantas === 1 ? '1 compra' : `${cuantas} compras`} con fecha en el mes por{' '}
+            <strong className="text-estructural">{formatearMontoExacto(comprado)}</strong>.
+            {anulado > 0 ? ` Se anularon en el mes ${formatearMontoExacto(anulado)}: van tachadas y se restan.` : ''}
           </p>
           <div className="overflow-x-auto rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta">
             <table className="w-full min-w-[44rem] text-left">

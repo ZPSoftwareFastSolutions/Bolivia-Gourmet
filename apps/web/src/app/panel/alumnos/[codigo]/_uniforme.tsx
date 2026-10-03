@@ -4,11 +4,16 @@
  *
  * Lo que tiene en su poder (talla, desde cuándo y por qué) con «Cambiar
  * talla o devolver» plegado, y lo que tiene prestado con su fecha. Las
- * entregas no se anulan: se devuelven, y la historia queda completa.
+ * entregas no se anulan: se devuelven, y la historia queda completa. Cuando
+ * el alumno devuelve todas las piezas de una entrega, contando las tallas
+ * por las que la cambió, la base anula el cargo que no se cobró y la
+ * confirmación lo dice (o pide anular el cobro y después el cargo; enmiendas
+ * B.12, crítica 14).
  */
 
 import Link from 'next/link';
 import { randomUUID } from 'node:crypto';
+import { fraseDelCargoDevuelto } from '@core/application/panel/inventario/inventario.usecase';
 import type { ContextoDeEntrega } from '@core/application/ports/inventario.port';
 import { tienePermiso, type ContextoDePanel } from '@core/domain/identidad/contexto-de-panel';
 import type { Id } from '@core/domain/shared/tipos-base';
@@ -35,6 +40,7 @@ export async function UniformeYPrestamos({
   codigo,
   tieneInscripcion,
   confirmar,
+  cargoDevuelto,
 }: {
   readonly ctx: ContextoDePanel;
   readonly estudianteId: Id;
@@ -42,17 +48,22 @@ export async function UniformeYPrestamos({
   readonly tieneInscripcion: boolean;
   /** Clave de una devolución recién guardada (para confirmarla). */
   readonly confirmar: string;
+  /** Qué pasó con el cargo en esa devolución, tal como llegó en la dirección (se valida al leerlo). */
+  readonly cargoDevuelto: { readonly estado: string; readonly monto: string };
 }) {
   const repo = await inventarioRepository();
   const [entregas, prestamos, uniformes] = await Promise.all([repo.entregas(estudianteId), repo.prestamosAbiertos({ estudianteId }), repo.existencias({ tipo: 'uniforme' })]);
   const puedeOperar = tienePermiso(ctx, 'inventario.operar');
   const operables = new Set(ctx.sedes.map((s) => s.id as string));
   const aqui = rutaDeAlumno(codigo);
+  const fraseDelCargo = fraseDelCargoDevuelto(cargoDevuelto.estado, cargoDevuelto.monto);
 
   return (
     <section aria-labelledby="uniforme" className="grid gap-4">
       {confirmar ? (
-        <ConfirmacionDeOperacion repo={repo} operacionId={confirmar} palabra="¡Listo!" titulo="Se registró la devolución." conValor={false} cerrarHref={aqui} />
+        <ConfirmacionDeOperacion repo={repo} operacionId={confirmar} palabra="¡Listo!" titulo="Se registró la devolución." conValor={false} cerrarHref={aqui}>
+          {fraseDelCargo ? <p className={cargoDevuelto.estado === 'cobrado' ? 'font-semibold text-tinta' : undefined}>{fraseDelCargo}</p> : null}
+        </ConfirmacionDeOperacion>
       ) : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 id="uniforme" className="t-display text-3xl text-estructural">
@@ -131,7 +142,9 @@ export async function UniformeYPrestamos({
                         <span className="font-semibold text-tinta">¿Por qué?</span>
                         <input name="motivo" maxLength={300} autoComplete="off" placeholder="Le queda grande" className={CLASE_DE_CAMPO} />
                       </label>
-                      <p className="text-sm text-tinta-suave">El cambio de talla no se cobra de nuevo. Si devuelve sin cambio y ya se le cargó, administración puede anular el cargo.</p>
+                      <p className="text-sm text-tinta-suave">
+                        El cambio de talla no se cobra de nuevo. Si devuelve todo, aunque haya cambiado de talla, su cargo se anula solo; si ya se le cobró, administración tiene que anular el cobro y después el cargo.
+                      </p>
                       <div>
                         <BotonGuardar icono="intercambio" enviando="Guardando…">
                           Guardar

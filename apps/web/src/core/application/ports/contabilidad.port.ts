@@ -127,13 +127,21 @@ export interface DatosDeTarjetaPeps {
   readonly lotes: readonly LoteDeTarjeta[];
 }
 
+/**
+ * Cuántas filas devuelven `gastos` y `compras` como mucho. Lo aplica el
+ * adaptador y lo leen sus pantallas para avisar que la lista se cortó (y
+ * tomar entonces los totales de la base): una sola cifra, así no se
+ * desalinean.
+ */
+export const TOPE_DE_LISTA_DEL_MES = 300;
+
 export interface ContabilidadPort {
   /** `mes` en forma `AAAA-MM`; sin sede = todas. */
   totalesDelMes(mes: string, sedeId?: Id): Promise<Resultado<TotalesDelMesEnBase>>;
   verificarCuadre(sedeId?: Id): Promise<Resultado<CuadreDeLaBase>>;
-  /** Gastos con fecha en el mes o anulados en el mes, del más nuevo al más antiguo. */
+  /** Gastos con fecha en el mes o anulados en el mes, del más nuevo al más antiguo; como mucho `TOPE_DE_LISTA_DEL_MES`. */
   gastos(mes: string, sedeId?: Id): Promise<Resultado<readonly GastoEnLista[]>>;
-  /** Compras con fecha en el mes o anuladas en el mes, de la más nueva a la más antigua. */
+  /** Compras con fecha en el mes o anuladas en el mes, de la más nueva a la más antigua; como mucho `TOPE_DE_LISTA_DEL_MES`. */
   compras(mes: string, sedeId?: Id): Promise<Resultado<readonly CompraEnLista[]>>;
   compra(id: Id): Promise<Resultado<CompraEnLista | null>>;
   /** Tarjeta PEPS de un insumo en una sede (insumos: una sola variante por artículo). */

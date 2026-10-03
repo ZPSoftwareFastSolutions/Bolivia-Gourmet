@@ -67,7 +67,7 @@ export default async function FichaDelGrupo({ params, searchParams }: { readonly
       {parametro(valores, 'cuotas') ? (
         <Confirmacion
           palabra="¡Listo!"
-          titulo={parametro(valores, 'cuotas') === '0' ? 'Todos los alumnos ya tenían sus cuotas' : `Se cargaron ${parametro(valores, 'cuotas')} cuotas a ${parametro(valores, 'alumnos')} alumnos`}
+          titulo={parametro(valores, 'cuotas') === '0' ? 'No había cuotas por crear' : `Se cargaron ${parametro(valores, 'cuotas')} cuotas a ${parametro(valores, 'alumnos')} alumnos`}
           cerrarHref={aqui}
         />
       ) : null}
@@ -125,7 +125,10 @@ export default async function FichaDelGrupo({ params, searchParams }: { readonly
               <BotonGuardar variante="secundario" icono="monedas" enviando="Creando…" className="justify-self-start">
                 Crear cuotas pendientes
               </BotonGuardar>
-              <p className="text-sm text-tinta-suave">Para alumnos que se inscribieron antes de que el grupo tuviera precio.</p>
+              <p className="text-sm text-tinta-suave">
+                Para alumnos que se inscribieron antes de que el grupo tuviera precio, o después de anular todas sus cuotas y cambiar el precio.
+                Si el precio cambió, las becas del grupo vuelven a cargarse: anúlalas de nuevo.
+              </p>
             </FormularioDelPanel>
           ) : null}
           {ponePrecio && g.estado !== 'cerrado' ? (

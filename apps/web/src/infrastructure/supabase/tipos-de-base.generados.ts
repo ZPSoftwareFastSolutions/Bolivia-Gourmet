@@ -3771,6 +3771,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      variantes_con_movimientos: { Args: { p_sede: string }; Returns: string[] };
       verificar_cuadre: { Args: { p_sede: string }; Returns: Json };
     };
     Enums: {

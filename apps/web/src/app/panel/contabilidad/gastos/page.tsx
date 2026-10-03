@@ -7,12 +7,18 @@
  * (sale del cajón) y por banco (se coteja con el extracto). Un gasto anulado
  * no se borra: queda tachado, con el chip «Anulado» y su motivo. Registrar y
  * anular van por la caja (`registrar_gasto`, `anular`).
+ *
+ * La lista llega cortada en `TOPE_DE_LISTA_DEL_MES` filas (el tope del puerto,
+ * el mismo que aplica el adaptador). Si se corta, se avisa y, sin concepto
+ * elegido, los totales se toman de `resumen_del_mes`, que suma exactamente
+ * los mismos gastos sin tope; con un concepto, siguen siendo la suma de la
+ * lista y el aviso lo dice.
  */
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { randomUUID } from 'node:crypto';
-import type { GastoEnLista } from '@core/application/ports/contabilidad.port';
+import { TOPE_DE_LISTA_DEL_MES, type GastoEnLista, type TotalesDelMesEnBase } from '@core/application/ports/contabilidad.port';
 import type { TipoDeComprobante } from '@core/application/ports/inventario.port';
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import { formatearMontoExacto } from '@core/domain/shared/dinero';
@@ -109,6 +115,57 @@ function cuantos(n: number): string {
   return n === 1 ? '1 gasto' : `${n} gastos`;
 }
 
+/** Las cifras de arriba, sumadas de la lista o tomadas de la base. */
+interface TotalesDeGastos {
+  /** Gastos con fecha en el mes (también los que después se anularon). */
+  readonly conFecha: Centavos;
+  /** Gastos anulados en el mes, de cualquier mes de origen. */
+  readonly anulados: Centavos;
+  /** Neto en efectivo (lo que salió del cajón). */
+  readonly efectivo: Centavos;
+  /** Cuántos tienen fecha en el mes; null si la cifra viene de la base, que no los cuenta. */
+  readonly cuantos: number | null;
+}
+
+/**
+ * Como en el resumen del mes (§5.7): suma lo que tiene fecha en el mes y
+ * resta lo que se anuló en el mes, aunque fuera de un mes anterior. Así el
+ * total de un mes ya pasado no cambia cuando algo se anula después.
+ */
+function totalesDeLaLista(mes: string, gastos: readonly GastoEnLista[]): TotalesDeGastos {
+  const delMes = gastos.filter((g) => g.fecha.startsWith(mes));
+  const anuladosEnElMes = gastos.filter((g) => g.anuladoEl?.startsWith(mes) === true);
+  const efectivo = (g: GastoEnLista) => g.medio === 'efectivo';
+  return {
+    conFecha: suma(delMes),
+    anulados: suma(anuladosEnElMes),
+    efectivo: (suma(delMes.filter(efectivo)) - suma(anuladosEnElMes.filter(efectivo))) as Centavos,
+    cuantos: delMes.length,
+  };
+}
+
+/**
+ * Las mismas cifras sumadas en la base (`resumen_del_mes`): mismos gastos
+ * (fecha en el mes; anulados en el mes), misma sede y misma RLS, pero sin el
+ * tope de filas de la lista. Solo valen sin filtro de concepto: la base da el
+ * neto por concepto, no su parte en efectivo.
+ */
+function totalesDeLaBase(t: TotalesDelMesEnBase): TotalesDeGastos {
+  const efectivo = t.dinero.efectivo;
+  return {
+    conFecha: t.gastos.total,
+    anulados: t.gastos.anulados,
+    efectivo: ((efectivo?.gastos ?? 0) - (efectivo?.gastosAnulados ?? 0)) as Centavos,
+    cuantos: null,
+  };
+}
+
+/** «3 gastos con fecha en el mes · menos Bs 50,00 anulados en el mes» (con cifras de la base, el monto en lugar de cuántos). */
+function detalleDelTotal(t: TotalesDeGastos): string {
+  const conFecha = t.cuantos === null ? `${formatearMontoExacto(t.conFecha)} con fecha en el mes` : `${cuantos(t.cuantos)} con fecha en el mes`;
+  return t.anulados === 0 ? conFecha : `${conFecha} · menos ${formatearMontoExacto(t.anulados)} anulados en el mes`;
+}
+
 export default async function Gastos({ searchParams }: { readonly searchParams: Parametros }) {
   const [lectura, valores] = await Promise.all([exigirPersonal(RUTAS_CONTABILIDAD.gastos), searchParams]);
   if (lectura.estado !== 'ok') return null;
@@ -120,19 +177,22 @@ export default async function Gastos({ searchParams }: { readonly searchParams: 
   const puedeAnular = tienePermiso(ctx, 'caja.anular');
   const conSede = ctx.sedes.length > 1 && !sede;
 
-  const lista = await (await contabilidadRepository()).gastos(mes, sede);
+  const repo = await contabilidadRepository();
+  const lista = await repo.gastos(mes, sede);
   const todos = lista.exito ? lista.valor : [];
   // Filtro por concepto (§7.5), con los conceptos que aparecen en el mes.
   const conceptos = [...new Set(todos.map((g) => g.conceptoNombre))].sort((a, b) => a.localeCompare(b, 'es'));
   const concepto = conceptos.includes(parametro(valores, 'concepto')) ? parametro(valores, 'concepto') : '';
   const gastos = concepto ? todos.filter((g) => g.conceptoNombre === concepto) : todos;
-  // Como en el resumen del mes (§5.7): suma lo que tiene fecha en el mes y
-  // resta lo que se anuló en el mes, aunque fuera de un mes anterior. Así el
-  // total de un mes ya pasado no cambia cuando algo se anula después.
-  const delMes = gastos.filter((g) => g.fecha.startsWith(mes));
-  const anuladosEnElMes = gastos.filter((g) => g.anuladoEl?.startsWith(mes) === true);
-  const total = (suma(delMes) - suma(anuladosEnElMes)) as Centavos;
-  const enEfectivo = (suma(delMes.filter((g) => g.medio === 'efectivo')) - suma(anuladosEnElMes.filter((g) => g.medio === 'efectivo'))) as Centavos;
+  // La lista se corta en `TOPE_DE_LISTA_DEL_MES` filas (las más nuevas). Si se cortó,
+  // sumarla daría menos: sin concepto elegido, las cifras salen de la base.
+  // Solo entonces se pide el resumen, que es una consulta pesada.
+  const cortada = todos.length >= TOPE_DE_LISTA_DEL_MES;
+  const enBase = cortada && !concepto ? await repo.totalesDelMes(mes, sede) : null;
+  const totales = enBase?.exito ? totalesDeLaBase(enBase.valor) : totalesDeLaLista(mes, gastos);
+  const completos = !cortada || enBase?.exito === true;
+  const total = (totales.conFecha - totales.anulados) as Centavos;
+  const enEfectivo = totales.efectivo;
 
   const registrado = /^\d+$/.test(parametro(valores, 'registrado')) ? parametro(valores, 'registrado') : '';
   const nuevo = registrado ? gastos.find((g) => String(g.numero) === registrado) : undefined;
@@ -200,11 +260,7 @@ export default async function Gastos({ searchParams }: { readonly searchParams: 
                 icono="recibo"
                 etiqueta={`Gastos de ${nombreDelMes(mes)}`}
                 cifra={formatearMontoExacto(total)}
-                detalle={
-                  anuladosEnElMes.length === 0
-                    ? `${cuantos(delMes.length)} con fecha en el mes`
-                    : `${cuantos(delMes.length)} con fecha en el mes · menos ${formatearMontoExacto(suma(anuladosEnElMes))} anulados en el mes`
-                }
+                detalle={detalleDelTotal(totales)}
               />
               <Indicador
                 icono="billete"
@@ -214,6 +270,18 @@ export default async function Gastos({ searchParams }: { readonly searchParams: 
               />
             </section>
           )}
+
+          {cortada ? (
+            <Aviso tono="info" titulo={`La lista muestra los ${TOPE_DE_LISTA_DEL_MES} gastos más nuevos`}>
+              <p>
+                {completos
+                  ? 'Puede haber más gastos en el mes que no salen abajo, y los conceptos para filtrar pueden estar incompletos. Los totales de arriba sí cuentan todos los gastos del mes: los suma la base.'
+                  : concepto
+                    ? 'Puede haber más gastos en el mes que no salen abajo. Con un concepto elegido, los totales de arriba suman solo los gastos de esta lista: elige «Todos los conceptos» para ver el total completo del mes.'
+                    : 'Puede haber más gastos en el mes que no salen abajo, y los totales de arriba suman solo los de esta lista. El total completo está en el resumen del mes.'}
+              </p>
+            </Aviso>
+          ) : null}
 
           {conceptos.length > 1 ? (
             <nav aria-label="Concepto" className="flex flex-wrap gap-2">

@@ -20,6 +20,7 @@ import {
   registrarSaldoInicial,
   usarInsumos,
   devolverUniforme,
+  fraseDelCargoDevuelto,
   entregarUniforme,
   prestarUtensilios,
   recibirDevolucion,
@@ -61,7 +62,7 @@ function puertoFalso() {
     prestamosAbiertos: () => ok('prestamosAbiertos', []),
     sinUniforme: () => ok('sinUniforme', []),
     entregarUniforme: (_c, d) => ok('entregarUniforme', { codigo: 'BG-2026-0001', cargado: 65000 as Centavos, pagoId: null, recibo: null }, d),
-    devolverUniforme: (_c, d) => ok('devolverUniforme', undefined, d),
+    devolverUniforme: (_c, d) => ok('devolverUniforme', { cargo: null }, d),
     prestarUtensilios: (_c, d) => ok('prestarUtensilios', undefined, d),
     recibirDevolucion: (_c, l) => ok('recibirDevolucion', { perdidos: 0 }, l),
   };
@@ -220,6 +221,24 @@ test('devolver o cambiar la talla pide el motivo', async () => {
   const bien = await devolverUniforme(puerto, 'c', { entregaId: 'e' as Id, cantidad: 1, motivo: 'Le queda grande', cambiarPor: 's' as Id });
   assert.ok(bien.exito);
   assert.deepEqual(llamadas, ['devolverUniforme']);
+});
+
+test('la confirmación de una devolución dice qué pasó con el cargo (enmiendas B.12, crítica 14)', () => {
+  assert.equal(fraseDelCargoDevuelto('anulado', '65000'), 'El cargo de Bs 650,00 se anuló porque el uniforme volvió.');
+  // Cobrado: dos pasos, porque la base no anula un cargo que tiene un cobro vigente.
+  assert.equal(
+    fraseDelCargoDevuelto('cobrado', '130000'),
+    'El uniforme estaba cobrado: pide a administración que anule el cobro y después el cargo de Bs 1.300,00.',
+  );
+  assert.equal(fraseDelCargoDevuelto('parcial', '65000'), 'El cargo sigue igual porque volvió solo una parte.');
+  // Lo que llega en la dirección se valida: sin frase si no es uno de los estados o el monto no es centavos enteros.
+  assert.equal(fraseDelCargoDevuelto('', ''), null);
+  assert.equal(fraseDelCargoDevuelto('creado', '65000'), null);
+  assert.equal(fraseDelCargoDevuelto('anulado', ''), null);
+  assert.equal(fraseDelCargoDevuelto('anulado', '0'), null);
+  assert.equal(fraseDelCargoDevuelto('anulado', '-650'), null);
+  assert.equal(fraseDelCargoDevuelto('anulado', '650.5'), null);
+  assert.equal(fraseDelCargoDevuelto('anulado', '1e9'), null);
 });
 
 test('prestar: exactamente un destinatario; recibir: lo que falta pide qué pasó', async () => {

@@ -1436,7 +1436,7 @@ begin
     v_ok := v_ok + 1;
     execute 'reset role';
 
-    -- N77 · recepción y el estudiante no ven la contabilidad
+    -- N77 · recepción y anon no ven la contabilidad (la estudiante no tiene ningún permiso: N02)
     perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
     begin
@@ -1701,6 +1701,608 @@ begin
     exception when insufficient_privilege then v_ok := v_ok + 1;
     end;
     execute 'reset role';
+  end;
+
+  -- ============================================================ RF · revisión final (cuotas anuladas, lote vencido, ingresos del mes, variantes con movimientos)
+  declare
+    v_g1 uuid;
+    v_g2 uuid;
+    v_g3 uuid;
+    v_ins_a uuid;
+    v_ins_c uuid;
+    v_ins_r uuid;
+    v_cargo uuid;
+    v_leche uuid;
+    v_lote_vencido uuid;
+    v_lote_vigente uuid;
+    v_r0 jsonb;
+    v_f0 jsonb;
+    v_r1 jsonb;
+    v_f1 jsonb;
+    v_r2 jsonb;
+    v_mes_que_viene date := (date_trunc('month', app.hoy()) + interval '1 month')::date;
+    v_esperado uuid[];
+    v_obtenido uuid[];
+    v_esperado_alto uuid[];
+    v_obtenido_alto uuid[];
+    v_n integer;
+    v_g4 uuid;
+    v_g5 uuid;
+    v_ins_b uuid;
+    v_ins_t uuid;
+    v_primer_vence date;
+    v_numeros integer[];
+    v_g6 uuid;
+    v_g7 uuid;
+    v_ins_m uuid;
+    v_ins_p uuid;
+    v_fechas date[];
+    v_g8 uuid;
+    v_ins_n uuid;
+    v_est_n uuid;
+    v_plan_n uuid;
+    v_concepto_n uuid;
+    v_op_n uuid;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+
+    -- N90 · una cuota anulada a propósito (beca) no vuelve al generar las cuotas del grupo
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g1;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g1, 20000, 3, app.hoy(), 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Ana","apellidos":"Revisión Noventa"}'::jsonb, v_g1, null, null, null, null, null);
+    v_ins_a := (v_res ->> 'inscripcion')::uuid;
+    if (v_res ->> 'cuotas')::int <> 3 then raise exception 'FALLO N90a: %', v_res; end if;
+    select id into v_cargo from public.cargos where inscripcion_id = v_ins_a and numero_de_cuota = 2;
+    perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'Beca de la segunda cuota');
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g1);
+    if (v_res ->> 'inscripciones')::int <> 0 or (v_res ->> 'cuotas')::int <> 0 then raise exception 'FALLO N90b: %', v_res; end if;
+    if exists (select 1 from public.cargos where inscripcion_id = v_ins_a and numero_de_cuota = 2 and anulado_en is null) then
+      raise exception 'FALLO N90c: la cuota anulada volvió';
+    end if;
+    select count(*) into v_n from public.cargos where inscripcion_id = v_ins_a and anulado_en is null;
+    if v_n <> 2 then raise exception 'FALLO N90d: % cuotas vigentes', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N91 · si se anularon TODAS las cuotas (cambio de precio, ADR 0008 §8), se corrige el plan y se generan otra vez
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g2;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g2, 30000, 2, app.hoy(), 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Ciro","apellidos":"Revisión Noventa y Uno"}'::jsonb, v_g2, null, null, null, null, null);
+    v_ins_c := (v_res ->> 'inscripcion')::uuid;
+    for v_cargo in select id from public.cargos where inscripcion_id = v_ins_c order by numero_de_cuota loop
+      perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'El precio del grupo cambió');
+    end loop;
+    update public.planes_de_pago set monto_cuota = 35000 where cohorte_id = v_g2;
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g2);
+    if (v_res ->> 'inscripciones')::int <> 1 or (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N91a: %', v_res; end if;
+    select count(*) into v_n from public.cargos where inscripcion_id = v_ins_c and anulado_en is null and monto = 35000;
+    if v_n <> 2 then raise exception 'FALLO N91b: % cuotas vigentes al precio nuevo', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N92 · un lote vencido no se usa en clase aunque se lo elija (mismo código que sin lote); la baja por vencimiento sí lo saca
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Leche de prueba RF","tipo":"insumo","unidad":"l","controla_vencimiento":"true"}'::jsonb, null);
+    select id into v_leche from public.variantes where articulo_id = (v_res ->> 'articulo')::uuid;
+    perform public.registrar_saldo_inicial(gen_random_uuid(), v_la_paz, jsonb_build_array(
+      jsonb_build_object('variante', v_leche, 'cantidad', '2', 'valor', '2000', 'vence_el', app.hoy() - 1),
+      jsonb_build_object('variante', v_leche, 'cantidad', '3', 'valor', '3300', 'vence_el', app.hoy() + 30)));
+    select id into v_lote_vencido from public.lotes where variante_id = v_leche and vence_el < app.hoy();
+    select id into v_lote_vigente from public.lotes where variante_id = v_leche and vence_el > app.hoy();
+    begin
+      perform public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null,
+        jsonb_build_array(jsonb_build_object('variante', v_leche, 'cantidad', '4')));
+      raise exception 'FALLO N92a: usó leche vencida sin elegir lote';
+    exception when others then
+      if sqlerrm <> 'stock_insuficiente' then raise exception 'FALLO N92a: %', sqlerrm; end if;
+    end;
+    begin
+      perform public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null,
+        jsonb_build_array(jsonb_build_object('variante', v_leche, 'cantidad', '1', 'lote', v_lote_vencido)));
+      raise exception 'FALLO N92b: usó en clase un lote vencido elegido a mano';
+    exception when others then
+      if sqlerrm <> 'stock_insuficiente' then raise exception 'FALLO N92b: %', sqlerrm; end if;
+    end;
+    v_res := public.usar_insumos(gen_random_uuid(), v_la_paz, 'clase', null, null,
+      jsonb_build_array(jsonb_build_object('variante', v_leche, 'cantidad', '1', 'lote', v_lote_vigente)));
+    if (v_res ->> 'valor')::bigint <> 1100 then raise exception 'FALLO N92c: el lote vigente elegido no salió %', v_res; end if;
+    v_res := public.dar_de_baja(gen_random_uuid(), v_la_paz, v_leche, '2', 'vencimiento', null, v_lote_vencido);
+    if (v_res ->> 'valor')::bigint <> 2000 then raise exception 'FALLO N92d: %', v_res; end if;
+    if (select l.cantidad_restante from public.lotes l where l.id = v_lote_vencido) <> 0 then
+      raise exception 'FALLO N92e: el lote vencido no quedó en cero';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N93 · un retiro anula cuotas futuras: no restan este mes ni cuentan en el mes de su vencimiento
+    v_r0 := public.resumen_del_mes(app.hoy(), v_la_paz);
+    v_f0 := public.resumen_del_mes(v_mes_que_viene, v_la_paz);
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g3;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g3, 40000, 3, app.hoy(), 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Rita","apellidos":"Revisión Noventa y Tres"}'::jsonb, v_g3, null, null, null, null, null);
+    v_ins_r := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.cambiar_estado_de_inscripcion(gen_random_uuid(), v_ins_r, 'retirado', 'Se mudó de ciudad');
+    if (v_res ->> 'cuotas_anuladas')::int <> 2 then raise exception 'FALLO N93a: %', v_res; end if;
+    v_r1 := public.resumen_del_mes(app.hoy(), v_la_paz);
+    v_f1 := public.resumen_del_mes(v_mes_que_viene, v_la_paz);
+    if (v_r1 -> 'ingresos' ->> 'total')::bigint - (v_r0 -> 'ingresos' ->> 'total')::bigint <> 40000
+       or (v_r1 -> 'ingresos' ->> 'anulados')::bigint - (v_r0 -> 'ingresos' ->> 'anulados')::bigint <> 0 then
+      raise exception 'FALLO N93b: este mes % (antes %)', v_r1 -> 'ingresos', v_r0 -> 'ingresos';
+    end if;
+    -- El desglose por grupo es el mismo neto que total menos anulados.
+    if (select coalesce(sum((e ->> 'monto')::bigint), 0) from jsonb_array_elements(v_r1 -> 'ingresos' -> 'por_grupo') e)
+       <> (v_r1 -> 'ingresos' ->> 'total')::bigint - (v_r1 -> 'ingresos' ->> 'anulados')::bigint then
+      raise exception 'FALLO N93e: por grupo no suma total menos anulados tras el retiro %', v_r1 -> 'ingresos';
+    end if;
+    if (v_f1 -> 'ingresos' ->> 'total')::bigint <> (v_f0 -> 'ingresos' ->> 'total')::bigint
+       or (v_f1 -> 'ingresos' ->> 'anulados')::bigint <> (v_f0 -> 'ingresos' ->> 'anulados')::bigint then
+      raise exception 'FALLO N93c: el mes que viene % (antes %)', v_f1 -> 'ingresos', v_f0 -> 'ingresos';
+    end if;
+    -- Lo anulado en su fecha o después sigue §5.7: la cuota de hoy, anulada hoy, cuenta y resta este mes.
+    select id into v_cargo from public.cargos where inscripcion_id = v_ins_r and numero_de_cuota = 1;
+    perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'Se le perdonó la cuota');
+    v_r2 := public.resumen_del_mes(app.hoy(), v_la_paz);
+    if (v_r2 -> 'ingresos' ->> 'total')::bigint <> (v_r1 -> 'ingresos' ->> 'total')::bigint
+       or (v_r2 -> 'ingresos' ->> 'anulados')::bigint - (v_r1 -> 'ingresos' ->> 'anulados')::bigint <> 40000 then
+      raise exception 'FALLO N93d: % (antes %)', v_r2 -> 'ingresos', v_r1 -> 'ingresos';
+    end if;
+    if (select coalesce(sum((e ->> 'monto')::bigint), 0) from jsonb_array_elements(v_r2 -> 'ingresos' -> 'por_grupo') e)
+       <> (v_r2 -> 'ingresos' ->> 'total')::bigint - (v_r2 -> 'ingresos' ->> 'anulados')::bigint then
+      raise exception 'FALLO N93f: por grupo no suma total menos anulados tras anular la cuota 1 %', v_r2 -> 'ingresos';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N94 · variantes con movimientos en una sede: el mismo conjunto que el libro, sede por sede
+    v_obtenido := public.variantes_con_movimientos(v_la_paz);
+    v_obtenido_alto := public.variantes_con_movimientos(v_el_alto);
+    execute 'reset role';
+    select coalesce(array_agg(distinct m.variante_id order by m.variante_id), '{}') into v_esperado
+      from public.movimientos m where m.sede_id = v_la_paz;
+    select coalesce(array_agg(distinct m.variante_id order by m.variante_id), '{}') into v_esperado_alto
+      from public.movimientos m where m.sede_id = v_el_alto;
+    select coalesce(array_agg(x order by x), '{}') into v_obtenido from unnest(v_obtenido) x;
+    select coalesce(array_agg(x order by x), '{}') into v_obtenido_alto from unnest(v_obtenido_alto) x;
+    if v_obtenido <> v_esperado or not (v_leche = any (v_obtenido)) then
+      raise exception 'FALLO N94a: La Paz % frente a %', cardinality(v_obtenido), cardinality(v_esperado);
+    end if;
+    if v_obtenido_alto <> v_esperado_alto or v_leche = any (v_obtenido_alto) then
+      raise exception 'FALLO N94b: El Alto % frente a %', cardinality(v_obtenido_alto), cardinality(v_esperado_alto);
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N95 · la estudiante y anon no leen las variantes con movimientos
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.variantes_con_movimientos(v_la_paz);
+      raise exception 'FALLO N95a: la estudiante leyó las variantes con movimientos';
+    exception when insufficient_privilege then v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+    execute 'set local role anon';
+    begin
+      perform public.variantes_con_movimientos(v_la_paz);
+      raise exception 'FALLO N95b: anon leyó las variantes con movimientos';
+    exception when insufficient_privilege then null;
+    end;
+    execute 'reset role';
+    -- El rechazo de arriba podría venir del permiso de dentro de la función:
+    -- lo que se exige es que anon ni siquiera tenga el grant de ejecutarla.
+    if has_function_privilege('anon', 'public.variantes_con_movimientos(uuid)', 'execute') then
+      raise exception 'FALLO N95b: anon tiene permiso de ejecutar variantes_con_movimientos';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N102 · una beca completa (todas las cuotas anuladas, el plan sin cambios) no vuelve al generar las cuotas del grupo
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g4;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g4, 20000, 2, app.hoy(), 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Beto","apellidos":"Revisión Ciento Dos"}'::jsonb, v_g4, null, null, null, null, null);
+    v_ins_b := (v_res ->> 'inscripcion')::uuid;
+    if (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N102a: %', v_res; end if;
+    for v_cargo in select id from public.cargos where inscripcion_id = v_ins_b order by numero_de_cuota loop
+      perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'Beca completa del grupo');
+    end loop;
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g4);
+    if (v_res ->> 'inscripciones')::int <> 0 or (v_res ->> 'cuotas')::int <> 0 then raise exception 'FALLO N102b: %', v_res; end if;
+    select count(*) into v_n from public.cargos where inscripcion_id = v_ins_b and anulado_en is null;
+    if v_n <> 0 then raise exception 'FALLO N102c: % cuotas vigentes tras la beca', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N103 · quien ya pagaba antes del sistema (p_desde) y pasa por un cambio de precio recibe las cuotas desde su primer vencimiento, ninguna anterior
+    -- Plan de 4 cuotas el día 1 desde hace dos meses; p_desde cae entre la 2.ª y la 3.ª (no coincide con ningún vencimiento).
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g5;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g5, 30000, 4, (date_trunc('month', app.hoy()) - interval '2 months')::date, 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Teo","apellidos":"Revisión Ciento Tres"}'::jsonb, v_g5, null, null, null, null,
+                              date_trunc('month', app.hoy())::date - 10);
+    v_ins_t := (v_res ->> 'inscripcion')::uuid;
+    if (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N103a: %', v_res; end if;
+    select min(vence_el) into v_primer_vence from public.cargos where inscripcion_id = v_ins_t;
+    if v_primer_vence <> date_trunc('month', app.hoy())::date then raise exception 'FALLO N103b: primer vencimiento %', v_primer_vence; end if;
+    for v_cargo in select id from public.cargos where inscripcion_id = v_ins_t order by numero_de_cuota loop
+      perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'El precio del grupo cambió');
+    end loop;
+    update public.planes_de_pago set monto_cuota = 33000 where cohorte_id = v_g5;
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g5);
+    if (v_res ->> 'inscripciones')::int <> 1 or (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N103c: %', v_res; end if;
+    select coalesce(array_agg(numero_de_cuota::int order by numero_de_cuota), '{}') into v_numeros
+      from public.cargos where inscripcion_id = v_ins_t and anulado_en is null;
+    if v_numeros <> array[3, 4] then raise exception 'FALLO N103d: cuotas vigentes %', v_numeros; end if;
+    if exists (select 1 from public.cargos where inscripcion_id = v_ins_t and anulado_en is null
+                 and (monto <> 33000 or vence_el < v_primer_vence)) then
+      raise exception 'FALLO N103e: una cuota nueva con el precio anterior o que vence antes del primer vencimiento original';
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N104 · bajar el número de cuotas (mismo monto y calendario) también es un cambio de plan: se generan las nuevas
+    -- Protege el refinamiento (a) de DB-01: pasa también con la función de la ronda 1; se comprobó que falla con la regla literal.
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g6;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g6, 25000, 3, app.hoy(), 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Mara","apellidos":"Revisión Ciento Cuatro"}'::jsonb, v_g6, null, null, null, null, null);
+    v_ins_m := (v_res ->> 'inscripcion')::uuid;
+    for v_cargo in select id from public.cargos where inscripcion_id = v_ins_m order by numero_de_cuota loop
+      perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'El grupo pasa a dos cuotas');
+    end loop;
+    update public.planes_de_pago set cuotas = 2 where cohorte_id = v_g6;
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g6);
+    if (v_res ->> 'inscripciones')::int <> 1 or (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N104a: %', v_res; end if;
+    select coalesce(array_agg(numero_de_cuota::int order by numero_de_cuota), '{}') into v_numeros
+      from public.cargos where inscripcion_id = v_ins_m and anulado_en is null;
+    if v_numeros <> array[1, 2] then raise exception 'FALLO N104b: cuotas vigentes %', v_numeros; end if;
+    v_ok := v_ok + 1;
+
+    -- N105 · adelantar el primer vencimiento de quien tenía todas sus cuotas (sin p_desde) no le quita la cuota 1
+    -- Protege el refinamiento (b) de DB-01: pasa también con la función de la ronda 1; se comprobó que falla con la regla literal.
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g7;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g7, 25000, 2, (date_trunc('month', app.hoy()) + interval '1 month')::date, 1);
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Pía","apellidos":"Revisión Ciento Cinco"}'::jsonb, v_g7, null, null, null, null, null);
+    v_ins_p := (v_res ->> 'inscripcion')::uuid;
+    if (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N105a: %', v_res; end if;
+    for v_cargo in select id from public.cargos where inscripcion_id = v_ins_p order by numero_de_cuota loop
+      perform public.anular(gen_random_uuid(), 'cargo', v_cargo, 'El grupo empieza a cobrar un mes antes');
+    end loop;
+    update public.planes_de_pago set primer_vencimiento = date_trunc('month', app.hoy())::date where cohorte_id = v_g7;
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g7);
+    if (v_res ->> 'inscripciones')::int <> 1 or (v_res ->> 'cuotas')::int <> 2 then raise exception 'FALLO N105b: %', v_res; end if;
+    select coalesce(array_agg(vence_el order by numero_de_cuota), '{}') into v_fechas
+      from public.cargos where inscripcion_id = v_ins_p and anulado_en is null;
+    if v_fechas <> array[date_trunc('month', app.hoy())::date, (date_trunc('month', app.hoy()) + interval '1 month')::date] then
+      raise exception 'FALLO N105c: vencimientos %', v_fechas;
+    end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+    -- N108 · solo cuenta la última tanda de cuotas: una tanda vieja anulada con otro precio y la última, anulada con el
+    --        precio actual (una beca después de un cambio de precio), no hacen que la beca vuelva
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, estado)
+    values ('cocina', v_la_paz, extract(year from app.hoy())::smallint, 'sab', 2, app.hoy(), 'en_curso') returning id into v_g8;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Noa","apellidos":"Revisión Ciento Ocho"}'::jsonb, v_g8, null, null, null, null, null);
+    v_ins_n := (v_res ->> 'inscripcion')::uuid;
+    v_est_n := (v_res ->> 'estudiante')::uuid;
+    insert into public.planes_de_pago (cohorte_id, monto_cuota, cuotas, primer_vencimiento, cada_meses)
+    values (v_g8, 25000, 2, app.hoy(), 1) returning id, concepto_id into v_plan_n, v_concepto_n;
+    execute 'reset role';
+    -- Las dos tandas se escriben directo (como postgres) para darles días de registro distintos: en una sola
+    -- transacción, now() es el mismo para todo. El disparador del libro solo vigila updates y deletes.
+    select i.operacion_id into v_op_n from public.inscripciones i where i.id = v_ins_n;
+    insert into public.cargos (operacion_id, estudiante_id, inscripcion_id, concepto_id, descripcion, monto, fecha, vence_el, sede_id,
+                               origen, plan_id, numero_de_cuota, anulado_en, anulado_el, anulado_por, anulacion_motivo,
+                               registrado_por, registrado_en)
+    select v_op_n, v_est_n, v_ins_n, v_concepto_n, 'Cuota ' || n || ' de 2', monto, vence, vence, v_la_paz,
+           'plan', v_plan_n, n, registrado + interval '1 hour', (registrado + interval '1 hour')::date, v_carla, motivo,
+           v_carla, registrado
+      from (values (1, 20000, now() - interval '2 days', 'El precio del grupo cambió'),
+                   (2, 20000, now() - interval '2 days', 'El precio del grupo cambió'),
+                   (1, 25000, now() - interval '1 day', 'Beca completa'),
+                   (2, 25000, now() - interval '1 day', 'Beca completa')) as t(n, monto, registrado, motivo),
+           lateral (select (app.hoy() + make_interval(months => n - 1))::date as vence) v;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.generar_cuotas_de_grupo(gen_random_uuid(), v_g8);
+    if (v_res ->> 'inscripciones')::int <> 0 or (v_res ->> 'cuotas')::int <> 0 then raise exception 'FALLO N108a: %', v_res; end if;
+    select count(*) into v_n from public.cargos where inscripcion_id = v_ins_n and anulado_en is null;
+    if v_n <> 0 then raise exception 'FALLO N108b: % cuotas vigentes tras la beca', v_n; end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+  end;
+
+  -- ============================================================ DB-02 · devolver el uniforme anula su cargo (enmiendas B.12, crítica 14)
+  declare
+    v_g uuid;
+    v_juego uuid;
+    v_s uuid;
+    v_m uuid;
+    v_l uuid;
+    v_alumno_1 uuid;
+    v_ins_1 uuid;
+    v_alumno_2 uuid;
+    v_ins_2 uuid;
+    v_alumno_3 uuid;
+    v_ins_3 uuid;
+    v_alumno_4 uuid;
+    v_ins_4 uuid;
+    v_alumno_5 uuid;
+    v_ins_5 uuid;
+    v_alumno_6 uuid;
+    v_ins_6 uuid;
+    v_alumno_7 uuid;
+    v_ins_7 uuid;
+    v_cambio uuid;
+    v_cambio_2 uuid;
+    v_entrega uuid;
+    v_cargo uuid;
+    v_clave_final uuid := gen_random_uuid();
+    v_antes bigint;
+    v_despues bigint;
+    v_n integer;
+    v_texto text;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.guardar_articulo(gen_random_uuid(), '{"nombre":"Juego DB02","tipo":"uniforme","precio_venta":"65000"}'::jsonb, array['S', 'M', 'L']);
+    v_juego := (v_res ->> 'articulo')::uuid;
+    select id into v_s from public.variantes where articulo_id = v_juego and etiqueta = 'S';
+    select id into v_m from public.variantes where articulo_id = v_juego and etiqueta = 'M';
+    select id into v_l from public.variantes where articulo_id = v_juego and etiqueta = 'L';
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-DB02-1', jsonb_build_array(
+      jsonb_build_object('variante', v_s, 'cantidad', '5', 'costo_total', '150000'),
+      jsonb_build_object('variante', v_m, 'cantidad', '5', 'costo_total', '150000'),
+      jsonb_build_object('variante', v_l, 'cantidad', '5', 'costo_total', '150000')));
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado)
+    values ('gastronomia', v_la_paz, 2026, 1, 'tarde', 'lun-vie', 3, app.hoy() - 5, 'en_curso') returning id into v_g;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Dora","apellidos":"Devuelve Uno"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_1 := (v_res ->> 'estudiante')::uuid;
+    v_ins_1 := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Pía","apellidos":"Pagado Dos"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_2 := (v_res ->> 'estudiante')::uuid;
+    v_ins_2 := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Tito","apellidos":"Talla Tres"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_3 := (v_res ->> 'estudiante')::uuid;
+    v_ins_3 := (v_res ->> 'inscripcion')::uuid;
+    -- Dos piezas cargadas sin cobro (Bs 1300), para devolverlas en dos partes.
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_1, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '2')), true, null);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_1;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    if v_cargo is null then raise exception 'FALLO N96: la entrega no creó su cargo'; end if;
+    execute 'reset role';
+    select coalesce(sum(pendiente), 0) into v_antes from public.v_saldos_de_cargo where estudiante_id = v_alumno_1;
+
+    -- N96 · devolución completa sin cobro (recepción): el cargo se sella hoy y lo que debe baja en su monto;
+    --       la devolución parcial antes no lo toca y avisa
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Le sobra una pieza', null);
+    if v_res ->> 'aviso' is distinct from 'devolucion_parcial' or (v_res -> 'cargo' ->> 'anulado')::boolean
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 130000 then
+      raise exception 'FALLO N96a: la devolución parcial respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.cargos where id = v_cargo and anulado_en is null;
+    if v_n <> 1 then raise exception 'FALLO N96b: la devolución parcial anuló el cargo'; end if;
+    select coalesce(sum(pendiente), 0) into v_despues from public.v_saldos_de_cargo where estudiante_id = v_alumno_1;
+    if v_despues <> v_antes then raise exception 'FALLO N96b: lo que debe cambió con la parcial (% → %)', v_antes, v_despues; end if;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.devolver_uniforme(v_clave_final, v_entrega, '1', 'Ya no lo necesita', null);
+    if not coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, false) or v_res ->> 'aviso' is not null
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 130000 then
+      raise exception 'FALLO N96c: la devolución completa respondió %', v_res;
+    end if;
+    -- El reenvío del formulario vuelve con la misma respuesta y no devuelve otra vez.
+    v_res := public.devolver_uniforme(v_clave_final, v_entrega, '1', 'Ya no lo necesita', null);
+    if not coalesce((v_res ->> 'repetida')::boolean, false) or not coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, false) then
+      raise exception 'FALLO N96d: el reenvío respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select c.anulado_el::text || '|' || c.anulado_por::text || '|' || c.anulacion_motivo into v_texto from public.cargos c where c.id = v_cargo;
+    if v_texto is distinct from app.hoy()::text || '|' || v_rosa::text || '|Devolución del uniforme' then
+      raise exception 'FALLO N96e: sello del cargo %', v_texto;
+    end if;
+    select coalesce(sum(pendiente), 0) into v_despues from public.v_saldos_de_cargo where estudiante_id = v_alumno_1;
+    if v_despues <> v_antes - 130000 then raise exception 'FALLO N96f: lo que debe pasó de % a % (esperado -130000)', v_antes, v_despues; end if;
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'anulado' and pendiente = 0;
+    if v_n <> 1 then raise exception 'FALLO N96g: el cargo no figura anulado en los saldos'; end if;
+    v_ok := v_ok + 1;
+
+    -- N97 · devolución completa de un uniforme cobrado: el cargo sigue vigente y la respuesta pide anular el cobro
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_2, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_s, 'cantidad', '1')), true, '{"medio":"efectivo"}'::jsonb);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_2;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Se retira del curso', null);
+    if v_res ->> 'aviso' is distinct from 'anula_el_cobro' or coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, true)
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 65000 then
+      raise exception 'FALLO N97a: respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'pagado';
+    if v_n <> 1 then raise exception 'FALLO N97b: el cargo cobrado no sigue vigente y pagado'; end if;
+    select count(*) into v_n from public.entregas where id = v_entrega and devuelta = 1;
+    if v_n <> 1 then raise exception 'FALLO N97c: la pieza no volvió'; end if;
+    v_ok := v_ok + 1;
+
+    -- N98 · el cambio de talla no toca el cargo (ni avisa)
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_3, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_l, 'cantidad', '1')), true, null);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_3;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Le queda grande', v_m);
+    if jsonb_typeof(v_res -> 'cargo') is distinct from 'null' or v_res ->> 'aviso' is not null or v_res ->> 'nueva_entrega' is null then
+      raise exception 'FALLO N98a: respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'pendiente' and pendiente = 65000;
+    if v_n <> 1 then raise exception 'FALLO N98b: el cambio de talla tocó el cargo'; end if;
+    select count(*) into v_n from public.cargos where estudiante_id = v_alumno_3 and anulado_en is null;
+    if v_n <> 1 then raise exception 'FALLO N98c: el cambio de talla cobró otra vez (% cargos)', v_n; end if;
+    v_ok := v_ok + 1;
+
+    -- N99 · la cadena de cambios de talla cuenta: de dos piezas cargadas sin cobro, una cambia de talla y la otra
+    --       vuelve sin cambio → el alumno sigue con la pieza cambiada: el cargo sigue y se avisa la parcial
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.registrar_compra(gen_random_uuid(), v_la_paz, null, null, null, null, 'transferencia', 'TR-DB02-2', jsonb_build_array(
+      jsonb_build_object('variante', v_s, 'cantidad', '5', 'costo_total', '150000'),
+      jsonb_build_object('variante', v_m, 'cantidad', '5', 'costo_total', '150000'),
+      jsonb_build_object('variante', v_l, 'cantidad', '5', 'costo_total', '150000')));
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Cata","apellidos":"Cadena Cuatro"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_4 := (v_res ->> 'estudiante')::uuid;
+    v_ins_4 := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Lalo","apellidos":"Largo Cinco"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_5 := (v_res ->> 'estudiante')::uuid;
+    v_ins_5 := (v_res ->> 'inscripcion')::uuid;
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Sole","apellidos":"Sigue Seis"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_6 := (v_res ->> 'estudiante')::uuid;
+    v_ins_6 := (v_res ->> 'inscripcion')::uuid;
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_4, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '2')), true, null);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_4;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    if v_cargo is null then raise exception 'FALLO N99: la entrega no creó su cargo'; end if;
+    execute 'reset role';
+    select coalesce(sum(pendiente), 0) into v_antes from public.v_saldos_de_cargo where estudiante_id = v_alumno_4;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Le queda chica', v_l);
+    v_cambio := (v_res ->> 'nueva_entrega')::uuid;
+    if v_cambio is null or jsonb_typeof(v_res -> 'cargo') is distinct from 'null' then
+      raise exception 'FALLO N99a: el cambio de talla respondió %', v_res;
+    end if;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Ya no necesita la otra', null);
+    if v_res ->> 'aviso' is distinct from 'devolucion_parcial' or coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, true)
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 130000 then
+      raise exception 'FALLO N99b: con la pieza cambiada todavía en su poder, la devolución respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'pendiente' and pendiente = 130000;
+    if v_n <> 1 then raise exception 'FALLO N99c: el cargo no sigue vigente y pendiente por Bs 1300'; end if;
+    select coalesce(sum(pendiente), 0) into v_despues from public.v_saldos_de_cargo where estudiante_id = v_alumno_4;
+    if v_despues <> v_antes then raise exception 'FALLO N99d: lo que debe cambió (% → %)', v_antes, v_despues; end if;
+    v_ok := v_ok + 1;
+
+    -- N100 · cuando vuelve también la pieza cambiada (su fila no tiene cargo propio), se sella el cargo de la cadena
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_cambio, '1', 'Se retira del curso', null);
+    if not coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, false) or v_res ->> 'aviso' is not null
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 130000 then
+      raise exception 'FALLO N100a: la devolución de la pieza cambiada respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'anulado' and pendiente = 0;
+    if v_n <> 1 then raise exception 'FALLO N100b: el cargo de la cadena no figura anulado'; end if;
+    select coalesce(sum(pendiente), 0) into v_despues from public.v_saldos_de_cargo where estudiante_id = v_alumno_4;
+    if v_despues <> v_antes - 130000 then raise exception 'FALLO N100c: lo que debe pasó de % a % (esperado -130000)', v_antes, v_despues; end if;
+    v_ok := v_ok + 1;
+
+    -- N101 · una pieza cargada sin cobro cambia de talla y vuelve entera la nueva: el cargo se sella
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_5, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '1')), true, null);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_5;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    if v_cargo is null then raise exception 'FALLO N101: la entrega no creó su cargo'; end if;
+    execute 'reset role';
+    select coalesce(sum(pendiente), 0) into v_antes from public.v_saldos_de_cargo where estudiante_id = v_alumno_5;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Le queda chica', v_l);
+    v_cambio := (v_res ->> 'nueva_entrega')::uuid;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_cambio, '1', 'Se retira del curso', null);
+    if not coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, false) or v_res ->> 'aviso' is not null
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 65000 then
+      raise exception 'FALLO N101a: la devolución de la talla nueva respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'anulado' and pendiente = 0;
+    if v_n <> 1 then raise exception 'FALLO N101b: el cargo no figura anulado'; end if;
+    select coalesce(sum(pendiente), 0) into v_despues from public.v_saldos_de_cargo where estudiante_id = v_alumno_5;
+    if v_despues <> v_antes - 65000 then raise exception 'FALLO N101c: lo que debe pasó de % a % (esperado -65000)', v_antes, v_despues; end if;
+    v_ok := v_ok + 1;
+
+    -- N106 · dos cambios seguidos (M → L → S) de un uniforme cobrado: devolver la última talla llega al cargo de
+    --        la primera entrega (la búsqueda recorre la cadena entera, no un solo paso) y pide anular el cobro
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_6, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '1')), true, '{"medio":"efectivo"}'::jsonb);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_6;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    if v_cargo is null then raise exception 'FALLO N106: la entrega no creó su cargo'; end if;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Le queda chica', v_l);
+    v_cambio := (v_res ->> 'nueva_entrega')::uuid;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_cambio, '1', 'Ahora le queda grande', v_s);
+    v_cambio_2 := (v_res ->> 'nueva_entrega')::uuid;
+    if v_cambio_2 is null or jsonb_typeof(v_res -> 'cargo') is distinct from 'null' or v_res ->> 'aviso' is not null then
+      raise exception 'FALLO N106a: el segundo cambio de talla respondió %', v_res;
+    end if;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_cambio_2, '1', 'Se retira del curso', null);
+    if v_res ->> 'aviso' is distinct from 'anula_el_cobro' or coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, true)
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 65000 then
+      raise exception 'FALLO N106b: la devolución tras dos cambios respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'pagado';
+    if v_n <> 1 then raise exception 'FALLO N106c: el cargo cobrado no sigue vigente y pagado'; end if;
+    select count(*) into v_n from public.entregas where id in (v_entrega, v_cambio, v_cambio_2) and devuelta = cantidad;
+    if v_n <> 3 then raise exception 'FALLO N106d: la cadena no quedó devuelta entera (% de 3 filas)', v_n; end if;
+    v_ok := v_ok + 1;
+    -- N107 · la cuenta de piezas baja por toda la cadena (nietos incluidos): de dos piezas cargadas sin cobro,
+    --        una cambia M → L → S y la otra vuelve sin cambio → parcial; cuando vuelve la S, se sella
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Nico","apellidos":"Nieto Siete"}'::jsonb, v_g, 'economico', null, null, null, null);
+    v_alumno_7 := (v_res ->> 'estudiante')::uuid;
+    v_ins_7 := (v_res ->> 'inscripcion')::uuid;
+    perform public.entregar_uniforme(gen_random_uuid(), v_ins_7, v_la_paz, 'inscripcion', null,
+      jsonb_build_array(jsonb_build_object('variante', v_m, 'cantidad', '2')), true, null);
+    select en.id into v_entrega from public.entregas en where en.inscripcion_id = v_ins_7;
+    select c.id into v_cargo from public.cargos c where c.entrega_id = v_entrega and c.anulado_en is null;
+    if v_cargo is null then raise exception 'FALLO N107: la entrega no creó su cargo'; end if;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Le queda chica', v_l);
+    v_cambio := (v_res ->> 'nueva_entrega')::uuid;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_cambio, '1', 'Ahora le queda grande', v_s);
+    v_cambio_2 := (v_res ->> 'nueva_entrega')::uuid;
+    if v_cambio is null or v_cambio_2 is null then raise exception 'FALLO N107a: los cambios de talla respondieron %', v_res; end if;
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_entrega, '1', 'Ya no necesita la otra', null);
+    if v_res ->> 'aviso' is distinct from 'devolucion_parcial' or coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, true)
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo or (v_res -> 'cargo' ->> 'monto')::bigint <> 130000 then
+      raise exception 'FALLO N107b: con la talla S (nieta) todavía en su poder, la devolución respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'pendiente' and pendiente = 130000;
+    if v_n <> 1 then raise exception 'FALLO N107c: el cargo no sigue pendiente por Bs 1300'; end if;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_res := public.devolver_uniforme(gen_random_uuid(), v_cambio_2, '1', 'Se retira del curso', null);
+    if not coalesce((v_res -> 'cargo' ->> 'anulado')::boolean, false) or v_res ->> 'aviso' is not null
+       or (v_res -> 'cargo' ->> 'id')::uuid is distinct from v_cargo then
+      raise exception 'FALLO N107d: la devolución de la nieta respondió %', v_res;
+    end if;
+    execute 'reset role';
+    select count(*) into v_n from public.v_saldos_de_cargo where id = v_cargo and estado = 'anulado' and pendiente = 0;
+    if v_n <> 1 then raise exception 'FALLO N107e: el cargo no figura anulado'; end if;
+    v_ok := v_ok + 1;
   end;
 
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;

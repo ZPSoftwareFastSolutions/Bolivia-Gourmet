@@ -305,12 +305,13 @@ function presentacionDe(clase: ClaseDeAviso, d: DestinosDeAvisos): PresentacionD
     case 'arqueos_con_diferencia':
       return { etiqueta: 'Arqueos con diferencia', icono: 'candado', ...haciaLaSede(RUTAS_CAJA.arqueos, 'Revisar', sede, d.sedeDelArqueo), urgente: true };
     case 'bajas':
-      return { etiqueta: 'Bajas de los últimos 7 días', icono: 'papelera', accion: 'Revisar bajas', href: conSede(RUTAS_INVENTARIO.historial, sede), urgente: false };
+      // El historial filtrado a lo que cuenta el aviso: bajas y faltantes de conteo.
+      return { etiqueta: 'Bajas de los últimos 7 días', icono: 'papelera', accion: 'Revisar bajas', href: conSede(RUTAS_INVENTARIO.historial, sede, 'tipo=baja,ajuste_faltante'), urgente: false };
     case 'sin_precio':
       // El precio de un grupo se define en Grupos; una entrega o una pérdida sin cargo se busca en el historial y se carga en la cuenta del alumno.
       return d.faltaPrecioDeGrupos
         ? { etiqueta: 'Sin precio definido', icono: 'lapiz', accion: 'Definir precio', href: RUTAS_ALUMNOS.grupos, urgente: false }
-        : { etiqueta: 'Sin precio definido', icono: 'lapiz', accion: 'Ver entregas y pérdidas', href: conSede(RUTAS_INVENTARIO.historial, sede), urgente: false };
+        : { etiqueta: 'Sin precio definido', icono: 'lapiz', accion: 'Ver entregas y pérdidas', href: conSede(RUTAS_INVENTARIO.historial, sede, 'tipo=entrega,baja'), urgente: false };
   }
 }
 

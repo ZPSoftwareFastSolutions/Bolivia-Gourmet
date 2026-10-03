@@ -148,6 +148,13 @@ export interface FichaDeGrupo {
 
 export type EstadoDeSolicitudEnBandeja = 'pendiente' | 'en_revision' | 'aprobada' | 'rechazada' | 'cancelada';
 
+/**
+ * Orden de la bandeja: lo que hay que atender, lo que más espera primero; el
+ * historial completo («Todas»), lo más reciente primero (si no, el tope de la
+ * lista dejaría fuera justo lo nuevo).
+ */
+export type OrdenDeSolicitudes = 'antiguas_primero' | 'recientes_primero';
+
 export interface SolicitudEnBandeja {
   readonly id: Id;
   readonly tipo: 'inscripcion' | 'renovacion';
@@ -261,6 +268,19 @@ export interface CierreDeGrupo {
 
 // ---------------------------------------------------------------- puerto
 
+/**
+ * Cuántas solicitudes devuelve `listarSolicitudes` como mucho. Lo aplica el
+ * adaptador y lo lee la bandeja para avisar que la lista se cortó: una sola
+ * cifra, así no se desalinean.
+ */
+export const TOPE_DE_SOLICITUDES = 100;
+
+/**
+ * Cuántos alumnos devuelve `buscarAlumnos` como mucho. Lo aplica el adaptador
+ * y lo lee la lista de alumnos para pedir que se afine la búsqueda.
+ */
+export const TOPE_DE_ALUMNOS = 100;
+
 export interface AlumnosPort {
   buscarAlumnos(filtro: FiltroDeAlumnos): Promise<Resultado<readonly AlumnoEnLista[]>>;
   fichaDeAlumno(codigo: string): Promise<Resultado<FichaDeAlumno | null>>;
@@ -286,7 +306,8 @@ export interface AlumnosPort {
   ): Promise<Resultado<{ readonly estado: EstadoDeInscripcion }>>;
   guardarRequisitos(inscripcionId: Id, documentos: readonly string[]): Promise<Resultado<void>>;
 
-  listarSolicitudes(estados: readonly EstadoDeSolicitudEnBandeja[]): Promise<Resultado<readonly SolicitudEnBandeja[]>>;
+  /** Como mucho `TOPE_DE_SOLICITUDES`. Sin orden = las más antiguas primero. */
+  listarSolicitudes(estados: readonly EstadoDeSolicitudEnBandeja[], orden?: OrdenDeSolicitudes): Promise<Resultado<readonly SolicitudEnBandeja[]>>;
   solicitud(id: Id): Promise<Resultado<SolicitudEnBandeja | null>>;
   /** Pendientes y en revisión. Sin sede = todas. */
   contarSolicitudesAbiertas(sedeId?: Id): Promise<Resultado<number>>;

@@ -31,9 +31,11 @@ import type {
   GrupoEnLista,
   InscripcionDeAlumno,
   InscripcionHecha,
+  OrdenDeSolicitudes,
   PrecioDeGrupo,
   SolicitudEnBandeja,
 } from '@core/application/ports/alumnos.port';
+import { TOPE_DE_ALUMNOS, TOPE_DE_SOLICITUDES } from '@core/application/ports/alumnos.port';
 import { traducirErrorDePanel } from './errores-del-panel';
 import { argsDe, comoObjeto, numero, texto, textoDeBusqueda } from './rpc';
 import type { Database, Json } from './tipos-de-base.generados';
@@ -41,6 +43,7 @@ import type { Database, Json } from './tipos-de-base.generados';
 type Fila<T extends keyof Database['public']['Views']> = Database['public']['Views'][T]['Row'];
 
 const NO_GUARDADO = 'No pudimos guardar el cambio. Vuelve a abrir la página e inténtalo otra vez.';
+/** Tope de la lista de grupos. Los de alumnos y de la bandeja son `TOPE_DE_ALUMNOS` y `TOPE_DE_SOLICITUDES` del puerto: sus pantallas avisan del corte. */
 const LIMITE_DE_LISTA = 100;
 
 function grupoDesdeVista(f: Fila<'v_grupos'>, precios: readonly PrecioDeGrupo[] = []): GrupoEnLista {
@@ -141,7 +144,7 @@ export class PanelAlumnosSupabase implements AlumnosPort {
       .select('id, codigo, nombres, apellidos, documento, telefono, sede_nombre, perfil_id, programa_tipo, programa_nombre, anio_de_carrera, grupo_nombre, inscripciones_vigentes, archivado_en')
       .order('apellidos')
       .order('nombres')
-      .limit(LIMITE_DE_LISTA);
+      .limit(TOPE_DE_ALUMNOS);
 
     const q = textoDeBusqueda(filtro.texto ?? '');
     if (q.length > 0) {
@@ -572,13 +575,19 @@ export class PanelAlumnosSupabase implements AlumnosPort {
     );
   }
 
-  async listarSolicitudes(estados: readonly EstadoDeSolicitudEnBandeja[]): Promise<Resultado<readonly SolicitudEnBandeja[]>> {
+  async listarSolicitudes(
+    estados: readonly EstadoDeSolicitudEnBandeja[],
+    orden: OrdenDeSolicitudes = 'antiguas_primero',
+  ): Promise<Resultado<readonly SolicitudEnBandeja[]>> {
+    // El orden se aplica ANTES del tope: con «Todas» y más solicitudes que el
+    // tope, las que llegan son las más recientes, no las más viejas.
     const { data, error } = await this.cliente
       .from('solicitudes')
       .select(COLUMNAS_DE_SOLICITUD)
       .in('estado', [...estados])
-      .order('created_at', { ascending: true })
-      .limit(LIMITE_DE_LISTA);
+      .order('created_at', { ascending: orden === 'antiguas_primero' })
+      .order('id', { ascending: orden === 'antiguas_primero' })
+      .limit(TOPE_DE_SOLICITUDES);
     if (error) return fallo(traducirErrorDePanel(error));
     return this.conFichas((data ?? []) as unknown as readonly SolicitudCruda[]);
   }

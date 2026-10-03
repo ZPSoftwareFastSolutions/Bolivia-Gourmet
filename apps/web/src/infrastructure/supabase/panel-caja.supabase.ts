@@ -32,10 +32,12 @@ import type {
   SalidaPorArquear,
   TipoAnulable,
 } from '@core/application/ports/caja.port';
+import { TOPE_DE_DEUDORES } from '@core/application/ports/caja.port';
 import { traducirErrorDePanel } from './errores-del-panel';
 import { argsDe, comoObjeto, numero, texto, textoDeBusqueda } from './rpc';
 import type { Database, Json } from './tipos-de-base.generados';
 
+/** Tope de recibos y arqueos. El de `deudores` es `TOPE_DE_DEUDORES` del puerto: su pantalla avisa del corte. */
 const LIMITE = 100;
 
 export class PanelCajaSupabase implements CajaPort {
@@ -91,7 +93,7 @@ export class PanelCajaSupabase implements CajaPort {
       .select('*')
       .order('total_vencido', { ascending: false })
       .order('total_pendiente', { ascending: false })
-      .limit(LIMITE);
+      .limit(TOPE_DE_DEUDORES);
     if (filtro.soloVencidos) consulta = consulta.gt('total_vencido', 0);
     if (filtro.sedeId) consulta = consulta.eq('sede_id', filtro.sedeId);
     const q = textoDeBusqueda(filtro.texto ?? '');
