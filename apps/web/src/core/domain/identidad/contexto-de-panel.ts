@@ -37,6 +37,7 @@ export type Permiso =
   | 'caja.cobrar'
   | 'caja.cerrar'
   | 'caja.anular'
+  | 'caja.supervisar'
   | 'contabilidad.leer'
   | 'contabilidad.gestionar';
 

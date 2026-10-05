@@ -14,7 +14,7 @@ import type { MedioDePago } from '@core/domain/caja/cobro';
 import { tienePermiso, type Permiso } from '@core/domain/identidad/contexto-de-panel';
 import { parsearMonto } from '@core/domain/shared/dinero';
 import type { Centavos, Id } from '@core/domain/shared/tipos-base';
-import { anular, aplicacionesElegidas, cerrarCaja, cobrar, crearCargoManual } from '@core/application/panel/caja/caja.usecase';
+import { anular, aplicacionesElegidas, cerrarCaja, cobrar, crearCargoManual, revisarArqueo } from '@core/application/panel/caja/caja.usecase';
 import { cajaRepository } from '@infra/config/composition-root';
 import { RUTAS_CAJA, rutaDeAlumno, rutaDeGrupo, rutaDeRecibo } from '@/lib/rutas';
 import { campo, type EstadoDeFormulario } from '@/presentation/formularios/estado';
@@ -125,6 +125,18 @@ export async function cerrarCajaAccion(_previo: EstadoDeFormulario, datos: FormD
 }
 
 // ---------------------------------------------------------------- anular y corregir (administración)
+
+/** Administración marca revisado un arqueo con diferencia; la diferencia no cambia. */
+export async function revisarArqueoAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
+  const bloqueo = await conPermiso('caja.supervisar');
+  if (bloqueo) return bloqueo;
+  const cierre = campo(datos, 'cierre');
+  if (!cierre) return errores(['Elige el arqueo que revisas.']);
+  const r = await revisarArqueo(await cajaRepository(), campo(datos, 'clave'), cierre as Id, campo(datos, 'nota'));
+  if (!r.exito) return errores(r.error);
+  const sede = campo(datos, 'sede');
+  redirect(`${RUTAS_CAJA.arqueos}?revisado=${r.valor.numero}${sede ? `&sede=${encodeURIComponent(sede)}` : ''}`);
+}
 
 export async function anularCobroAccion(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
   const bloqueo = await conPermiso('caja.anular');

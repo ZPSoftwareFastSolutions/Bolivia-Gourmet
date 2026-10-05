@@ -42,7 +42,7 @@
 |---|---|
 | Cierre y reapertura de mes (`periodos`, `cerrar_mes`, `reabrir_mes`, disparadores de período) | No existe. El tablero no muestra «Cierra septiembre». `verificar_cuadre()` sí existe (lo usan la batería y la pantalla de contabilidad) |
 | Auditoría (`auditoria`, `app.auditar`, pantalla) | No existe. Los documentos ya llevan autor y fecha |
-| `caja.supervisar`: verificar QR y revisar arqueos | No existe. Los arqueos con diferencia se ven en la lista de arqueos |
+| `caja.supervisar`: verificar QR y revisar arqueos | No existe. Los arqueos con diferencia se ven en la lista de arqueos. *Revisar arqueos se adelantó a la v1 el 2026-10-05 (pedido del usuario): `revisar_arqueo`, migración `20261005120000`; verificar QR sigue en la v1.1* |
 | Ajustes › Conceptos (pantalla) | Conceptos de la semilla fija (tabla `conceptos` sí existe) |
 | Ajustes › Personal (pantalla; añadido el 2026-10-03, ninguna rebanada de §C lo incluía) | La base ya lo permite (`perfiles.rol`, `activo` y `sede_id` con `perfiles.gestionar`; guarda del último administrador). El acceso del personal se da por SQL desde el editor de Supabase (CLAUDE.md §4); `/panel/ajustes` muestra un aviso |
 | Devolver un sobrante de insumos a los mismos lotes | Práctica documentada: «registra lo usado al terminar la clase»; administración puede anular el uso y registrarlo bien |

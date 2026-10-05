@@ -290,6 +290,9 @@ export type Database = {
           queda: number | null;
           registros: number;
           retiro: number;
+          revisado_en: string | null;
+          revisado_por: string | null;
+          revision_nota: string | null;
           saldo_inicial: number;
           salidas_efectivo: number;
           sede_id: string;
@@ -311,6 +314,9 @@ export type Database = {
           queda?: number | null;
           registros: number;
           retiro?: number;
+          revisado_en?: string | null;
+          revisado_por?: string | null;
+          revision_nota?: string | null;
           saldo_inicial: number;
           salidas_efectivo: number;
           sede_id: string;
@@ -332,6 +338,9 @@ export type Database = {
           queda?: number | null;
           registros?: number;
           retiro?: number;
+          revisado_en?: string | null;
+          revisado_por?: string | null;
+          revision_nota?: string | null;
           saldo_inicial?: number;
           salidas_efectivo?: number;
           sede_id?: string;
@@ -340,6 +349,13 @@ export type Database = {
           {
             foreignKeyName: 'cierres_de_caja_cerrado_por_fkey';
             columns: ['cerrado_por'];
+            isOneToOne: false;
+            referencedRelation: 'perfiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'cierres_de_caja_revisado_por_fkey';
+            columns: ['revisado_por'];
             isOneToOne: false;
             referencedRelation: 'perfiles';
             referencedColumns: ['id'];
@@ -3759,6 +3775,7 @@ export type Database = {
         Args: { p_mes: string; p_sede: string };
         Returns: Json;
       };
+      revisar_arqueo: { Args: { p_cierre: string; p_clave: string; p_nota: string }; Returns: Json };
       tablero_de_administracion: { Args: { p_sede: string }; Returns: Json };
       usar_insumos: {
         Args: {

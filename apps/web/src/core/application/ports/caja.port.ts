@@ -135,6 +135,8 @@ export interface Arqueo {
   readonly cobrosTransferencia: Centavos;
   readonly cerradoPor: string;
   readonly observacion: string | null;
+  /** Sello de revisión (solo arqueos con diferencia): cuándo, quién y qué se encontró. */
+  readonly revision: { readonly en: string; readonly por: string; readonly nota: string } | null;
 }
 
 export interface ConceptoDeCaja {
@@ -230,6 +232,8 @@ export interface CajaPort {
   cajaPorCerrar(sedeId: Id): Promise<Resultado<CajaPorCerrar>>;
   cerrarCaja(clave: string, datos: DatosDeCierre): Promise<Resultado<CierreHecho>>;
   arqueos(sedeId?: Id): Promise<Resultado<readonly Arqueo[]>>;
+  /** Marca revisado un arqueo con diferencia (`caja.supervisar`). La diferencia no cambia. */
+  revisarArqueo(clave: string, cierreId: Id, nota: string): Promise<Resultado<{ readonly numero: number }>>;
   anular(clave: string, tipo: TipoAnulable, id: Id, motivo: string): Promise<Resultado<void>>;
   crearCargo(clave: string, datos: DatosDeCargoManual): Promise<Resultado<void>>;
   registrarGasto(clave: string, datos: DatosDeGasto): Promise<Resultado<{ readonly numero: number }>>;

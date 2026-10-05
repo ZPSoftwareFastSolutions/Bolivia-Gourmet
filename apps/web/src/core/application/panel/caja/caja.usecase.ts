@@ -98,6 +98,14 @@ export async function anular(port: CajaPort, clave: string, tipo: TipoAnulable, 
   return comoLista(await port.anular(clave, tipo, id, limpio));
 }
 
+/** La nota dice qué se encontró al revisar el arqueo: queda junto a él. */
+export async function revisarArqueo(port: CajaPort, clave: string, cierreId: Id, nota: string): Res<{ readonly numero: number }> {
+  const limpia = nota.trim();
+  if (limpia.length < 3) return fallo(['Escribe qué se encontró al revisar: queda junto al arqueo.']);
+  if (limpia.length > 300) return fallo(['La nota admite hasta 300 caracteres.']);
+  return comoLista(await port.revisarArqueo(clave, cierreId, limpia));
+}
+
 export async function crearCargoManual(port: CajaPort, clave: string, datos: DatosDeCargoManual): Res<void> {
   const errores: string[] = [];
   if (datos.descripcion.trim().length < 3) errores.push('Escribe qué se cobra.');

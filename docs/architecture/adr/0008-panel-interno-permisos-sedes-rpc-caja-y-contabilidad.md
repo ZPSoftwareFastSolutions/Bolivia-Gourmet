@@ -90,8 +90,11 @@ Siguen vigentes los de la entrega 2 (`20261001120100_identidad_perfiles_y_permis
 roles; `perfiles.gestionar`, `sedes.gestionar` y `programas.gestionar` solo
 para administración.
 
-- **No se crearon** `caja.supervisar`, `contabilidad.cerrar_mes` ni
-  `auditoria.leer`: sus funciones pasaron a la v1.1 (enmiendas A.2).
+- **No se crearon** `contabilidad.cerrar_mes` ni `auditoria.leer`: sus
+  funciones pasaron a la v1.1 (enmiendas A.2). `caja.supervisar`
+  (administración) se creó el 2026-10-05 para revisar los arqueos con
+  diferencia (`revisar_arqueo`, migración `20261005120000`); verificar los
+  cobros por QR sigue en la v1.1.
 - **Quien cobra no anula.** `caja.anular` e `inventario.anular` son solo de
   administración. `anular(clave, tipo, id, motivo)` elige el permiso por el
   tipo de documento: cobro, cargo y gasto exigen `caja.anular`; compra, uso,
@@ -118,6 +121,7 @@ para administración.
 | `entregar_uniforme` | `inventario.operar` (y `caja.cobrar` si carga o cobra) |
 | `resumen_del_mes`, `verificar_cuadre`, `tablero_de_administracion` | `contabilidad.leer` |
 | `resumen_de_deudores` | `caja.leer` |
+| `revisar_arqueo` | `caja.supervisar` |
 | `variantes_con_movimientos` | `inventario.leer` |
 
 ### 3. Alcance por sede
@@ -439,7 +443,7 @@ Evidencia: `20261002170000_panel_contabilidad.sql`,
 |---|---|
 | Cierre y reapertura de mes (`periodos`, `cerrar_mes`, `reabrir_mes`, disparadores de período) | No existe. `verificar_cuadre()` sí existe |
 | Auditoría (`auditoria`, `app.auditar`, pantalla) | No existe. Cada documento ya lleva autor, fecha y sello de anulación |
-| `caja.supervisar`: verificar QR y revisar arqueos | No existe. Los arqueos con diferencia se ven en la lista de arqueos y en el tablero de administración |
+| `caja.supervisar`: verificar QR | No existe. (Revisar los arqueos con diferencia sí: se adelantó el 2026-10-05, ver §2) |
 | Ajustes › Conceptos (pantalla) | Conceptos de la semilla fija (la tabla `conceptos` existe) |
 | Ajustes › Personal (pantalla; pasada a la v1.1 el 2026-10-03, ninguna rebanada la incluía) | La base ya lo permite (§2: `perfiles.gestionar` y la guarda del último administrador). El acceso del personal se da por SQL desde el editor de Supabase (`CLAUDE.md` §4); `/panel/ajustes` muestra un aviso |
 | Devolver un sobrante de insumos a los mismos lotes | Práctica: registrar lo usado al terminar la clase; administración puede anular el uso y registrarlo bien |

@@ -302,7 +302,7 @@ test('alertasDeAdministracion: frases completas con la cantidad y montos de dos 
     [...visibles, ...resto].map((a) => a.frase),
     [
       '5 registros en efectivo sin arquear desde el 28/09.',
-      '2 arqueos de este mes no cuadraron: Bs 15,00 de diferencia en total.',
+      '2 arqueos con diferencia por revisar: Bs 15,00 en total.',
       '3 bajas y faltantes en los últimos 7 días: valían Bs 120,00.',
       'Falta el precio de 1 grupo con inscritos, 2 entregas de uniforme y 1 pérdida en préstamos.',
       '3 lotes de insumos vencidos.',
@@ -326,7 +326,7 @@ test('alertasDeAdministracion: singulares, sin fecha de efectivo y «sin precio�
     visibles.map((a) => [a.clase, a.cifra, a.frase]),
     [
       ['efectivo_sin_arqueo', 1, '1 registro en efectivo sin arquear de días anteriores.'],
-      ['arqueos_con_diferencia', 1, '1 arqueo de este mes no cuadró: Bs 2,50 de diferencia.'],
+      ['arqueos_con_diferencia', 1, '1 arqueo con diferencia por revisar: Bs 2,50.'],
       ['bajas', 1, '1 baja o faltante en los últimos 7 días: valía Bs 45,50.'],
       ['sin_precio', 5, 'Falta el precio de 2 grupos con inscritos y 3 pérdidas en préstamos.'],
     ],
@@ -501,7 +501,7 @@ test('alertasDeAdministracion: si el efectivo o los arqueos están en más de un
   };
   const { visibles } = alertasDeAdministracion({ ...ADMINISTRACION_COMPLETA, tablero });
   assert.equal(visibles[0]?.frase, '5 registros en efectivo sin arquear desde el 28/09, en 2 sedes.');
-  assert.equal(visibles[1]?.frase, '2 arqueos de este mes no cuadraron, en 2 sedes: Bs 15,00 de diferencia en total.');
+  assert.equal(visibles[1]?.frase, '2 arqueos con diferencia por revisar, en 2 sedes: Bs 15,00 en total.');
 });
 
 test('tableroDesdeBase: la sede del problema solo se acepta si es un identificador', () => {

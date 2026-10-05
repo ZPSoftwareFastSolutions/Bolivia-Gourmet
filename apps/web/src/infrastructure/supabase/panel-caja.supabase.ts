@@ -260,7 +260,7 @@ export class PanelCajaSupabase implements CajaPort {
     let consulta = this.cliente
       .from('cierres_de_caja')
       .select(
-        'id, numero, cerrado_en, saldo_inicial, esperado, contado, diferencia, retiro, queda, cobros_qr, cobros_transferencia, observacion, sedes(nombre), perfiles!cierres_de_caja_cerrado_por_fkey(nombres)',
+        'id, numero, cerrado_en, saldo_inicial, esperado, contado, diferencia, retiro, queda, cobros_qr, cobros_transferencia, observacion, revisado_en, revision_nota, sedes(nombre), perfiles!cierres_de_caja_cerrado_por_fkey(nombres), revisor:perfiles!cierres_de_caja_revisado_por_fkey(nombres)',
       )
       .order('cerrado_en', { ascending: false })
       .limit(LIMITE);
@@ -283,8 +283,15 @@ export class PanelCajaSupabase implements CajaPort {
         cobrosTransferencia: c.cobros_transferencia as Centavos,
         cerradoPor: c.perfiles?.nombres ?? '',
         observacion: c.observacion,
+        revision: c.revisado_en && c.revision_nota ? { en: c.revisado_en, por: c.revisor?.nombres ?? '', nota: c.revision_nota } : null,
       })),
     );
+  }
+
+  async revisarArqueo(clave: string, cierreId: Id, nota: string): Promise<Resultado<{ readonly numero: number }>> {
+    const { data, error } = await this.cliente.rpc('revisar_arqueo', argsDe<'revisar_arqueo'>({ p_clave: clave, p_cierre: cierreId, p_nota: nota }));
+    if (error) return fallo(traducirErrorDePanel(error));
+    return exito({ numero: numero(comoObjeto(data).numero) });
   }
 
   async anular(clave: string, tipo: TipoAnulable, id: Id, motivo: string): Promise<Resultado<void>> {

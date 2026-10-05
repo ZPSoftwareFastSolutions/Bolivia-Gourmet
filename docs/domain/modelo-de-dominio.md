@@ -634,7 +634,8 @@ para el resumen; «internet» va en «Servicios básicos»).
 | C18 | Gasto: concepto de gasto; en efectivo, de hoy; por banco, hasta 30 días atrás | decidida (D10) | base `app.registrar_gasto` (`concepto_no_es_gasto`, `fecha_invalida`) · caso de uso `registrarGasto` | `panel-caja.test.ts` › «anular exige motivo; cargo manual y gasto revisan su forma»; N42 |
 | C19 | Cargo manual de administración: alumno, concepto de ingreso y, si corresponde, su inscripción y el préstamo que repone | decidida | base `app.crear_cargo` · caso de uso `crearCargoManual`; ver §9 | `panel-caja.test.ts` › «anular exige motivo; cargo manual…» |
 | C20 | Monto en letras del recibo | decidida | `montoEnLetras`, `enteroEnLetras` | `caja.test.ts` › «montoEnLetras: los casos del recibo», «enteroEnLetras: apócopes…» |
-| C21 | Verificar los cobros por QR contra el banco y revisar los arqueos con diferencia (`caja.supervisar`). Hoy los arqueos con diferencia se ven en la lista de arqueos | **v1.1** (A.2) | — | — |
+| C21 | Un arqueo con diferencia queda «por revisar» hasta que administración (`caja.supervisar`) lo revisa con una nota, una sola vez; la diferencia no cambia (sigue en el resultado del mes) y el aviso del inicio cuenta solo los que faltan revisar, de cualquier mes. Un arqueo que cuadró no se revisa | decidida (2026-10-05, pedido del usuario; adelanta esa parte de A.2) | base `app.revisar_arqueo` (`nota_requerida`, `arqueo_sin_diferencia`, `ya_revisado`), `tablero_de_administracion` | `panel-tablero.test.ts` › «alertasDeAdministracion: frases completas…»; N109–N112 |
+| C22 | Verificar los cobros por QR contra el banco | **v1.1** (A.2) | — | — |
 | C22 | Pantalla de conceptos de ingreso y gasto (hoy, semilla fija sin escritura por la API) | **v1.1** (A.2) | — | — |
 
 ### 5.2 Contabilidad (administración)
@@ -778,7 +779,8 @@ estudiante no tiene ningún permiso del panel.
 | `caja.leer` · `caja.cobrar` · `caja.cerrar` | Lo que deben, cobros, recibos · cobrar y vender · arquear | ✓ | ✓ |
 | `caja.anular` | Anular cobros, cargos y gastos | ✓ | — |
 | `contabilidad.leer` · `contabilidad.gestionar` | Costos, compras, gastos, resumen · gastos, planes de pago, cargos manuales | ✓ | — |
-| `caja.supervisar`, `contabilidad.cerrar_mes`, `auditoria.leer` | Verificar QR, cerrar meses, auditoría | **v1.1** | — |
+| `caja.supervisar` | Revisar los arqueos con diferencia (verificar QR, en la v1.1) | ✓ | — |
+| `contabilidad.cerrar_mes`, `auditoria.leer` | Cerrar meses, auditoría | **v1.1** | — |
 
 **Alcance por sede.** La sede de trabajo es `perfiles.sede_id`. Recepción
 **opera solo en su sede** y consulta las dos; administración opera en

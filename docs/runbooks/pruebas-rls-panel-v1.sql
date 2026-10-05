@@ -2305,6 +2305,107 @@ begin
     v_ok := v_ok + 1;
   end;
 
+  -- ============================================================ E5 · revisar los arqueos con diferencia
+  declare
+    v_caja jsonb;
+    v_t0 jsonb;
+    v_t1 jsonb;
+    v_cierre uuid;
+    v_cuadra uuid;
+    v_texto text;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_t0 := public.tablero_de_administracion(v_la_paz);
+    -- Una venta en efectivo y un arqueo al que le faltan Bs 5.
+    perform public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'efectivo', null, null, null,
+      '{"concepto":"otro-ingreso","descripcion":"Recetario E5","monto":4000,"cliente":"Cliente E5"}'::jsonb, null);
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    v_res := public.cerrar_caja(gen_random_uuid(), v_la_paz, (v_caja ->> 'esperado')::bigint - 500, 0, 'Faltó cambio E5',
+      case when (v_caja ->> 'primer_arqueo')::boolean then 0 end);
+    v_cierre := (v_res ->> 'cierre')::uuid;
+    v_t1 := public.tablero_de_administracion(v_la_paz);
+
+    -- N109 · el arqueo con diferencia queda por revisar y el aviso lo cuenta, con su sede
+    if (v_t1 -> 'arqueos_con_diferencia' ->> 'cantidad')::int <> (v_t0 -> 'arqueos_con_diferencia' ->> 'cantidad')::int + 1
+       or (v_t1 -> 'arqueos_con_diferencia' ->> 'sede')::uuid is distinct from v_la_paz then
+      raise exception 'FALLO N109: %', v_t1 -> 'arqueos_con_diferencia';
+    end if;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+
+    -- N110 · recepción no revisa; administración sí, con nota; el aviso deja de contarlo; una sola vez
+    perform set_config('request.jwt.claims', json_build_object('sub', v_rosa, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.revisar_arqueo(gen_random_uuid(), v_cierre, 'Contó mal el cambio');
+      raise exception 'FALLO N110a: recepción revisó un arqueo';
+    exception when insufficient_privilege then null;
+    end;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      perform public.revisar_arqueo(gen_random_uuid(), v_cierre, '  ');
+      raise exception 'FALLO N110b: revisó sin nota';
+    exception when others then
+      if sqlerrm <> 'nota_requerida' then raise exception 'FALLO N110b: %', sqlerrm; end if;
+    end;
+    v_res := public.revisar_arqueo(gen_random_uuid(), v_cierre, 'Se dio mal un cambio; se habló con la cajera');
+    v_t1 := public.tablero_de_administracion(v_la_paz);
+    if (v_t1 -> 'arqueos_con_diferencia' ->> 'cantidad')::int <> (v_t0 -> 'arqueos_con_diferencia' ->> 'cantidad')::int then
+      raise exception 'FALLO N110c: el arqueo revisado sigue en el aviso %', v_t1 -> 'arqueos_con_diferencia';
+    end if;
+    begin
+      perform public.revisar_arqueo(gen_random_uuid(), v_cierre, 'Otra vez');
+      raise exception 'FALLO N110d: revisó dos veces';
+    exception when others then
+      if sqlerrm <> 'ya_revisado' then raise exception 'FALLO N110d: %', sqlerrm; end if;
+    end;
+    execute 'reset role';
+    select c.revisado_por::text || '|' || c.revision_nota || '|' || c.diferencia into v_texto from public.cierres_de_caja c where c.id = v_cierre;
+    if v_texto is distinct from v_carla::text || '|Se dio mal un cambio; se habló con la cajera|-500' then
+      raise exception 'FALLO N110e: %', v_texto;
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N111 · un arqueo que cuadró no se revisa
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    perform public.registrar_cobro(gen_random_uuid(), v_la_paz, null, 'efectivo', null, null, null,
+      '{"concepto":"otro-ingreso","descripcion":"Recetario E5 dos","monto":3000,"cliente":"Cliente E5"}'::jsonb, null);
+    v_caja := public.caja_por_cerrar(v_la_paz);
+    v_res := public.cerrar_caja(gen_random_uuid(), v_la_paz, (v_caja ->> 'esperado')::bigint, 0, null, null);
+    v_cuadra := (v_res ->> 'cierre')::uuid;
+    begin
+      perform public.revisar_arqueo(gen_random_uuid(), v_cuadra, 'No hacía falta');
+      raise exception 'FALLO N111: revisó un arqueo que cuadró';
+    exception when others then
+      if sqlerrm <> 'arqueo_sin_diferencia' then raise exception 'FALLO N111: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N112 · nadie escribe el sello por la API, y el sello no se cambia (ni siquiera postgres)
+    begin
+      update public.cierres_de_caja set revision_nota = 'Cambiada por la API' where id = v_cierre;
+      raise exception 'FALLO N112a: se escribió el sello por la API';
+    exception when insufficient_privilege then null;
+    end;
+    execute 'reset role';
+    begin
+      update public.cierres_de_caja set revision_nota = 'Cambiada después' where id = v_cierre;
+      raise exception 'FALLO N112b: se cambió la nota de revisión';
+    exception when others then
+      if sqlerrm <> 'libro_inmutable' then raise exception 'FALLO N112b: %', sqlerrm; end if;
+    end;
+    begin
+      update public.cierres_de_caja set contado = contado + 1 where id = v_cierre;
+      raise exception 'FALLO N112c: se cambió lo contado';
+    exception when others then
+      if sqlerrm <> 'libro_inmutable' then raise exception 'FALLO N112c: %', sqlerrm; end if;
+    end;
+    v_ok := v_ok + 1;
+  end;
+
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
 $$;

@@ -137,7 +137,7 @@ y `enmiendas-v1.md` (alcance real y resoluciones; **manda**).
 ### Pasa a la v1.1 (enmiendas §A.2)
 
 - [ ] **Ajustes › Personal** (dar acceso de recepción o de administración a una cuenta ya registrada, cambiar su sede, quitar el acceso). Estaba en el alcance de la v1 (enmiendas §A.1) pero ninguna rebanada lo incluía; se pasa a la v1.1 el 2026-10-03 para no entregar una pantalla sin revisar. La base ya lo permite (columnas `rol`, `activo` y `sede_id` de `perfiles` con `perfiles.gestionar` y la guarda del último administrador); hasta entonces, el acceso se da por SQL (CLAUDE.md §4) y `/panel/ajustes` muestra un aviso. Decisión que el usuario puede revertir (CLAUDE.md §16.3).
-- [ ] Cierre y reapertura de mes · auditoría · verificación de QR y revisión de arqueos · pantalla de conceptos · devolver sobrantes de insumos a sus lotes · ajuste de valor · prueba de uso con adultos reales (pendiente del usuario).
+- [ ] Cierre y reapertura de mes · auditoría · verificación de QR (la revisión de arqueos se adelantó: E5.B1) · pantalla de conceptos · devolver sobrantes de insumos a sus lotes · ajuste de valor · prueba de uso con adultos reales (pendiente del usuario).
 
 ## Entrega 5 — Ajustes tras la prueba del usuario (2026-10-05, rama `feat/sistema-interno`)
 
@@ -153,7 +153,7 @@ la máquina es justa) y con un commit por línea de trabajo.
 - [x] **E5.A4** Portal del estudiante: espacio después de «Hola,» y saludo según la hora (madrugada, mañana, mediodía, tarde, noche). *Causa del espacio:* el espacio de texto quedaba tapado por la coma de la letra caligráfica. *Hecho:* `core/domain/portal/saludo.ts`: cinco franjas con la hora de La Paz y tres frases por franja que se turnan por día (no cambian al recargar), sin palabras que dependan del género ni voseo; el espacio lo da la estructura (`gap-x-3`) y un espacio real queda para los lectores de pantalla. *Validación:* `saludo.test.ts` (bordes de cada franja, rotación diaria, género y voseo); vista de las cinco franjas a 375 px (gancho y nombre separados 12 px).
 
 ### E5.B Arqueos
-- [ ] **E5.B1** Explicar el flujo de los arqueos con diferencia y poder marcarlos como revisados, para que el aviso del inicio no quede todo el mes.
+- [x] **E5.B1** Explicar el flujo de los arqueos con diferencia y poder marcarlos como revisados, para que el aviso del inicio no quede todo el mes. *Antes:* la lista de arqueos era solo para mirar y el aviso contaba todo arqueo del mes con diferencia hasta fin de mes. *Ahora:* administración (`caja.supervisar`, permiso nuevo) abre el arqueo «Por revisar», corrige lo que estaba mal (anulando el cobro o gasto: entra en el próximo arqueo) y lo marca revisado con una nota; la diferencia no cambia (sigue en el resultado del mes) y el aviso cuenta solo los que faltan revisar, de cualquier mes. Migraciones `20261005120000` (revisión, permiso, tablero) y `20261005120100`: `app.solo_sellos` ignora las columnas generadas, que en un disparador BEFORE aún no están calculadas y hacían fallar el sello (lo encontró la batería). *Validación:* batería N109–N112 4/4 (recepción no revisa, nota obligatoria, una sola vez, un arqueo que cuadró no se revisa, el sello no se escribe por la API ni se cambia); 298 pruebas (frases del aviso y caso de uso); tipos; build; vista de la tarjeta (por revisar, revisado, sin diferencia, sin permiso) a 1024 y 375 px; advisors sin avisos nuevos.
 
 ### E5.C Inscripciones por convocatoria
 - [ ] **E5.C0** Diseño: flujo actual y nuevo, reglas, casos negativos, impactos y supuestos.

@@ -217,8 +217,8 @@ export function alertasDeAdministracion(d: DatosDeAdministracion): AvisosVisible
       cifra: arqueos,
       frase:
         arqueos === 1
-          ? `1 arqueo de este mes no cuadró: ${formatearMontoExacto(t.arqueosConDiferencia.monto)} de diferencia.`
-          : `${numero(arqueos)} arqueos de este mes no cuadraron${enSedes(t.arqueosConDiferencia.sedes)}: ${formatearMontoExacto(t.arqueosConDiferencia.monto)} de diferencia en total.`,
+          ? `1 arqueo con diferencia por revisar: ${formatearMontoExacto(t.arqueosConDiferencia.monto)}.`
+          : `${numero(arqueos)} arqueos con diferencia por revisar${enSedes(t.arqueosConDiferencia.sedes)}: ${formatearMontoExacto(t.arqueosConDiferencia.monto)} en total.`,
     },
     {
       clase: 'bajas',

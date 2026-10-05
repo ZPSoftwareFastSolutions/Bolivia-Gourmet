@@ -303,7 +303,7 @@ function presentacionDe(clase: ClaseDeAviso, d: DestinosDeAvisos): PresentacionD
     case 'efectivo_sin_arqueo':
       return { etiqueta: 'Efectivo sin arqueo', icono: 'billete', ...haciaLaSede(RUTAS_CAJA.inicio, 'Ver caja', sede, d.sedeDelEfectivo), urgente: true };
     case 'arqueos_con_diferencia':
-      return { etiqueta: 'Arqueos con diferencia', icono: 'candado', ...haciaLaSede(RUTAS_CAJA.arqueos, 'Revisar', sede, d.sedeDelArqueo), urgente: true };
+      return { etiqueta: 'Arqueos por revisar', icono: 'candado', ...haciaLaSede(RUTAS_CAJA.arqueos, 'Revisar', sede, d.sedeDelArqueo), urgente: true };
     case 'bajas':
       // El historial filtrado a lo que cuenta el aviso: bajas y faltantes de conteo.
       return { etiqueta: 'Bajas de los últimos 7 días', icono: 'papelera', accion: 'Revisar bajas', href: conSede(RUTAS_INVENTARIO.historial, sede, 'tipo=baja,ajuste_faltante'), urgente: false };

@@ -26,8 +26,8 @@ export interface TableroDeAdministracionEnBase {
    */
   readonly efectivoSinArqueo: { readonly registros: number; readonly desde: FechaISO | null; readonly sede: Id | null; readonly sedes: number };
   /**
-   * Arqueos de este mes con diferencia (cuántos y la suma de las diferencias
-   * en valor absoluto). `sede` es la del más reciente.
+   * Arqueos con diferencia que faltan revisar, de cualquier mes (cuántos y la
+   * suma de las diferencias en valor absoluto). `sede` es la del más reciente.
    */
   readonly arqueosConDiferencia: { readonly cantidad: number; readonly monto: Centavos; readonly sede: Id | null; readonly sedes: number };
   /** Bajas y faltantes vigentes de los últimos 7 días (cuántos y cuánto valían). */

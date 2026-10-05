@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { anular, aplicacionesElegidas, cerrarCaja, cobrar, crearCargoManual, registrarGasto, totalDelCobro } from '../src/core/application/panel/caja/caja.usecase.ts';
+import { anular, aplicacionesElegidas, cerrarCaja, cobrar, crearCargoManual, registrarGasto, revisarArqueo, totalDelCobro } from '../src/core/application/panel/caja/caja.usecase.ts';
 import type { CajaPort } from '../src/core/application/ports/caja.port.ts';
 import { exito, type Centavos, type Id } from '../src/core/domain/shared/tipos-base.ts';
 
@@ -39,6 +39,7 @@ function puertoFalso() {
       }),
     cerrarCaja: () => ok('cerrarCaja', { numero: 1, esperado: 0 as Centavos, contado: 0 as Centavos, diferencia: 0 as Centavos, queda: 0 as Centavos }),
     arqueos: () => ok('arqueos', []),
+    revisarArqueo: (_c, _id, nota) => ok(`revisarArqueo:${nota}`, { numero: 7 }),
     anular: () => ok('anular', undefined),
     crearCargo: () => ok('crearCargo', undefined),
     registrarGasto: () => ok('registrarGasto', { numero: 1 }),
@@ -95,6 +96,16 @@ test('cerrar caja: si no cuadra con lo que se mostró, pide explicación; no se 
   assert.ok((await cerrarCaja(puerto, 'k', { ...base, observacion: 'Faltó cambio' }, 135000 as Centavos)).exito);
   assert.ok((await cerrarCaja(puerto, 'k', { ...base, contado: 135000 as Centavos, retiro: 100000 as Centavos }, 135000 as Centavos)).exito);
   assert.deepEqual(llamadas, ['cerrarCaja', 'cerrarCaja']);
+});
+
+test('revisar un arqueo exige una nota de 3 a 300 caracteres y la manda sin espacios sobrantes', async () => {
+  const { puerto, llamadas } = puertoFalso();
+  assert.equal((await revisarArqueo(puerto, 'k', 'c' as Id, '  ')).exito, false);
+  assert.equal((await revisarArqueo(puerto, 'k', 'c' as Id, 'x'.repeat(301))).exito, false);
+  assert.deepEqual(llamadas, []);
+  const r = await revisarArqueo(puerto, 'k', 'c' as Id, '  Faltó cambio; se habló con Rosa  ');
+  assert.ok(r.exito && r.valor.numero === 7);
+  assert.deepEqual(llamadas, ['revisarArqueo:Faltó cambio; se habló con Rosa']);
 });
 
 test('anular exige motivo; cargo manual y gasto revisan su forma', async () => {
