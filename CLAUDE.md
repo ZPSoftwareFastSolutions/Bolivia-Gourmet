@@ -10,8 +10,8 @@
 > - **Última actualización:** 2026-10-03 · **Entrega 4: sistema interno v1**
 >   (panel del personal: alumnos y grupos, caja, inventario con PEPS y costo
 >   promedio, uniformes y utensilios, contabilidad básica y tableros de
->   inicio), con datos de demostración del panel y revisión final; 277
->   pruebas y batería de la base del panel (§8). Entregas 2 y 3: web pública y
+>   inicio), con datos de demostración del panel y revisión final; 294
+>   pruebas y batería de la base del panel 165/165 (§8). Entregas 2 y 3: web pública y
 >   portal de estudiantes con CSP estricta. Contexto de la conversación que no
 >   está en otros documentos: §15 y §16.
 > - **Ramas:** `feat/sistema-interno` lleva TODO (la web de `feat/pagina-web`
@@ -32,7 +32,7 @@
 | **Cliente** | **TEC-NIB** (Instituto Técnico Nacional de la Integración Boliviana) es la institución madre; **Corporación Bolivia Gourmet** es su área de gastronomía; **Bolivia Gastronómica** es la marca del instituto. Sedes: La Paz (Miraflores) y El Alto (La Ceja). |
 | **Stack** | Next.js 16.3.8 · React 19.1 · TypeScript 5.9 estricto · Tailwind v4 · Supabase (`@supabase/ssr` 0.12.7, `supabase-js` 2.117.2) · `node --test` |
 | **Repositorio** | https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet |
-| **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 29 tablas, todas con RLS; 18 migraciones (§4) |
+| **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 29 tablas, todas con RLS; 20 migraciones (§4) |
 | **Estado** | Web pública (8 páginas + 5 de cursos; `/emprende` redirige a `/cursos`) y portal (7 páginas) **funcionando en local**, verificados. **Sistema interno v1** en `/panel` (43 páginas) para administración y recepción, con datos de demostración del panel cargados (§4). Sin desplegar. Las pantallas del personal con sesión las prueba el usuario (el asistente no inicia sesión) |
 | **Fuentes de verdad** | `INFORMACION-INSTITUTO.md` + `docs/analisis/aclaraciones-2026-10-01.md` (datos), `FOTOS-GASTRO/` + `FOTOS-WEB/` + `docs/brand/identidad-visual.md` (identidad), `docs/domain/modelo-de-dominio.md` (reglas), `docs/architecture/` (decisiones), `TASKS.md` (avance) |
 | **Siguiente** | 0) Que el usuario entre al panel como Carla (administración) y como Rosa (recepción) y revise las pantallas con los datos de demostración · 1) Esperar la respuesta del cliente sobre precios y detalles de cursos y licenciatura · 2) Que configure Supabase Auth (§9, E2.D1) y desactive las claves API heredadas · 3) Que confirme las decisiones de §16.3 · 4) Aprobar y fusionar en `main` · 5) Desplegar en Vercel cuando el usuario lo pida (antes, borrar los datos de demostración) · 6) v1.1 del panel (§9) |
@@ -254,7 +254,7 @@ src/
     panel/                Piezas (Indicador, Mosaico, Chip, EstadoVacio…) · Formulario · Caja · GraficoSemanal · navegación
   lib/                    cn · rutas · redirecciones · politica-de-contenido · fechas · marca
   styles/globals.css      tokens de marca y semánticos; @layer base y @layer components
-tests/                    277 pruebas (node --test, en serie)
+tests/                    294 pruebas (node --test, en serie)
 ```
 
 ### 3.3 Flujos del portal
@@ -417,7 +417,7 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 ```bash
 cd apps/web
 NODE_OPTIONS=--max-old-space-size=1536 npm run typecheck   # tsc --noEmit
-npm test              # 277 pruebas: dominio, catálogo, casos de uso, portal, panel, lecturas de la base, seguridad, coherencia SQL
+npm test              # 294 pruebas: dominio, catálogo, casos de uso, portal, panel, lecturas de la base, seguridad, coherencia SQL
 CIRCLE_NODE_TOTAL=2 npm run build                         # todas las páginas dinámicas + proxy
 npm audit             # 0
 ```
@@ -596,7 +596,7 @@ son mensuales. (Logotipos de socios: recibidos.)
 | 2026-10-01 | `feat/pagina-web` | Cuentas y datos de demostración en `supabase/seed/` (5 cuentas `.test`, historial de 3 gestiones), ensayados y revertidos; contraseña fuera del repositorio. El usuario los cargó y probó el acceso |
 | 2026-10-01 | `feat/pagina-web` | Entrega 3: logotipos de socios horneados como hexágonos; carrusel automático sin flechas (inicio); panel de universidades; panal del folleto (convenios); cursos + emprende en `/cursos` (308 desde `/emprende`); mapas con los enlaces del usuario; ritmo entre secciones y ondas del pie; `auditar-espacios.mjs`; fuga de procesos de Edge corregida. Auditoría base y revisión con 4 revisores + verificadores; 11 defectos confirmados y corregidos; 124 pruebas |
 | 2026-10-02 | `feat/sistema-interno` | Diseño del sistema interno: especificación, crítica independiente y enmiendas (`01557f2`). R0 dominio puro (`b3005d0`); R1 núcleo de base y esqueleto del panel (`60772e5`); R2 alumnos, grupos y solicitudes (`a558eaa`, `237f70e`); R3 caja (`164d338`, `2413fa3`); R4 inventario PEPS y promedio (`685e4aa`, `277b585`); R5 uniformes y utensilios (`1fc3d6c`); R6 contabilidad (`3e5bf35`). Cada rebanada con su batería de la base y revisores escépticos |
-| 2026-10-03 | `feat/sistema-interno` | R7 tableros de inicio y anulación de lo ya deshecho (`411883a`); R8 datos de demostración del panel, cargados (`9f268bc`); batería del panel 145/145 sobre los datos cargados; ADR 0007 y 0008; R9 revisión final |
+| 2026-10-03 | `feat/sistema-interno` | R7 tableros de inicio y anulación de lo ya deshecho (`411883a`); R8 datos de demostración del panel, cargados (`9f268bc`); batería del panel 145/145 sobre los datos cargados; ADR 0007 y 0008; R9 revisión final con 17 defectos corregidos (`062efa1`, `7d48f50`): batería 165/165, 294 pruebas, tipos y build. Rama `v1` creada en ese punto |
 
 ---
 
@@ -694,7 +694,7 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
 | `main` | `25500d8` (fase 0 y entrega 2). Nada fusionado: espera la aprobación del usuario |
 | `feat/pagina-web` | `08df150` (entrega 3), en GitHub; `feat/sistema-interno` la contiene |
 | `.env.local` | Con los valores reales del proyecto (§7) |
-| Base de datos | 18 migraciones aplicadas (§4). Cuentas de demostración y datos de demostración del panel cargados (2026-10-03). Valeria tiene una solicitud creada desde el portal |
+| Base de datos | 20 migraciones (22 aplicaciones en la base, ver el README de migraciones; §4). Cuentas de demostración y datos de demostración del panel cargados (2026-10-03). Valeria tiene una solicitud creada desde el portal |
 | Servidor de vista previa | `web-produccion` (puerto 3100); el asistente lo arranca para comprobar y lo detiene (la memoria es justa, §7) |
 | Informes de revisión | En el directorio de la sesión (efímero). Lo confirmado y corregido está en `TASKS.md` (E4.R7 y E4.R9) |
 | HawkScan | No ejecutado: la máquina no tiene `HAWK_API_KEY`. El gancho de sesión lo pide tras cada commit; se ignora mientras falte la clave |
