@@ -10,6 +10,9 @@
 --
 -- Resultado esperado:  ERROR:  OK · N pruebas superadas (todo revertido)
 -- Cualquier otro mensaje que empiece por «FALLO» indica qué regla se rompió.
+--
+-- Desde la entrega 5 (ADR 0009) toda solicitud nueva pide un grupo en
+-- convocatoria: la preparación abre grupos de prueba sin cruces entre sí.
 -- ============================================================================
 
 do $$
@@ -25,6 +28,15 @@ declare
   v_ok integer := 0;
   v_estado text;
   v_revisor uuid;
+  v_permisos integer;
+  v_g_cocina uuid;
+  v_g_cocina2 uuid;
+  v_g_tortas uuid;
+  v_g_cocteleria uuid;
+  v_g_reposteria uuid;
+  v_g_temporada uuid;
+  v_g_carrera1 uuid;
+  v_g_carrera2 uuid;
 begin
   -- ------------------------------------------------------------ preparación (postgres)
   insert into auth.users (id, aud, role, email, raw_user_meta_data) values
@@ -52,6 +64,25 @@ begin
   update public.perfiles set rol = 'recepcion' where id = v_recep;
   update public.perfiles set rol = 'administrador' where id = v_admin;
   select id into v_sede from public.sedes where codigo = 'la-paz';
+  select count(*) into v_permisos from public.permisos_de_rol where rol = 'administrador';
+
+  -- Grupos en convocatoria (ADR 0009), con horarios que no se cruzan entre sí.
+  insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('cocina', v_sede, 2026, 'sab', 2, app.hoy() + 7, app.hoy() + 60, 'abierto', '09:00', '11:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_cocina;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('cocina', v_sede, 2026, 'jue-vie', 1, app.hoy() + 7, app.hoy() + 40, 'abierto', '18:00', '20:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_cocina2;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('tortas', v_sede, 2026, 'sab', 2, app.hoy() + 7, app.hoy() + 60, 'abierto', '11:00', '13:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_tortas;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('cocteleria', v_sede, 2026, 'sab', 1, app.hoy() + 7, app.hoy() + 40, 'abierto', '14:00', '16:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_cocteleria;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, turno, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('reposteria-y-panaderia', v_sede, 2026, 'manana', 'lun-mie', 4, app.hoy() + 7, app.hoy() + 120, 'abierto', '08:00', '11:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_reposteria;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, modalidad, fecha_inicio, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('cursos-de-temporada', v_sede, 2026, 'virtual', app.hoy() + 7, 'abierto', '19:00', '20:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_temporada;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('gastronomia', v_sede, 2026, 1, 'noche', 'lun-vie', 3, app.hoy() + 7, 'abierto', '18:00', '22:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_carrera1;
+  insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+  values ('gastronomia', v_sede, 2026, 2, 'noche', 'lun-vie', 3, app.hoy() + 30, 'abierto', '18:00', '22:00', app.hoy() - 1, app.hoy() + 10, v_admin) returning id into v_g_carrera2;
 
   -- ------------------------------------------------------------ anónimo
   perform set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -115,29 +146,29 @@ begin
   exception when insufficient_privilege then v_ok := v_ok + 1;
   end;
 
-  insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion, mensaje)
-  values ('inscripcion', 'cocina', v_sede, 'sab', 2, 'Quiero empezar en sábado')
+  insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion, mensaje, cohorte_id)
+  values ('inscripcion', 'cocina', v_sede, 'sab', 2, 'Quiero empezar en sábado', v_g_cocina)
   returning id, estado into v_sol, v_estado;
   if v_estado <> 'pendiente' then raise exception 'FALLO E06: estado inicial %', v_estado; end if;
   v_ok := v_ok + 1;
 
   begin
-    insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion)
-    values ('inscripcion', 'gastronomia', v_sede, 'noche', 'lun-vie', 3);
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, cohorte_id)
+    values ('inscripcion', 'gastronomia', v_sede, 'noche', 'lun-vie', 3, v_g_carrera1);
     raise exception 'FALLO E07: inscripción a la carrera sin paquete';
   exception when check_violation then v_ok := v_ok + 1;
   end;
 
   begin
-    insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion, paquete)
-    values ('inscripcion', 'tortas', v_sede, 'sab', 2, 'economico');
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion, paquete, cohorte_id)
+    values ('inscripcion', 'tortas', v_sede, 'sab', 2, 'economico', v_g_tortas);
     raise exception 'FALLO E08: un curso aceptó paquete';
   exception when check_violation then v_ok := v_ok + 1;
   end;
 
   begin
-    insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion)
-    values ('inscripcion', 'cocina', v_sede, 'jue-vie', 1);
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion, cohorte_id)
+    values ('inscripcion', 'cocina', v_sede, 'jue-vie', 1, v_g_cocina2);
     raise exception 'FALLO E09: aceptó una solicitud duplicada abierta';
   exception when unique_violation then v_ok := v_ok + 1;
   end;
@@ -163,8 +194,8 @@ begin
   end;
 
   begin
-    insert into public.solicitudes (tipo, programa_codigo, sede_id)
-    values ('renovacion', 'tortas', v_sede);
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id)
+    values ('renovacion', 'gastronomia', v_sede, v_g_carrera2);
     raise exception 'FALLO E13: renovación sin gestión anterior';
   exception when check_violation then v_ok := v_ok + 1;
   end;
@@ -194,8 +225,8 @@ begin
   if v_n <> 0 then raise exception 'FALLO F02: canceló una solicitud ajena'; end if;
   v_ok := v_ok + 1;
 
-  insert into public.solicitudes (tipo, programa_codigo, sede_id, gestion_anterior, dias, duracion)
-  values ('renovacion', 'tortas', v_sede, 'Gestión 2026', 'sab', 4)
+  insert into public.solicitudes (tipo, programa_codigo, sede_id, gestion_anterior, cohorte_id)
+  values ('renovacion', 'gastronomia', v_sede, 'Gestión 2026', v_g_carrera2)
   returning id into v_sol_ajena;
   v_ok := v_ok + 1;
 
@@ -250,13 +281,13 @@ begin
   end;
 
   -- Límite de abuso: con 5 abiertas, la sexta se rechaza.
-  insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion) values ('inscripcion', 'cocteleria', v_sede, 'sab', 1);
-  insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, duracion) values ('inscripcion', 'tortas', v_sede, 'sab', 2);
-  insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion) values ('inscripcion', 'reposteria-y-panaderia', v_sede, 'manana', 'lun-mie', 4);
-  insert into public.solicitudes (tipo, programa_codigo, sede_id, modalidad) values ('inscripcion', 'cursos-de-temporada', v_sede, 'virtual');
+  insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'cocteleria', v_sede, v_g_cocteleria);
+  insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'tortas', v_sede, v_g_tortas);
+  insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'reposteria-y-panaderia', v_sede, v_g_reposteria);
+  insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'cursos-de-temporada', v_sede, v_g_temporada);
   begin
-    insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, paquete)
-    values ('inscripcion', 'gastronomia', v_sede, 'noche', 'lun-vie', 3, 'economico');
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, paquete, cohorte_id)
+    values ('inscripcion', 'gastronomia', v_sede, 'economico', v_g_carrera1);
     raise exception 'FALLO E17: aceptó una sexta solicitud abierta';
   exception when program_limit_exceeded then v_ok := v_ok + 1;
   end;
@@ -275,6 +306,10 @@ begin
   execute 'reset role';
 
   -- ------------------------------------------------------------ administrador
+  -- Con las cuentas de demostración hay otra administradora (Carla): se
+  -- desactiva dentro del bloque para que v_admin sea el último (D03).
+  perform set_config('request.jwt.claims', '', true);
+  update public.perfiles set activo = false where rol = 'administrador' and activo and id <> v_admin;
   perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';
 
@@ -284,7 +319,7 @@ begin
   v_ok := v_ok + 1;
 
   select count(*) into v_n from public.permisos_de_rol;
-  if v_n <> 6 then raise exception 'FALLO D02: el administrador ve % permisos', v_n; end if;
+  if v_n <> v_permisos then raise exception 'FALLO D02: el administrador ve % de % permisos', v_n, v_permisos; end if;
   v_ok := v_ok + 1;
 
   begin

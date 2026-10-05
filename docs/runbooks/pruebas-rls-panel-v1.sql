@@ -7,8 +7,10 @@
 -- revierta entera: no deja ninguna fila de prueba.
 --
 -- Requiere las cuentas de demostración (supabase/seed/datos-demo.sql):
--- Carla (administración), Rosa (recepción, La Paz), Valeria (estudiante, con
--- su solicitud pendiente) y Diego (con su renovación pendiente).
+-- Carla (administración), Rosa (recepción, La Paz), Valeria, Diego y Camila
+-- (estudiantes). Si Valeria y Diego ya no tienen su solicitud pendiente de la
+-- demo, o Diego tiene ficha (`convocatorias-demo.sql`), la batería prepara
+-- lo que necesita dentro de la transacción.
 --
 -- Resultado esperado:  ERROR:  OK · N pruebas superadas (todo revertido)
 -- Cualquier mensaje que empiece por «FALLO» dice qué regla se rompió.
@@ -403,8 +405,38 @@ begin
     v_ok := v_ok + 1;
     execute 'reset role';
 
+    -- N25 y N26 usan una solicitud pendiente de Valeria (inscripción a la
+    -- carrera) y la renovación pendiente de Diego. Si en la demo ya no están
+    -- (se cancelaron o se atendieron), se crean como las de antes de las
+    -- convocatorias: en modo mantenimiento, sin grupo. Y Diego entra «sin
+    -- historia»: si `convocatorias-demo.sql` le enlazó una ficha, se suelta.
+    declare
+      v_diego_id uuid;
+    begin
+      select id into v_diego_id from auth.users where email = 'diego.mamani@boliviagourmet.test';
+      perform set_config('app.mantenimiento', 'si', true);
+      if not exists (select 1 from public.solicitudes where estudiante_id = v_valeria and estado = 'pendiente'
+                      and tipo = 'inscripcion' and programa_codigo = 'gastronomia') then
+        perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, paquete)
+        values ('inscripcion', 'gastronomia', v_la_paz, 'tarde', 'lun-vie', 3, 'economico');
+        execute 'reset role';
+      end if;
+      if not exists (select 1 from public.solicitudes where estudiante_id = v_diego_id and estado = 'pendiente' and tipo = 'renovacion') then
+        perform set_config('request.jwt.claims', json_build_object('sub', v_diego_id, 'role', 'authenticated')::text, true);
+        execute 'set local role authenticated';
+        insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, gestion_anterior)
+        values ('renovacion', 'gastronomia', v_la_paz, 'noche', 'lun-vie', 3, 'Gestión 2026 · 1.er año');
+        execute 'reset role';
+      end if;
+      perform set_config('app.mantenimiento', 'no', true);
+      update public.estudiantes set perfil_id = null where perfil_id = v_diego_id;
+    end;
+
     -- N25 · aprobar e inscribir una solicitud del portal (Valeria): ficha nueva enlazada a su cuenta
-    select id into v_sol_valeria from public.solicitudes where estudiante_id = v_valeria and estado = 'pendiente' order by created_at limit 1;
+    select id into v_sol_valeria from public.solicitudes where estudiante_id = v_valeria and estado = 'pendiente'
+       and tipo = 'inscripcion' and programa_codigo = 'gastronomia' order by created_at limit 1;
     select s.id into v_sol_diego from public.solicitudes s join auth.users u on u.id = s.estudiante_id
      where u.email = 'diego.mamani@boliviagourmet.test' and s.estado = 'pendiente' and s.tipo = 'renovacion' limit 1;
     if v_sol_valeria is null or v_sol_diego is null then
@@ -2406,6 +2438,228 @@ begin
     v_ok := v_ok + 1;
   end;
 
+  -- ============================================================ E5 · inscripciones por convocatoria (ADR 0009)
+  declare
+    v_hoy date := app.hoy();
+    v_diego uuid;
+    v_camila uuid;
+    v_g1 uuid; v_g2 uuid; v_g3 uuid; v_g4 uuid; v_g5 uuid; v_g6 uuid; v_g7 uuid; v_g8 uuid; v_g10 uuid; v_g11 uuid;
+    v_ficha uuid;
+    v_sol uuid;
+    v_oferta jsonb;
+    v_mios jsonb;
+    v_texto text;
+    v_n integer;
+  begin
+    select id into v_diego from auth.users where email = 'diego.mamani@boliviagourmet.test';
+    select id into v_camila from auth.users where email = 'camila.quispe@boliviagourmet.test';
+    if v_diego is null or v_camila is null then raise exception 'FALLO P00: faltan Diego y Camila (datos-demo.sql)'; end if;
+
+    -- Punto de partida conocido, pase lo que pase en la demo o antes en esta
+    -- batería (N25 ya le dio a Valeria una ficha y una inscripción): Valeria,
+    -- Diego y Camila sin ficha enlazada ni solicitudes abiertas.
+    perform set_config('request.jwt.claims', '', true);
+    update public.estudiantes set perfil_id = null where perfil_id in (v_valeria, v_diego, v_camila);
+    delete from public.solicitudes where estudiante_id in (v_valeria, v_diego, v_camila) and estado in ('pendiente', 'en_revision');
+
+    -- Grupos (administración): en convocatoria, sin abrir, planificado, lleno, de la carrera.
+    perform set_config('request.jwt.claims', json_build_object('sub', v_carla, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, capacidad, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('cocina', v_la_paz, extract(year from v_hoy)::smallint, 'sab', 2, v_hoy + 7, v_hoy + 60, 20, 'abierto', '09:00', '13:00', v_hoy - 1, v_hoy + 10) returning id into v_g1;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, capacidad, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('tortas', v_la_paz, extract(year from v_hoy)::smallint, 'sab', 2, v_hoy + 7, v_hoy + 60, 20, 'abierto', '10:00', '12:00', v_hoy - 1, v_hoy + 10) returning id into v_g2;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, turno, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('reposteria-y-panaderia', v_la_paz, extract(year from v_hoy)::smallint, 'noche', 'lun-mie', 2, v_hoy + 7, v_hoy + 60, 'abierto', '18:00', '21:00', v_hoy, v_hoy) returning id into v_g3;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('cocteleria', v_la_paz, extract(year from v_hoy)::smallint, 'jue-vie', 1, v_hoy + 20, v_hoy + 50, 'abierto', '18:00', '20:00', v_hoy + 5, v_hoy + 15) returning id into v_g4;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('cocteleria', v_la_paz, extract(year from v_hoy)::smallint, 'sab', 1, v_hoy + 20, v_hoy + 50, 'planificado', '15:00', '17:00', v_hoy - 1, v_hoy + 10) returning id into v_g5;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, capacidad, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('cocteleria', v_la_paz, extract(year from v_hoy)::smallint, 'jue-vie', 1, v_hoy + 20, v_hoy + 50, 1, 'abierto', '18:00', '20:00', v_hoy - 1, v_hoy + 10) returning id into v_g6;
+    perform public.inscribir(gen_random_uuid(), null, '{"nombres":"Lleno","apellidos":"Convocatoria Uno"}'::jsonb, v_g6, null, null, null, null, null);
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('gastronomia', v_la_paz, extract(year from v_hoy)::smallint, 2, 'noche', 'lun-vie', 3, v_hoy + 30, 'abierto', '18:00', '22:00', v_hoy - 1, v_hoy + 10) returning id into v_g7;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado, hora_inicio, hora_fin)
+    values ('gastronomia', v_la_paz, extract(year from v_hoy)::smallint, 1, 'noche', 'lun-vie', 3, v_hoy - 30, 'en_curso', '18:00', '22:00') returning id into v_g8;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, turno, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('reposteria-y-panaderia', v_la_paz, extract(year from v_hoy)::smallint, 'noche', 'lun-mie', 2, v_hoy + 7, v_hoy + 60, 'abierto', '19:00', '21:00', v_hoy - 1, v_hoy + 10) returning id into v_g10;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, dias, duracion, fecha_inicio, fecha_fin, estado, hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta)
+    values ('tortas', v_la_paz, extract(year from v_hoy)::smallint, 'jue-vie', 2, v_hoy + 7, v_hoy + 60, 'abierto', '15:00', '17:00', v_hoy - 1, v_hoy + 10) returning id into v_g11;
+    -- Diego cursa el 1.er año (G8); su cuenta queda vinculada a esa ficha.
+    v_res := public.inscribir(gen_random_uuid(), null, '{"nombres":"Diego","apellidos":"Convocatoria Dos"}'::jsonb, v_g8, 'economico', null, null, null, null);
+    v_ficha := (v_res ->> 'estudiante')::uuid;
+
+    -- N126 · un plazo sin horario, o un horario que termina antes de empezar, no se guardan
+    begin
+      update public.cohortes set hora_inicio = null, hora_fin = null where id = v_g1;
+      raise exception 'FALLO N126a: quedó un plazo sin horario';
+    exception when check_violation then null;
+    end;
+    begin
+      update public.cohortes set hora_fin = '08:00' where id = v_g1;
+      raise exception 'FALLO N126b: un horario que termina antes de empezar';
+    exception when check_violation then null;
+    end;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+    update public.estudiantes set perfil_id = v_diego where id = v_ficha;
+
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    -- N113 · transición (20261005130200): sin grupo todavía se pide, con las
+    -- reglas de antes, porque el portal de hoy no elige grupo. Cuando el
+    -- portal nuevo lo exija, este caso esperará «Elige un grupo con
+    -- inscripciones abiertas.». El ensayo se deshace para no estorbar a N116.
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id) values ('inscripcion', 'cocina', v_la_paz);
+      raise exception using errcode = 'P0001', message = 'ensayo_revertido';
+    exception when others then
+      if sqlerrm <> 'ensayo_revertido' then raise exception 'FALLO N113: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N114 · el grupo es del programa pedido
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'tortas', v_la_paz, v_g1);
+      raise exception 'FALLO N114: grupo de otro programa';
+    exception when check_violation then
+      if sqlerrm <> 'El grupo elegido no es de ese programa.' then raise exception 'FALLO N114: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N115 · plazo sin abrir y grupo planificado: no hay convocatoria
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'cocteleria', v_la_paz, v_g4);
+      raise exception 'FALLO N115a: plazo sin abrir';
+    exception when check_violation then
+      if sqlerrm <> 'Las inscripciones de ese grupo no están abiertas.' then raise exception 'FALLO N115a: %', sqlerrm; end if;
+    end;
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'cocteleria', v_la_paz, v_g5);
+      raise exception 'FALLO N115b: grupo planificado';
+    exception when check_violation then
+      if sqlerrm <> 'Las inscripciones de ese grupo no están abiertas.' then raise exception 'FALLO N115b: %', sqlerrm; end if;
+    end;
+    v_ok := v_ok + 1;
+    -- N116 · en convocatoria se pide; la sede y los días salen del grupo, no de lo enviado
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, dias, turno, cohorte_id)
+    values ('inscripcion', 'cocina', v_el_alto, 'lun', 'manana', v_g1) returning id into v_sol;
+    execute 'reset role';
+    select s.sede_id::text || '|' || coalesce(s.dias, '') || '|' || coalesce(s.turno, '—') into v_texto from public.solicitudes s where s.id = v_sol;
+    if v_texto is distinct from v_la_paz::text || '|sab|—' then raise exception 'FALLO N116: %', v_texto; end if;
+    v_ok := v_ok + 1;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    -- N117 · se cruza con el grupo que ya pidió (sábados 10:00–12:00 dentro de 09:00–13:00)
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'tortas', v_la_paz, v_g2);
+      raise exception 'FALLO N117: se cruza con lo que ya pidió';
+    exception when check_violation then
+      if sqlerrm not like 'Ese horario se cruza con el grupo que ya pediste: «Cocina%' then raise exception 'FALLO N117: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N118 · otro día no se cruza; el último día del plazo todavía se pide
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'reposteria-y-panaderia', v_la_paz, v_g3);
+    v_ok := v_ok + 1;
+    -- N119 · un grupo lleno no se pide
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'cocteleria', v_la_paz, v_g6);
+      raise exception 'FALLO N119: grupo lleno';
+    exception when check_violation then
+      if sqlerrm <> 'Ese grupo ya no tiene cupos.' then raise exception 'FALLO N119: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N120 · la renovación es para la carrera
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, gestion_anterior) values ('renovacion', 'tortas', v_la_paz, v_g11, 'Gestión 2026');
+      raise exception 'FALLO N120: renovación de un curso';
+    exception when check_violation then
+      if sqlerrm <> 'La renovación es para la carrera.' then raise exception 'FALLO N120: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N124 · la estudiante ve solo los grupos en convocatoria, sin datos de nadie
+    v_oferta := public.oferta_abierta();
+    select count(*) into v_n from jsonb_array_elements(v_oferta) g where (g ->> 'id')::uuid in (v_g1, v_g2, v_g3, v_g7, v_g10, v_g11);
+    if v_n <> 6 then raise exception 'FALLO N124a: % de 6 grupos en convocatoria', v_n; end if;
+    if exists (select 1 from jsonb_array_elements(v_oferta) g where (g ->> 'id')::uuid in (v_g4, v_g5, v_g6, v_g8)) then
+      raise exception 'FALLO N124b: ofreció un grupo sin convocatoria';
+    end if;
+    if exists (select 1 from jsonb_array_elements(v_oferta) g where g ? 'inscritos')
+       or (select g ->> 'hora_inicio' from jsonb_array_elements(v_oferta) g where (g ->> 'id')::uuid = v_g1) <> '09:00' then
+      raise exception 'FALLO N124c: forma de la oferta %', (select g from jsonb_array_elements(v_oferta) g where (g ->> 'id')::uuid = v_g1);
+    end if;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+    execute 'set local role anon';
+    begin
+      perform public.oferta_abierta();
+      raise exception 'FALLO N124d: anon leyó la oferta';
+    exception when insufficient_privilege then null;
+    end;
+    execute 'reset role';
+    v_ok := v_ok + 1;
+
+    -- Diego: cursa G8 (lun a vie 18:00–22:00).
+    perform set_config('request.jwt.claims', json_build_object('sub', v_diego, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    -- N121 · se cruza con su curso vigente
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id) values ('inscripcion', 'reposteria-y-panaderia', v_la_paz, v_g10);
+      raise exception 'FALLO N121: se cruza con su curso';
+    exception when check_violation then
+      if sqlerrm not like 'Ese horario se cruza con tu curso «Gastronomía%' then raise exception 'FALLO N121: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N122 · renovar al 2.º año no choca con su propio 1.er año
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, gestion_anterior) values ('renovacion', 'gastronomia', v_la_paz, v_g7, '1.er año · 2026') returning id into v_sol;
+    v_ok := v_ok + 1;
+    execute 'reset role';
+    -- N123 · ya inscrito en ese grupo (se abre el plazo del 1.er año para probarlo)
+    update public.cohortes set inscripcion_desde = v_hoy - 1, inscripcion_hasta = v_hoy + 1 where id = v_g8;
+    perform set_config('request.jwt.claims', json_build_object('sub', v_diego, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, paquete) values ('inscripcion', 'gastronomia', v_la_paz, v_g8, 'economico');
+      raise exception 'FALLO N123: se pidió un grupo en el que ya está';
+    exception when unique_violation then
+      if sqlerrm <> 'Ya estás inscrito en ese grupo.' then raise exception 'FALLO N123: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N125 · cada estudiante lee solo lo suyo: Diego, su 1.er año y el grupo que pidió
+    v_mios := public.mis_grupos();
+    if jsonb_array_length(v_mios -> 'inscripciones') <> 1
+       or (v_mios -> 'inscripciones' -> 0 -> 'grupo' ->> 'id')::uuid <> v_g8
+       or (v_mios -> 'inscripciones' -> 0 ->> 'estado') <> 'inscrito'
+       or not exists (select 1 from jsonb_array_elements(v_mios -> 'solicitudes') x where (x -> 'grupo' ->> 'id')::uuid = v_g7) then
+      raise exception 'FALLO N125a: %', v_mios;
+    end if;
+    execute 'reset role';
+    perform set_config('request.jwt.claims', json_build_object('sub', v_camila, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    v_mios := public.mis_grupos();
+    if jsonb_array_length(v_mios -> 'inscripciones') <> 0 or jsonb_array_length(v_mios -> 'solicitudes') <> 0 then
+      raise exception 'FALLO N125b: Camila ve lo de otros %', v_mios;
+    end if;
+    v_ok := v_ok + 1;
+
+    -- N127 · por el portal, la carrera se empieza en el 1.er año (Camila no tiene nada abierto)
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, paquete) values ('inscripcion', 'gastronomia', v_la_paz, v_g7, 'economico');
+      raise exception 'FALLO N127: inscripción directa al 2.º año';
+    exception when check_violation then
+      if sqlerrm not like 'Por el portal, la carrera empieza en el 1.er año.%' then raise exception 'FALLO N127: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    -- N128 · la renovación es al 2.º o al 3.er año (el plazo del 1.er año sigue abierto desde N123)
+    begin
+      insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, gestion_anterior) values ('renovacion', 'gastronomia', v_la_paz, v_g8, 'Gestión 2025');
+      raise exception 'FALLO N128: renovación al 1.er año';
+    exception when check_violation then
+      if sqlerrm <> 'La renovación es para el 2.º o el 3.er año de la carrera.' then raise exception 'FALLO N128: %', sqlerrm; end if;
+      v_ok := v_ok + 1;
+    end;
+    execute 'reset role';
+  end;
+
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
-$$;
+$;
