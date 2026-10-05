@@ -17,13 +17,14 @@ import {
   type Programa,
 } from '@core/domain/academico/programa';
 import { esPendiente } from '@core/domain/shared/tipos-base';
+import { INSTITUTO } from '@contenido/instituto';
 import { RUTAS, rutaDePrograma } from '@/lib/rutas';
 import { cn } from '@/lib/cn';
 import { Icono, type NombreDeIcono } from '../icons/Icono';
 import { aspectoDePrograma } from '../programas';
 import { EnlaceBoton } from '../ui/Boton';
 import { Foto } from '../ui/Foto';
-import { Etiqueta, Insignia, ListaConCheck, TituloDeSeccion } from '../ui/Marca';
+import { Etiqueta, Insignia, ListaConCheck, SeparadorOndulado, TituloDeSeccion } from '../ui/Marca';
 
 export function textoDeDias(programa: Programa): string {
   return programa.diasDeClase.length > 0 ? programa.diasDeClase.map((d) => d.etiqueta).join(' · ') : 'Consultar';
@@ -217,6 +218,67 @@ export function RejillaDeCursos({ programas, titulo = true }: { readonly program
           ))}
         </ul>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Portada: los cursos de capacitación y «¿Sueñas emprender?» en UNA sección.
+ * Antes eran dos seguidas que llevaban al mismo lugar. La pregunta del
+ * folleto engancha, las cifras la respaldan, cada curso es un enlace corto a
+ * su página y hay un solo botón a todos los cursos. Las tarjetas con foto
+ * quedan en `/cursos`.
+ */
+export function CursosParaEmprender({ programas }: { readonly programas: readonly Programa[] }) {
+  const cursos = programas.filter((p) => p.activo && p.tipo !== 'carrera');
+  return (
+    <section aria-labelledby="emprende" className="relative">
+      <SeparadorOndulado className="text-cursos" />
+      <div className="bg-cursos text-sobre-cursos">
+        <div className="shell grid gap-10 pt-6 pb-16 lg:grid-cols-[1fr_1fr] lg:items-center">
+          <div>
+            <p className="t-etiqueta text-sobre-cursos/80">Cursos de capacitación</p>
+            <h2 id="emprende" className="t-display t-h1 mt-2">
+              {INSTITUTO.emprende.titulo}
+            </h2>
+            <p className="t-lead mt-5 text-sobre-cursos/90">{INSTITUTO.emprende.texto}</p>
+            <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+              {INSTITUTO.emprende.beneficios.map((b) => (
+                <li key={b.texto} className="rounded-[var(--t-radio-lg)] bg-tarjeta p-4 text-tinta">
+                  <span className="t-display block text-3xl leading-none text-cursos">{b.cifra}</span>
+                  <span className="mt-1 block text-sm font-semibold">{b.texto}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="grid gap-6">
+            <ul className="grid gap-3">
+              {cursos.map((p) => (
+                <li key={p.codigo}>
+                  <Link
+                    href={rutaDePrograma(p.codigo)}
+                    className="group flex min-h-16 items-center gap-4 rounded-[var(--t-radio-lg)] bg-tarjeta p-4 text-tinta transition-colors duration-200 hover:bg-superficie-alterna"
+                  >
+                    <span className="inline-grid size-12 flex-none place-items-center rounded-full bg-cursos text-sobre-cursos">
+                      <Icono nombre={aspectoDePrograma(p.codigo).icono} tamano={24} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-lg leading-tight font-bold text-cursos">{p.nombre}</span>
+                      {/* Sin duración ni días definidos, una sola vez «Consultar» (no «Consultar · Consultar»). */}
+                      <span className="text-sm text-tinta-suave">{[...new Set([describirDuracion(p.duracion), textoDeDias(p)])].join(' · ')}</span>
+                    </span>
+                    <Icono nombre="flecha" className="text-cursos transition-transform duration-200 group-hover:translate-x-1" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <EnlaceBoton href={RUTAS.cursos} variante="primario" icono="flecha" iconoAlFinal className="justify-self-start">
+              Ver todos los cursos
+            </EnlaceBoton>
+          </div>
+        </div>
+      </div>
+      <SeparadorOndulado className="text-cursos" invertido />
     </section>
   );
 }

@@ -445,6 +445,10 @@ interface IconoProps {
   readonly titulo?: string;
 }
 
+/**
+ * Siempre `shrink-0`: la regla global `min-width: 0` de globals.css dejaría que
+ * una fila flexible lo achique (el birrete de los grupos se veía diminuto).
+ */
 export function Icono({ nombre, tamano = 24, className, titulo }: IconoProps) {
   return (
     <svg
@@ -457,7 +461,7 @@ export function Icono({ nombre, tamano = 24, className, titulo }: IconoProps) {
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      className={className ? `shrink-0 ${className}` : 'shrink-0'}
       focusable="false"
       {...(titulo ? { role: 'img', 'aria-label': titulo } : { 'aria-hidden': true })}
     >

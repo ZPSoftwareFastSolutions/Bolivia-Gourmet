@@ -300,7 +300,7 @@ export function Chip({ tono, icono, children, contorno = false }: { readonly ton
     amarillo: 'border-accion-fuerte text-estructural',
   }[tono];
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap', contorno ? cn('border-2 bg-tarjeta', borde) : lleno)}>
+    <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap', contorno ? cn('border-2 bg-tarjeta', borde) : lleno)}>
       {icono ? <Icono nombre={icono} tamano={14} /> : null}
       {children}
     </span>

@@ -10,13 +10,10 @@
 
 import type { Metadata } from 'next';
 import { randomUUID } from 'node:crypto';
-import type { ArticuloConExistencias } from '@core/application/ports/inventario.port';
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import { ETIQUETA_DE_DESTINO, type DestinoDeUso } from '@core/domain/inventario/movimiento';
 import type { Id } from '@core/domain/shared/tipos-base';
 import { inventarioRepository } from '@infra/config/composition-root';
-import { cn } from '@/lib/cn';
-import { formatearDiaCorto } from '@/lib/fechas';
 import { RUTAS_INVENTARIO } from '@/lib/rutas';
 import { Aviso, CampoDeTexto, CLASE_DE_CAMPO, Etiquetado, GrupoDeOpciones } from '@/presentation/formularios/Campos';
 import { BotonGuardar, FormularioDelPanel } from '@/presentation/panel/Formulario';
@@ -24,7 +21,8 @@ import { EncabezadoDePanel, EstadoVacio } from '@/presentation/panel/Piezas';
 import { exigirPermiso, exigirPersonal } from '../../_sesion';
 import { parametro, sedeDeCaja, SelectorDeSede, type Parametros } from '../../caja/_componentes';
 import { usarAccion } from '../actions';
-import { admiteFraccion, cantidad, ConfirmacionDeOperacion, EnlaceDeAccion, InsigniaDeArticulo } from '../_componentes';
+import { ConfirmacionDeOperacion, EnlaceDeAccion } from '../_componentes';
+import { FilaDeUso } from './_fila';
 
 export const metadata: Metadata = { title: 'Usar en clase' };
 
@@ -153,44 +151,3 @@ export default async function UsarEnClase({ searchParams }: { readonly searchPar
     </div>
   );
 }
-
-function FilaDeUso({ articulo: a, sedeId, destacado }: { readonly articulo: ArticuloConExistencias; readonly sedeId: string; readonly destacado: boolean }) {
-  const v = a.variantes[0];
-  const s = v?.sedes.find((x) => x.sedeId === sedeId);
-  if (!v || !s) return null;
-  const usable = s.disponible - s.vencido;
-  const id = `cantidad-${v.id}`;
-  const agotado = usable <= 0n;
-  return (
-    <li className={cn('grid gap-3 rounded-md border-2 p-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center', destacado ? 'border-accion-fuerte bg-accion/10' : 'border-linea', agotado && 'opacity-70')}>
-      <input type="hidden" name={`nombre-${v.id}`} value={a.nombre} />
-      <span className="flex min-w-0 items-center gap-3">
-        <InsigniaDeArticulo icono={a.icono} />
-        <span className="min-w-0">
-          <label htmlFor={id} className="block font-semibold text-tinta">
-            {a.nombre}
-          </label>
-          <span className="text-sm text-tinta-suave">
-            {agotado ? 'Agotado' : `Hay ${cantidad(usable, a.unidad)}`}
-            {s.vencido > 0n ? ` · ${cantidad(s.vencido, a.unidad)} vencidos no se usan` : ''}
-            {!agotado && s.proximoVencimiento ? ` · lo próximo vence el ${formatearDiaCorto(s.proximoVencimiento)}` : ''}
-          </span>
-        </span>
-      </span>
-      <span className="flex items-center gap-2">
-        <input
-          id={id}
-          name={id}
-          inputMode={admiteFraccion(a) ? 'decimal' : 'numeric'}
-          autoComplete="off"
-          disabled={agotado}
-          placeholder="0"
-          className={cn(CLASE_DE_CAMPO, 'text-right')}
-          aria-describedby={undefined}
-        />
-        <span className="w-16 text-sm text-tinta-suave">{cantidad(2000n, a.unidad).replace(/^2 /, '')}</span>
-      </span>
-    </li>
-  );
-}
-

@@ -11,8 +11,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { obtenerPanel } from '@core/application/portal/solicitudes.usecase';
 import { esPersonal, ETIQUETA_DE_ROL } from '@core/domain/identidad/rol';
+import { saludoDelMomento } from '@core/domain/portal/saludo';
 import { estaAbierta } from '@core/domain/portal/solicitud';
 import { catalogoAcademico, portalRepository } from '@infra/config/composition-root';
+import { diaEnBolivia, horaEnBolivia } from '@/lib/fechas';
 import { RUTAS } from '@/lib/rutas';
 import { Icono } from '@/presentation/icons/Icono';
 import { Aviso } from '@/presentation/formularios/Campos';
@@ -68,6 +70,8 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
   if (esPersonal(perfil.rol) && !sinPanel) redirect(RUTAS.panel);
   const abiertas = solicitudes.filter(estaAbierta).length;
   const carrera = programas.find((p) => p.tipo === 'carrera') ?? null;
+  const ahora = new Date();
+  const saludo = saludoDelMomento(horaEnBolivia(ahora), diaEnBolivia(ahora));
 
   return (
     <div className="shell grid gap-8 py-10 lg:py-14">
@@ -77,10 +81,18 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
             Portal de estudiantes
             <Etiqueta tono={esPersonal(perfil.rol) ? 'azul' : 'suave'}>{ETIQUETA_DE_ROL[perfil.rol]}</Etiqueta>
           </p>
-          <h1 id="saludo" className="mt-2 text-estructural">
-            <span className="t-script text-3xl">Hola,</span>{' '}
-            <span className="t-display text-5xl">{perfil.nombres || 'estudiante'}</span>
+          {/* El espacio entre el gancho y el nombre lo da `gap-x-3`: un espacio de texto queda tapado por la coma de la letra caligráfica. */}
+          <h1 id="saludo" className="mt-2 flex flex-wrap items-baseline gap-x-3 text-estructural">
+            {/* El espacio dentro del gancho es para los lectores de pantalla («Buen día, Valeria»); la vista usa `gap-x-3`. */}
+            <span className="t-script text-3xl">
+              {saludo.gancho}{' '}
+            </span>
+            <span className="t-display text-5xl">
+              {perfil.nombres || 'estudiante'}
+              {saludo.cierre}
+            </span>
           </h1>
+          <p className="mt-2 text-lg text-tinta">{saludo.frase}</p>
           <p className="mt-1 text-tinta-suave">
             {abiertas > 0 ? `Tienes ${abiertas} ${abiertas === 1 ? 'solicitud en curso' : 'solicitudes en curso'}.` : 'No tienes solicitudes en curso.'}
           </p>

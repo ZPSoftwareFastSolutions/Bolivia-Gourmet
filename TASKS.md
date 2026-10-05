@@ -139,6 +139,31 @@ y `enmiendas-v1.md` (alcance real y resoluciones; **manda**).
 - [ ] **Ajustes › Personal** (dar acceso de recepción o de administración a una cuenta ya registrada, cambiar su sede, quitar el acceso). Estaba en el alcance de la v1 (enmiendas §A.1) pero ninguna rebanada lo incluía; se pasa a la v1.1 el 2026-10-03 para no entregar una pantalla sin revisar. La base ya lo permite (columnas `rol`, `activo` y `sede_id` de `perfiles` con `perfiles.gestionar` y la guarda del último administrador); hasta entonces, el acceso se da por SQL (CLAUDE.md §4) y `/panel/ajustes` muestra un aviso. Decisión que el usuario puede revertir (CLAUDE.md §16.3).
 - [ ] Cierre y reapertura de mes · auditoría · verificación de QR y revisión de arqueos · pantalla de conceptos · devolver sobrantes de insumos a sus lotes · ajuste de valor · prueba de uso con adultos reales (pendiente del usuario).
 
+## Entrega 5 — Ajustes tras la prueba del usuario (2026-10-05, rama `feat/sistema-interno`)
+
+El usuario probó la v1 con sesión y pidió, en este orden: arreglos visuales,
+una lógica pequeña (arqueos), el cambio grande de inscripciones y un análisis
+del archivo de documentos. Se trabaja sin agentes en paralelo (la memoria de
+la máquina es justa) y con un commit por línea de trabajo.
+
+### E5.A Visuales
+- [x] **E5.A1** Etiqueta «En curso» de los grupos: el texto se sale del fondo. *Causa:* la regla global `min-width: 0` (globals.css, puesta para evitar el desplazamiento lateral en móvil) deja que una fila flexible encoja la etiqueta por debajo de su texto; con nombres largos («Gastronomía · 1.er año · Noche · 2026 · El Alto») medía 55 px para un texto de 73 px. *Arreglo:* `Chip` y `Icono` nunca encogen (`shrink-0`); arregla también el birrete diminuto de la misma tarjeta y cualquier otra etiqueta del panel. *Validación:* página de prueba sin sesión (borrada) con los nombres reales de la base: 0 etiquetas desbordadas a 375, 1280 y 1440 px; íconos de 22 px; sin desplazamiento lateral.
+- [x] **E5.A2** «Usar en clase»: la unidad («unidades», «paquetes») se sale de la tarjeta del insumo. *Causa:* la unidad iba en una caja fija de 4rem y en Montserrat «unidades» mide 65 px. *Arreglo:* la fila sale a `usar/_fila.tsx`; la unidad toma su ancho (`shrink-0 whitespace-nowrap`) y el campo se ajusta. *Validación:* misma página de prueba: «unidades», «paquetes», «kg» y «l» dentro de su tarjeta a 375 y 1280 px.
+- [x] **E5.A3** Portada de la web: solo lo que engancha; «Aprende y emprende» y «¿Sueñas emprender?» en una sola sección. *Hecho:* portada → cifras → carrera → **una** banda vino «¿Sueñas emprender?» (texto y cifras del folleto, un enlace corto a cada curso y un solo botón a todos los cursos) → convenios → llamada final. Salen de la portada «¿Quiénes somos?» y la galería «Cocina con pasión» (repetía el título de la carrera); siguen completas en /nosotros, y las tarjetas con foto de cada curso en /cursos. *Validación:* vista en 1440 y 375 px; `auditar-espacios.mjs` en `/` a 1440 y 375: sin huecos visibles entre secciones y sin desplazamiento lateral (el único tramo, 81 px dentro del pie, es el sitio del botón de WhatsApp).
+- [x] **E5.A4** Portal del estudiante: espacio después de «Hola,» y saludo según la hora (madrugada, mañana, mediodía, tarde, noche). *Causa del espacio:* el espacio de texto quedaba tapado por la coma de la letra caligráfica. *Hecho:* `core/domain/portal/saludo.ts`: cinco franjas con la hora de La Paz y tres frases por franja que se turnan por día (no cambian al recargar), sin palabras que dependan del género ni voseo; el espacio lo da la estructura (`gap-x-3`) y un espacio real queda para los lectores de pantalla. *Validación:* `saludo.test.ts` (bordes de cada franja, rotación diaria, género y voseo); vista de las cinco franjas a 375 px (gancho y nombre separados 12 px).
+
+### E5.B Arqueos
+- [ ] **E5.B1** Explicar el flujo de los arqueos con diferencia y poder marcarlos como revisados, para que el aviso del inicio no quede todo el mes.
+
+### E5.C Inscripciones por convocatoria
+- [ ] **E5.C0** Diseño: flujo actual y nuevo, reglas, casos negativos, impactos y supuestos.
+- [ ] **E5.C1** Base: horario y ventana de inscripción en los grupos; la solicitud pide un grupo abierto; cruce de horarios; lecturas del portal.
+- [ ] **E5.C2** Portal: mis cursos y mi horario; solo la oferta con inscripciones abiertas; ficha del curso; validación del cruce.
+- [ ] **E5.C3** Panel: abrir y cerrar inscripciones de un grupo, horario; la bandeja muestra el grupo pedido.
+
+### E5.D Documentos
+- [ ] **E5.D1** Análisis de factibilidad del archivo digital de documentos (fallas, pruebas negativas, pérdida de datos, aspectos legales) y recomendación antes de construirlo.
+
 ## Fase 5 — Página web informativa (rama `feat/pagina-web`)
 
 - [ ] **5.1 Crear la rama** desde `main` cuando empiece esta línea.

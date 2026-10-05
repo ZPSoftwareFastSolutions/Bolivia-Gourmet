@@ -1,12 +1,13 @@
 /**
  * CAPA: Presentation / App — Inicio.
  *
- * Orden de secciones (skill ui-ux-pro-max, «Trust & Authority + Conversion»):
- * portada con la acción principal → cifras de credibilidad → quiénes somos →
- * carrera → cursos de capacitación y «¿Sueñas emprender?» (juntos: son la
- * misma línea, aparte de la carrera) → galería → convenios (prueba social) →
- * llamada final. La acción «Inscríbete» aparece arriba, a media página y al
- * final.
+ * Solo lo que engancha (pedido del usuario, 2026-10-05), en el orden de la
+ * skill ui-ux-pro-max («Trust & Authority + Conversion»): portada con la
+ * acción principal → cifras de credibilidad → la carrera → cursos de
+ * capacitación con «¿Sueñas emprender?» (UNA sección: antes eran dos que
+ * llevaban al mismo lugar) → convenios (prueba social) → llamada final.
+ * «¿Quiénes somos?» y la galería siguen completas en /nosotros; las tarjetas
+ * de cada curso, en /cursos.
  */
 
 import { redirect } from 'next/navigation';
@@ -15,9 +16,9 @@ import { RUTAS } from '@/lib/rutas';
 import { catalogoAcademico } from '@infra/config/composition-root';
 import { ConveniosResumen } from '@sections/Convenios';
 import { HeroInicio } from '@sections/Hero';
-import { CifrasClave, Pilares } from '@sections/Institucion';
-import { BandaEmprende, GaleriaCocinaConPasion, LlamadaInscripcion } from '@sections/Llamadas';
-import { CarreraDestacada, RejillaDeCursos } from '@sections/Oferta';
+import { CifrasClave } from '@sections/Institucion';
+import { LlamadaInscripcion } from '@sections/Llamadas';
+import { CarreraDestacada, CursosParaEmprender } from '@sections/Oferta';
 
 export default async function Inicio({ searchParams }: { readonly searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   // Si la URL de retorno de Supabase Auth no está autorizada, el enlace del
@@ -37,11 +38,8 @@ export default async function Inicio({ searchParams }: { readonly searchParams: 
     <>
       <HeroInicio inicioDeClases={inicio} />
       <CifrasClave />
-      <Pilares />
       {carrera ? <CarreraDestacada carrera={carrera} /> : null}
-      <RejillaDeCursos programas={programas} />
-      <BandaEmprende />
-      <GaleriaCocinaConPasion />
+      <CursosParaEmprender programas={programas} />
       <ConveniosResumen />
       <LlamadaInscripcion carrera={carrera} sedes={sedes.filter((s) => s.activa)} />
     </>
