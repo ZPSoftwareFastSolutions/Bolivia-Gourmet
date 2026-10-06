@@ -156,15 +156,36 @@ la máquina es justa) y con un commit por línea de trabajo.
 - [x] **E5.B1** Explicar el flujo de los arqueos con diferencia y poder marcarlos como revisados, para que el aviso del inicio no quede todo el mes. *Antes:* la lista de arqueos era solo para mirar y el aviso contaba todo arqueo del mes con diferencia hasta fin de mes. *Ahora:* administración (`caja.supervisar`, permiso nuevo) abre el arqueo «Por revisar», corrige lo que estaba mal (anulando el cobro o gasto: entra en el próximo arqueo) y lo marca revisado con una nota; la diferencia no cambia (sigue en el resultado del mes) y el aviso cuenta solo los que faltan revisar, de cualquier mes. Migraciones `20261005120000` (revisión, permiso, tablero) y `20261005120100`: `app.solo_sellos` ignora las columnas generadas, que en un disparador BEFORE aún no están calculadas y hacían fallar el sello (lo encontró la batería). *Validación:* batería N109–N112 4/4 (recepción no revisa, nota obligatoria, una sola vez, un arqueo que cuadró no se revisa, el sello no se escribe por la API ni se cambia); 298 pruebas (frases del aviso y caso de uso); tipos; build; vista de la tarjeta (por revisar, revisado, sin diferencia, sin permiso) a 1024 y 375 px; advisors sin avisos nuevos.
 
 ### E5.C Inscripciones por convocatoria
-**Pausado el 2026-10-05 a pedido del usuario** (revisa primero E5.A y E5.B). La base quedó compatible: el portal de hoy funciona igual que antes.
+Construido el 2026-10-06 (ADR 0009). La base pasó por una transición para que el portal de antes siguiera funcionando mientras se hacía el nuevo.
 
 - [x] **E5.C0** Diseño: flujo actual y nuevo, reglas, casos negativos, impactos y supuestos. *Hecho:* ADR 0009 (grupo con horario y plazo; la solicitud nombra un grupo; regla de cruce en 6 pasos, gemela en SQL y TypeScript; lecturas del portal; 5 supuestos que el usuario puede revertir).
-- [~] **E5.C1** Base: horario y ventana de inscripción en los grupos; la solicitud pide un grupo abierto; cruce de horarios; lecturas del portal. *Hecho:* migraciones `20261005130000` (horario, plazo, `solicitudes.cohorte_id`, cruce, `oferta_abierta()`, `mis_grupos()`), `20261005130100` (año de la carrera) y `20261005130200` (transición: sin grupo, reglas de antes; con grupo, reglas nuevas). *Validación hasta ahora:* bloque de convocatorias N113–N126 14/14 en su versión estricta, corrido solo; batería del portal adaptada (los grupos en convocatoria) 39/39; transición 6/6 (solicitudes como las del portal de hoy, duplicado, paquete, grupo inexistente; todo revertido). *Falta al retomar:* correr la batería completa del panel (N113 adaptado a la transición, N127–N128 del año, preparación de N25–N26 que ya no depende de la demo); scripts de demostración (`convocatorias-demo.sql`, historial de `datos-demo.sql` en modo mantenimiento, `borrar-datos-demo.sql` suelta el grupo antes de borrar los grupos); exigir el grupo cuando llegue el portal nuevo.
-- [ ] **E5.C2** Portal: mis cursos y mi horario; solo la oferta con inscripciones abiertas; ficha del curso; validación del cruce.
-- [ ] **E5.C3** Panel: abrir y cerrar inscripciones de un grupo, horario; la bandeja muestra el grupo pedido.
+- [x] **E5.C1** Base: horario y ventana de inscripción en los grupos; la solicitud pide un grupo abierto; cruce de horarios; lecturas del portal. *Hecho:* migraciones `20261005130000` (horario, plazo, `solicitudes.cohorte_id`, cruce, `oferta_abierta()`, `mis_grupos()`), `20261005130100` (año de la carrera), `20261005130200` (transición) y `20261005130300` (el grupo vuelve a ser obligatorio). Datos de demostración: `convocatorias-demo.sql` (nuevo, cargado), el historial de `datos-demo.sql` en modo mantenimiento (también su copia local, editada por script sin leerla) y `borrar-datos-demo.sql`, que suelta el grupo antes de borrar los grupos. *Validación:* batería del panel 185/185 (N113–N128; la preparación de N25–N26 ya no depende de la demo; se encontró y corrigió un `$;` en su última línea que impedía ejecutarla); del portal 39/39; ensayos revertidos de `convocatorias-demo.sql`, del bloque de ensayo de `datos-demo.sql` y de `borrar-datos-demo.sql`; advisors sin avisos nuevos.
+- [x] **E5.C2** Portal: mis cursos y mi horario; solo la oferta con inscripciones abiertas; ficha del curso; validación del cruce. *Hecho:*
+  - dominio: `academico/horario.ts` (cruce en 6 pasos, gemelo de `app.cruce_de_grupos`, y horario semanal); `portal/convocatoria.ts` (qué ofrece cada página, por qué se bloquea un grupo, con las frases de la base, y la gestión anterior sugerida); `portal/solicitud.ts` reescrito: pide un grupo de la oferta abierta;
+  - puerto y adaptador: `ofertaAbierta()` y `misGrupos()`, con su lector puro `convocatoria-desde-base.ts`;
+  - pantallas: el panel muestra «Mis cursos», «Mi horario» y el grupo de cada solicitud;
+  - «Nueva inscripción»: lo que ya cursa → solo los programas con grupos abiertos → ficha corta y grupos; los que se cruzan aparecen desactivados con el motivo;
+  - «Renovar»: los grupos de 2.º y 3.er año, con la gestión anterior propuesta;
+  - estado vacío: enlaza a la oferta completa y al contacto.
+
+  *Validación:* 324 pruebas (horario 10, convocatoria 12, portal reescrito); tipos; build. Vistas a 375 px en una página de muestra (borrada): sin desplazamiento lateral, el grupo que se cruza desactivado con su motivo, el único grupo disponible ya marcado, «Mi horario» por día.
+- [x] **E5.C3** Panel: abrir y cerrar inscripciones de un grupo, horario; la bandeja muestra el grupo pedido. *Hecho:*
+  - el formulario del grupo pide el horario y el plazo de inscripción por el portal, con las mismas reglas que la base (`validarCohorte`);
+  - la lista y la ficha del grupo llevan una etiqueta de convocatoria (`convocatoriaDelGrupo`): abierta, por abrir, «ábrelo» si está planificado, sin cupos o cerrada;
+  - la bandeja muestra el grupo elegido en el portal; al aprobar, ese grupo va primero y marcado.
+
+  *Validación:* pruebas en `academico.test.ts` (horario, plazo y convocatoria); tipos; build; vista del formulario y de las etiquetas a 375 px. Las pantallas con sesión las prueba el usuario.
 
 ### E5.D Documentos
-- [ ] **E5.D1** Análisis de factibilidad del archivo digital de documentos (fallas, pruebas negativas, pérdida de datos, aspectos legales) y recomendación antes de construirlo.
+- [x] **E5.D1** Análisis de factibilidad del archivo digital de documentos (fallas, pruebas negativas, pérdida de datos, aspectos legales) y recomendación antes de construirlo. *Hecho:* `docs/analisis/documentos-digitales-2026-10-06.md`. Recomienda **consultar antes a la institución** (10 preguntas). Contenido:
+  - factibilidad: es posible con Supabase Storage privado;
+  - límites verificados: 1 MB por acción de Next, 4,5 MB por petición en Vercel, 1 GB en el plan gratuito, pausa tras 7 días de poca actividad;
+  - las copias de la base no incluyen los archivos;
+  - fallas posibles y pruebas negativas;
+  - aspectos legales, a confirmar con el asesor y el contador: Constitución, art. 21 y 130; Bolivia no tiene ley general de datos personales; DS 1793 (un escaneo sin firma digital es una copia simple); prescripción tributaria de 8 años (Ley 812);
+  - el papel sigue siendo el original.
+
+  **Sin construir** hasta la respuesta de la institución.
 
 ## Fase 5 — Página web informativa (rama `feat/pagina-web`)
 

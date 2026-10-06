@@ -7,15 +7,17 @@
 > `docs/analisis/aclaraciones-2026-10-01.md` y `docs/`, sin depender del
 > historial de conversaciones.
 >
-> - **Última actualización:** 2026-10-03 · **Entrega 4: sistema interno v1**
->   (panel del personal: alumnos y grupos, caja, inventario con PEPS y costo
->   promedio, uniformes y utensilios, contabilidad básica y tableros de
->   inicio), con datos de demostración del panel y revisión final; 294
->   pruebas y batería de la base del panel 165/165 (§8). Entregas 2 y 3: web pública y
->   portal de estudiantes con CSP estricta. Contexto de la conversación que no
->   está en otros documentos: §15 y §16.
+> - **Última actualización:** 2026-10-06 · **Entrega 5: ajustes tras la prueba
+>   del usuario** (TASKS E5): arreglos visuales, revisión de arqueos,
+>   **inscripciones por convocatoria** (ADR 0009: grupos con horario y plazo,
+>   «Mis cursos», «Mi horario» y cruce de horarios) y el análisis del archivo
+>   digital de documentos (sin construir: antes se consulta a la institución).
+>   324 pruebas y batería de la base del panel 185/185 (§8). Entrega 4: sistema
+>   interno v1. Entregas 2 y 3: web pública y portal con CSP estricta.
+>   Contexto de la conversación que no está en otros documentos: §15 y §16.
 > - **Ramas:** `feat/sistema-interno` lleva TODO (la web de `feat/pagina-web`
->   más el panel, R0–R9); la rama **`v1`** marca la entrega (§16.1).
+>   más el panel, R0–R9, y la entrega 5); la rama **`v1`** marca la entrega 4
+>   (§16.1).
 >   `feat/pagina-web` sigue con la web sola. **Ninguna está fusionada con
 >   `main`**: espera la aprobación del usuario.
 > - **Regla de mantenimiento:** se actualiza al cerrar cada avance importante
@@ -32,10 +34,10 @@
 | **Cliente** | **TEC-NIB** (Instituto Técnico Nacional de la Integración Boliviana) es la institución madre; **Corporación Bolivia Gourmet** es su área de gastronomía; **Bolivia Gastronómica** es la marca del instituto. Sedes: La Paz (Miraflores) y El Alto (La Ceja). |
 | **Stack** | Next.js 16.3.8 · React 19.1 · TypeScript 5.9 estricto · Tailwind v4 · Supabase (`@supabase/ssr` 0.12.7, `supabase-js` 2.117.2) · `node --test` |
 | **Repositorio** | https://github.com/ZPSoftwareFastSolutions/Bolivia-Gourmet |
-| **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 29 tablas, todas con RLS; 20 migraciones (§4) |
-| **Estado** | Web pública (8 páginas + 5 de cursos; `/emprende` redirige a `/cursos`) y portal (7 páginas) **funcionando en local**, verificados. **Sistema interno v1** en `/panel` (43 páginas) para administración y recepción, con datos de demostración del panel cargados (§4). Sin desplegar. Las pantallas del personal con sesión las prueba el usuario (el asistente no inicia sesión) |
+| **Base de datos** | Supabase `Bolivia-Gourmet`, ref `bnobhnmurzsnffdrxeck`, `sa-east-1`, plan gratuito. 29 tablas, todas con RLS; 26 migraciones (§4) |
+| **Estado** | Web pública (8 páginas + 5 de cursos; `/emprende` redirige a `/cursos`) y portal (7 páginas, con **inscripciones por convocatoria**, ADR 0009) **funcionando en local**, verificados. **Sistema interno v1** en `/panel` (43 páginas) para administración y recepción, con datos de demostración del panel cargados (§4). Sin desplegar. Las pantallas del personal con sesión las prueba el usuario (el asistente no inicia sesión) |
 | **Fuentes de verdad** | `INFORMACION-INSTITUTO.md` + `docs/analisis/aclaraciones-2026-10-01.md` (datos), `FOTOS-GASTRO/` + `FOTOS-WEB/` + `docs/brand/identidad-visual.md` (identidad), `docs/domain/modelo-de-dominio.md` (reglas), `docs/architecture/` (decisiones), `TASKS.md` (avance) |
-| **Siguiente** | 0) Que el usuario entre al panel como Carla (administración) y como Rosa (recepción) y revise las pantallas con los datos de demostración · 1) Esperar la respuesta del cliente sobre precios y detalles de cursos y licenciatura · 2) Que configure Supabase Auth (§9, E2.D1) y desactive las claves API heredadas · 3) Que confirme las decisiones de §16.3 · 4) Aprobar y fusionar en `main` · 5) Desplegar en Vercel cuando el usuario lo pida (antes, borrar los datos de demostración) · 6) v1.1 del panel (§9) |
+| **Siguiente** | 0) Que el usuario pruebe el portal nuevo con Valeria (sin cursos) y Diego (cursa el 1.er año), y el panel con Carla y Rosa (§9) · 0b) Que consulte con la institución el archivo de documentos (`docs/analisis/documentos-digitales-2026-10-06.md` §9) · 1) Esperar la respuesta del cliente sobre precios y detalles de cursos y licenciatura · 2) Que configure Supabase Auth (§9, E2.D1) y desactive las claves API heredadas · 3) Que confirme las decisiones de §16.3 · 4) Aprobar y fusionar en `main` · 5) Desplegar en Vercel cuando el usuario lo pida (antes, borrar los datos de demostración) · 6) v1.1 del panel (§9) |
 
 **Antes de tocar nada, léase:** §2 (reglas), §3 (arquitectura), §4 (base de
 datos), §9 (pendientes) y §11 (ambigüedades).
@@ -224,7 +226,7 @@ src/
     portal/               layout · page (panel) · acceso · registro · recuperar · nueva-clave · solicitud · renovacion
       actions.ts          Server Actions (cada una vuelve a exigir sesión)
       _sesion.ts          exigirSesion / salirSiHaySesion (React cache)
-      _componentes/       formularios, marco de acceso, panel, página de solicitud
+      _componentes/       formularios, marco de acceso, panel, página de solicitud por convocatoria, mis cursos y mi horario
     panel/                sistema interno (43 páginas): layout (menú lateral / inferior por permisos) · page (tableros de inicio)
       _sesion.ts          exigirPersonal / exigirPermiso (cada página y cada Server Action)
       alumnos/            fichas, grupos (cupo, precio por paquete), inscribir en 3 pasos, solicitudes del portal
@@ -237,9 +239,9 @@ src/
       mas/                menú «Más» del teléfono (Contabilidad, Ajustes, la persona, cerrar sesión)
     auth/confirmar/route.ts
   core/
-    domain/               shared (centavos, milésimas, Resultado) · academico (programa, grupo, cuotas) · estudiantes
+    domain/               shared (centavos, milésimas, Resultado) · academico (programa, grupo, cuotas, horario y cruce) · estudiantes
                           · inventario (PEPS, promedio, movimientos, conteo, préstamo, entrega) · caja (cobro, arqueo, recibo)
-                          · contabilidad (resumen del mes, tarjeta PEPS, tablero) · identidad (rol, contexto del panel) · portal
+                          · contabilidad (resumen del mes, tarjeta PEPS, tablero) · identidad (rol, contexto del panel) · portal (solicitud, convocatoria, saludo)
     application/          ports (catálogo, autenticación, portal, panel, alumnos, caja, inventario, contabilidad, tablero)
                           · portal · panel/{alumnos, caja, inventario, contabilidad, tablero} (casos de uso)
   infrastructure/
@@ -247,14 +249,15 @@ src/
     catalogo/             oferta académica validada en el build
     supabase/             configuracion · cookies · cliente-servidor · autenticacion · portal · errores · tipos generados
                           · panel-*.supabase.ts (un adaptador por puerto) · rpc.ts · errores-del-panel.ts (código → frase)
-                          · cantidades.ts · contabilidad-desde-base.ts · tablero-desde-base.ts (lecturas puras, con pruebas)
+                          · cantidades.ts · contabilidad-desde-base.ts · tablero-desde-base.ts · convocatoria-desde-base.ts
+                          (lecturas puras, con pruebas)
   presentation/
     icons/Icono.tsx · ui/ (Boton, Foto, Logos, LogoHexagonal, Marca) · patterns/ (Cabecera, Pie, menús, mapa, redes, WhatsApp)
     sections/ (Hero, Institucion, Oferta, Convenios [carrusel, panal, universidades], panal.ts, Llamadas) · formularios/ · programas.ts
     panel/                Piezas (Indicador, Mosaico, Chip, EstadoVacio…) · Formulario · Caja · GraficoSemanal · navegación
   lib/                    cn · rutas · redirecciones · politica-de-contenido · fechas · marca
   styles/globals.css      tokens de marca y semánticos; @layer base y @layer components
-tests/                    294 pruebas (node --test, en serie)
+tests/                    324 pruebas (node --test, en serie)
 ```
 
 ### 3.3 Flujos del portal
@@ -265,8 +268,9 @@ tests/                    294 pruebas (node --test, en serie)
 | Confirmación | Enlace del correo → `/auth/confirmar?code=` → `exchangeCodeForSession` → `/portal`. Si la URL de retorno no está autorizada, Supabase vuelve a `/?code=` y la portada lo reenvía |
 | Acceso | `/portal/acceso` → `signInWithPassword` → `destinoSeguro(siguiente)` |
 | Recuperación | `/portal/recuperar` → enlace → `/auth/confirmar?siguiente=/portal/nueva-clave` → `updateUser` |
-| Solicitud | `/portal/solicitud` → paso 1 programa (`?programa=`) → paso 2 solo con las opciones de ese programa → dominio valida → insert bajo RLS → panel |
-| Renovación | `/portal/renovacion`: igual, con «gestión anterior» obligatoria |
+| Solicitud (ADR 0009) | `/portal/solicitud` → lo que ya cursa, con su horario → solo los programas con grupos en convocatoria → `?programa=`: ficha corta del programa y sus grupos abiertos (los que se cruzan, desactivados con el motivo) → elige el grupo (y el paquete en la carrera) → el dominio valida contra `oferta_abierta()` y `mis_grupos()` → insert con `cohorte_id` bajo RLS; la base copia del grupo sede, turno y días y repite las reglas → panel |
+| Renovación | `/portal/renovacion`: los grupos de la carrera de 2.º y 3.er año en convocatoria; la gestión anterior se propone desde su última inscripción en la carrera |
+| Mis cursos | `/portal`: «Mis cursos» y «Mi horario» (por día y hora) con sus inscripciones vigentes; en «Mis solicitudes», el grupo pedido |
 | Cancelación | Solo `pendiente`; el dominio y el disparador de la base lo exigen |
 
 ---
@@ -282,16 +286,17 @@ Detalle de cada migración: `supabase/migrations/README.md`.
 
 | Grupo | Tablas | Quién lee | Cómo se escribe |
 |---|---|---|---|
-| Identidad y portal | `sedes` (2) · `perfiles` · `permisos_de_rol` · `programas` (6) · `solicitudes` | perfiles: uno mismo o `perfiles.leer`; solicitudes: el propio estudiante o `solicitudes.leer` | perfiles por columnas concedidas (rol, estado y sede solo con `perfiles.gestionar`; guarda del último administrador); solicitudes: alta y cancelación propias, decisión con `aprobar_solicitud` / `solicitudes.gestionar` |
+| Identidad y portal | `sedes` (2) · `perfiles` · `permisos_de_rol` · `programas` (6) · `solicitudes` (con el grupo pedido, `cohorte_id`) | perfiles: uno mismo o `perfiles.leer`; solicitudes: el propio estudiante o `solicitudes.leer` | perfiles por columnas concedidas (rol, estado y sede solo con `perfiles.gestionar`; guarda del último administrador); solicitudes: alta y cancelación propias, decisión con `aprobar_solicitud` / `solicitudes.gestionar` |
 | Núcleo del panel | `operaciones` (clave de cada operación; sin políticas: solo la tocan funciones DEFINER) | nadie por API | `app.iniciar_operacion` / `app.terminar_operacion` |
-| Alumnos | `conceptos` (semilla fija) · `estudiantes` (código BG-AAAA-NNNN) · `cohortes` (grupos) · `planes_de_pago` · `inscripciones` | `estudiantes.leer`, `cohortes.leer` | RPC `crear_estudiante`, `inscribir`, `aprobar_solicitud`, `cambiar_estado_de_inscripcion`, `cerrar_grupo`; fichas y grupos por columnas concedidas |
+| Alumnos | `conceptos` (semilla fija) · `estudiantes` (código BG-AAAA-NNNN) · `cohortes` (grupos, con horario y plazo de inscripción por el portal) · `planes_de_pago` · `inscripciones` | `estudiantes.leer`, `cohortes.leer` | RPC `crear_estudiante`, `inscribir`, `aprobar_solicitud`, `cambiar_estado_de_inscripcion`, `cerrar_grupo`; fichas y grupos por columnas concedidas |
 | Caja | `cargos` · `pagos` (recibo sin huecos por sede y año) · `pago_aplicaciones` · `gastos` · `cierres_de_caja` | `caja.leer` (gastos: `contabilidad.leer`) | RPC `registrar_cobro`, `crear_cargo`, `registrar_gasto`, `cerrar_caja`, `anular`, `generar_cuotas_de_grupo`. El libro no se edita: solo se anula (`app.solo_sellos`) |
 | Inventario | `articulos` · `variantes` · `existencias` · `existencias_costo` · `compras` · `conteos` · `entregas` · `prestamos` · `movimientos` (kárdex inmutable) · `movimientos_costo` · `lotes` · `lotes_costo` · `movimiento_lotes` | `inventario.leer`; todo lo que tiene costo, solo `contabilidad.leer` | RPC `guardar_articulo`, `registrar_saldo_inicial`, `registrar_compra`, `usar_insumos`, `dar_de_baja`, `registrar_conteo`, `entregar_uniforme`, `devolver_uniforme`, `prestar_utensilios`, `recibir_devolucion`, `anular` |
-| Lecturas sumadas | — | `resumen_del_mes`, `verificar_cuadre`, `tablero_de_administracion` (`contabilidad.leer`); `resumen_de_deudores` (`caja.leer`); `variantes_con_movimientos` (`inventario.leer`) | — |
+| Lecturas sumadas | — | `resumen_del_mes`, `verificar_cuadre`, `tablero_de_administracion` (`contabilidad.leer`); `resumen_de_deudores` (`caja.leer`); `variantes_con_movimientos` (`inventario.leer`); `oferta_abierta`, `mis_grupos` (`authenticated`: el estudiante ve solo los grupos en convocatoria y lo suyo, ADR 0009) | — |
 
-Permisos (`permisos_de_rol`): administrador 26 (todo, incluidos
+Permisos (`permisos_de_rol`): administrador 27 (todo, incluidos
 `contabilidad.*`, `inventario.comprar/ajustar/anular/catalogo`,
-`caja.anular`, `sedes.todas`, `perfiles.gestionar`); recepción 13
+`caja.anular`, `caja.supervisar` (revisar arqueos), `sedes.todas`,
+`perfiles.gestionar`); recepción 13
 (`panel.entrar`, `caja.leer/cobrar/cerrar`, `estudiantes.leer/gestionar`,
 `inscripciones.gestionar`, `cohortes.leer`, `solicitudes.leer/gestionar`,
 `inventario.leer/operar`, `perfiles.leer`). Recepción opera solo en su sede
@@ -301,12 +306,14 @@ Piezas `app.*` (fuera de la API): `tiene_permiso`, `rol_actual`,
 `exigir_permiso`, `exigir_sede`, `hoy` (fecha de Bolivia; simulable solo con
 `app.mantenimiento = 'si'`), `iniciar_operacion` / `terminar_operacion`,
 `candado_de_caja`, `sacar` / `entrar` / `valorizar` / `revertir` (motor PEPS y
-promedio), `anular`, disparadores de perfiles y de solicitudes. Los errores
+promedio), `anular`, `dias_de_clase` / `cruce_de_grupos` (ADR 0009, gemelas
+de `academico/horario.ts`), `oferta_abierta` / `mis_grupos`, disparadores de
+perfiles y de solicitudes (alta con grupo y año de la carrera). Los errores
 llevan el código en `message` y su frase está en
 `errores-del-panel.ts` (una prueba exige que cada código tenga frase).
 
 Baterías: `docs/runbooks/pruebas-rls-entrega2.sql` (portal, 39/39) y
-`docs/runbooks/pruebas-rls-panel-v1.sql` (panel R1–R9, crece con cada
+`docs/runbooks/pruebas-rls-panel-v1.sql` (panel R1–R9 y entrega 5, crece con cada
 rebanada; resultado en §8). Tipos:
 `src/infrastructure/supabase/tipos-de-base.generados.ts` (regenerar o
 completar a mano tras cada migración).
@@ -325,8 +332,8 @@ where id = (select id from auth.users where email = 'correo-del-administrador@ej
 |---|---|---|---|
 | Carla Gutiérrez | `carla.gutierrez@boliviagourmet.test` | administrador | Aprobó las tres gestiones de Camila |
 | Rosa Condori | `rosa.condori@boliviagourmet.test` | recepcion | Aprobó la inscripción de Diego |
-| Valeria Choque | `valeria.choque@boliviagourmet.test` | estudiante | Nueva: panel vacío |
-| Diego Mamani | `diego.mamani@boliviagourmet.test` | estudiante | 1.er año (2026) aprobado; pide su renovación |
+| Valeria Choque | `valeria.choque@boliviagourmet.test` | estudiante | Sin cursos: en «Nueva inscripción» ve solo Cocina y Tortas (la carrera de 1.er año no tiene convocatoria). Tiene una solicitud pendiente de antes de las convocatorias |
+| Diego Mamani | `diego.mamani@boliviagourmet.test` | estudiante | Cursa el 1.er año (ficha enlazada por `convocatorias-demo.sql`): ve «Mis cursos», «Mi horario» y Tortas desactivado por el cruce. Su renovación pendiente es de antes de las convocatorias (sin grupo) |
 | Camila Quispe | `camila.quispe@boliviagourmet.test` | estudiante | 3.er año: inscripción 2024 + renovaciones 2025 y 2026 |
 
 - Contraseña común: **no se versiona** (el repositorio es público). Está en
@@ -345,6 +352,12 @@ where id = (select id from auth.users where email = 'correo-del-administrador@ej
   RPC y la RLS reales simulando la sesión de Carla y Rosa, con la fecha
   simulada en modo mantenimiento. No crea cuentas ni contraseñas. Ensayo con
   `c_simular := true`; se detiene si ya existe «Harina de trigo».
+- **Convocatorias** (`convocatorias-demo.sql`, ADR 0009, va DESPUÉS del panel;
+  cargadas el 2026-10-06): horario en los grupos vigentes; tres grupos con
+  plazo relativo al día de la carga (Cocina sábados en La Paz, Tortas de
+  lunes a miércoles en El Alto, Gastronomía 2.º año de la gestión
+  siguiente); la carrera de 1.er año sin convocatoria; Diego inscrito en su
+  1.er año con la ficha enlazada (su cuota queda en «Lo que deben»).
 - **Antes de producción, borrar todo** (`borrar-datos-demo.sql`: primero los
   datos del panel, después las cuentas): la cuenta de administración tiene
   una contraseña conocida.
@@ -355,11 +368,14 @@ where id = (select id from auth.users where email = 'correo-del-administrador@ej
 
 Completo en `docs/domain/modelo-de-dominio.md`. Lo nuevo de esta entrega:
 
-- **Solicitud** (`core/domain/portal/solicitud.ts`): pide exactamente las
-  opciones del programa (turno, días, duración si hay más de una, modalidad,
-  paquete solo en la carrera); la carrera fija sola sus 3 años; la renovación
-  exige «gestión anterior»; sin duplicados abiertos; máximo 5 abiertas; solo
-  se cancela lo pendiente. La base repite todo.
+- **Solicitud** (`core/domain/portal/solicitud.ts` y `convocatoria.ts`, ADR
+  0009): pide un **grupo en convocatoria** (abierto o en curso, dentro de su
+  plazo, con cupos); el grupo fija sede, turno, días y modalidad; no se cruza
+  con lo que la persona cursa ni con lo que ya pidió (regla en 6 pasos,
+  `academico/horario.ts`, gemela en la base); la carrera se empieza en el
+  1.er año y se renueva al 2.º o 3.er; la renovación exige «gestión
+  anterior»; sin duplicados abiertos; máximo 5 abiertas; solo se cancela lo
+  pendiente. La base repite todo.
 - **Credenciales**: contraseña de 10+ caracteres con letras y números, sin
   palabras triviales ni el correo; permite pegar y gestores de contraseñas.
 - **Catálogo**: Gastronomía con Paquete Económico Bs 650 y uniforme Bs 650
@@ -417,7 +433,7 @@ medidos; §15: aporte de las skills `ui-ux-pro-max`, `brand` y `design`).
 ```bash
 cd apps/web
 NODE_OPTIONS=--max-old-space-size=1536 npm run typecheck   # tsc --noEmit
-npm test              # 294 pruebas: dominio, catálogo, casos de uso, portal, panel, lecturas de la base, seguridad, coherencia SQL
+npm test              # 324 pruebas: dominio, catálogo, casos de uso, portal, panel, lecturas de la base, seguridad, coherencia SQL
 CIRCLE_NODE_TOTAL=2 npm run build                         # todas las páginas dinámicas + proxy
 npm audit             # 0
 ```
@@ -442,6 +458,11 @@ Tras cambiar la maquetación: `scripts/auditar-espacios.mjs` en cada ruta a 1440
 `docs/architecture/seguridad.md` §2–3). Tras cambiar la base: batería RLS y
 `get_advisors(security)` y `(performance)`.
 
+Estado al cierre de la entrega 5 (2026-10-06): 324 pruebas, tipos, build,
+audit 0, greps vacíos, batería del panel 185/185, del portal 39/39, advisors sin
+avisos nuevos; vistas del portal y del formulario de grupo a 375 px sin
+desbordamiento (página de muestra temporal, borrada).
+
 Estado al cierre de la entrega 2: **todo en verde** (115/115, tipos limpios,
 build, audit 0, greps vacíos, RLS 39/39, advisors de seguridad sin avisos,
 sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
@@ -465,6 +486,11 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
   solicitudes; R3 caja; R4 inventario; R5 uniformes y utensilios; R6
   contabilidad; R7 tableros; R8 datos de demostración del panel (cargados el
   2026-10-03); R9 revisión final, documentación y rama `v1`.
+- Entrega 5 (TASKS E5, 2026-10-05/06): etiqueta «En curso» y unidades de
+  «Usar en clase»; portada unificada y saludo según la hora; revisión de
+  arqueos (`caja.supervisar`); inscripciones por convocatoria en la base, el
+  portal y el panel (ADR 0009), con sus datos de demostración; análisis del
+  archivo digital de documentos (`docs/analisis/documentos-digitales-2026-10-06.md`).
 
 ### Pendiente del usuario
 
@@ -472,7 +498,8 @@ sin desbordamiento horizontal en 375 px, consola sin violaciones de CSP).
 |---|---|---|
 | E2.D1 | **Configurar Supabase Auth** para que los correos vuelvan al sitio. Estado real (2026-10-01): confirmación de correo activada, registro abierto, solo proveedor de correo | Panel de Supabase → Authentication → URL Configuration: *Site URL* = URL del sitio (en local, la del servidor de desarrollo) y en *Redirect URLs* añadir `<sitio>/auth/confirmar`. El servidor de correo gratuito **solo entrega a miembros del equipo**: para estudiantes reales, configurar SMTP propio (Authentication → Emails → SMTP) o, para la demostración, desactivar *Confirm email* (Authentication → Sign In / Providers → Email) |
 | E2.D3 | ~~Push de los commits locales~~ | **Hecho** por el usuario el 2026-10-01: las tres ramas están en GitHub con los mismos commits que en local |
-| — | **Revisar el panel con sesión** | Entrar por `/portal/acceso` como Carla (administración) y como Rosa (recepción) con la contraseña de `datos-demo.local.sql`; recorrer inicio, alumnos, caja, inventario y contabilidad con los datos de demostración. El asistente no inicia sesión |
+| — | **Probar con sesión el portal nuevo y el panel** | Entrar por `/portal/acceso` con la contraseña de `datos-demo.local.sql`. Valeria: «Nueva inscripción» muestra solo Cocina y Tortas. Diego: «Mis cursos», «Mi horario», Tortas desactivado por el cruce y Cocina disponible; en «Renovar», su renovación pendiente (para elegir el grupo de 2.º año, que la cancele antes). Carla: «Alumnos › Grupos» con horario y plazo, y la bandeja con el grupo elegido. Rosa: aprobar una solicitud nueva. El asistente no inicia sesión |
+| — | **Consultar con la institución el archivo de documentos** | Las 10 preguntas de `docs/analisis/documentos-digitales-2026-10-06.md` §9 (qué hay en el mueble, qué exige el Ministerio, plazos, menores, presupuesto, escaneo). No se construye hasta tener la respuesta |
 | — | Aprobar y fusionar | `feat/sistema-interno` ya contiene la web: `git checkout main && git merge feat/sistema-interno` (o la rama `v1`) |
 | E2.D4 | ~~Cargar las cuentas de demostración~~ | **Hecho**: 5 cuentas cargadas; Camila, Diego y Valeria ya iniciaron sesión. **Borrarlas antes de producción** (`borrar-datos-demo.sql`) |
 | — | Respuesta del cliente sobre precios y detalles de cursos y licenciatura | Pedida por correo el 2026-10-01; el usuario avisa. Hasta entonces, «Consultar» |
@@ -493,10 +520,11 @@ son mensuales. (Logotipos de socios: recibidos.)
 
 1. Correcciones que salgan de la revisión del usuario con sesión.
 2. Panel v1.1 (TASKS «Pasa a la v1.1»): Ajustes › Personal y Conceptos,
-   cierre y reapertura de mes, auditoría, verificación de QR y revisión de
-   arqueos.
+   cierre y reapertura de mes, auditoría y verificación de QR (la revisión
+   de arqueos se adelantó en la entrega 5).
 3. Web: QR de pago en el portal cuando llegue; dominio, `NEXT_PUBLIC_SITE_URL`,
    quitar `noindex`, `sitemap.xml`.
+4. Documentos: por fases (análisis §9), solo si la institución lo aprueba.
 
 ### Deuda reconocida
 
@@ -538,7 +566,9 @@ son mensuales. (Logotipos de socios: recibidos.)
 | Sistema interno: especificación, crítica independiente y enmiendas antes de construir; v1 en rebanadas R0–R9 | `docs/sistema-interno/` (enmiendas §A alcance, §B resoluciones, §C rebanadas) |
 | Libro de inventario valorizado: PEPS en insumos, promedio en el resto, resto exacto, anulación solo de lo que no se movió después (o ya se deshizo), conteo todo o nada | ADR 0007 |
 | Panel: un solo inicio de sesión; permisos por rol en tabla; alcance por sede; RPC fachada INVOKER + motor DEFINER; idempotencia con la clave del formulario; fecha de Bolivia; caja sin edición; precio del grupo congelado; contabilidad como vista de gestión | ADR 0008 |
-| Ajustes › Personal y Conceptos, cierre de mes, auditoría y `caja.supervisar` pasan a la v1.1; el acceso del personal se da por SQL (§4) | enmiendas §A.2; decisión del 2026-10-03 para Personal (§16.3) |
+| Ajustes › Personal y Conceptos, cierre de mes y auditoría pasan a la v1.1; el acceso del personal se da por SQL (§4). La revisión de arqueos y `caja.supervisar` se adelantaron (entrega 5) | enmiendas §A.2; decisión del 2026-10-03 para Personal (§16.3) |
+| Inscripciones por convocatoria: la institución abre un grupo con horario y un plazo; el estudiante pide un grupo en convocatoria, sin cruces de horario; la carrera por el portal empieza en 1.er año y se renueva al 2.º o 3.er; el plazo rige solo el portal | ADR 0009 (supuestos revertibles en su última sección) |
+| Archivo digital de documentos: no se construye hasta consultar a la institución; el papel sigue siendo el original | `docs/analisis/documentos-digitales-2026-10-06.md` |
 
 ---
 
@@ -582,6 +612,15 @@ son mensuales. (Logotipos de socios: recibidos.)
 | Con «Ambas», los avisos de caja del tablero llevaban a otra sede; lo que deben y los lotes se contaban sobre listas de 100 y 50 filas | La página contaba sobre listas recortadas y no sabía dónde estaba el problema | Migración `20261002180100` (sede del problema, `resumen_de_deudores`) y conteos exactos (N87–N89) |
 | `tsc` del proyecto murió con «Zone Allocation failed» (2026-10-03) | La memoria comprometida de Windows estaba casi agotada (0,5 GB libres de 17 GB), sobre todo por programas abiertos del usuario | Comprobaciones pesadas (tipos, build) cuando el usuario libera memoria; pruebas unitarias y baterías de la base no la necesitan |
 | Flujos de agentes en segundo plano se perdieron | Mueren si la sesión termina mientras corren | Esperar activamente a que terminen antes de cerrar el turno; reanudar con `resumeFromRunId` |
+| La etiqueta «En curso» se salía de su fondo y algunos íconos encogían | La regla global `*{min-width:0}` deja encoger a los hijos de una fila flexible | `Chip` e `Icono` con `shrink-0` |
+| `tsc` falló con TS2307 en `.next/dev/types/validator.ts` | Quedaron tipos de una página de muestra ya borrada | Borrar `.next/dev` junto con la página de muestra |
+| `revisar_arqueo` fallaba con `libro_inmutable` | En un disparador BEFORE las columnas generadas aún no están calculadas | `app.solo_sellos` ignora las columnas generadas (`20261005120100`) |
+| La batería del portal fallaba desde la R1 | Contaba 6 permisos fijos y la guarda del último administrador chocaba con Carla | Cuenta dinámica y desactivar a los otros administradores dentro de la transacción |
+| `42501` inesperado al actualizar como postgres dentro de una batería | Seguían puestos los claims de una sesión simulada anterior | `set_config('request.jwt.claims', '', true)` antes |
+| Archivos creados en la sesión desaparecieron (2026-10-06) | Retroceder la conversación devuelve los archivos al punto elegido | Al retomar, `git status` y comprobar que existen; recrearlos |
+| La skill `ui-ux-pro-max` no corrió | Docker Desktop estaba apagado, y arrancarlo ocupa mucha memoria | Leer directamente sus CSV de `data/` y sus `references/` |
+| La batería del panel no se ejecutaba: terminaba en `$;` en lugar de `$$;` (desde `7c085ce`) | Un script de edición usó `texto.replace(de, a)` de JavaScript, y en el texto de reemplazo `$$` significa «un `$`» | Reemplazar con `split(de).join(a)` o con una función (`replace(de, () => a)`); después de editar SQL, contar los `$$` de cada archivo (deben ser pares) |
+| La batería del panel (170 KB) cuesta mucho de pasar por el contexto | `execute_sql` necesita el texto completo | Probar solos los bloques nuevos; un único agente ligero corre la batería completa al final |
 
 ---
 
@@ -596,6 +635,8 @@ son mensuales. (Logotipos de socios: recibidos.)
 | 2026-10-01 | `feat/pagina-web` | Cuentas y datos de demostración en `supabase/seed/` (5 cuentas `.test`, historial de 3 gestiones), ensayados y revertidos; contraseña fuera del repositorio. El usuario los cargó y probó el acceso |
 | 2026-10-01 | `feat/pagina-web` | Entrega 3: logotipos de socios horneados como hexágonos; carrusel automático sin flechas (inicio); panel de universidades; panal del folleto (convenios); cursos + emprende en `/cursos` (308 desde `/emprende`); mapas con los enlaces del usuario; ritmo entre secciones y ondas del pie; `auditar-espacios.mjs`; fuga de procesos de Edge corregida. Auditoría base y revisión con 4 revisores + verificadores; 11 defectos confirmados y corregidos; 124 pruebas |
 | 2026-10-02 | `feat/sistema-interno` | Diseño del sistema interno: especificación, crítica independiente y enmiendas (`01557f2`). R0 dominio puro (`b3005d0`); R1 núcleo de base y esqueleto del panel (`60772e5`); R2 alumnos, grupos y solicitudes (`a558eaa`, `237f70e`); R3 caja (`164d338`, `2413fa3`); R4 inventario PEPS y promedio (`685e4aa`, `277b585`); R5 uniformes y utensilios (`1fc3d6c`); R6 contabilidad (`3e5bf35`). Cada rebanada con su batería de la base y revisores escépticos |
+| 2026-10-05 | `feat/sistema-interno` | Entrega 5 (1/2): etiquetas e íconos que encogían, unidad en «Usar en clase», portada y saludo (`d1f6e97`); revisión de arqueos (`2b48db6`); base de las convocatorias en transición (`7c085ce`). Subidos a GitHub |
+| 2026-10-06 | `feat/sistema-interno` | Entrega 5 (2/2): portal y panel por convocatoria (ADR 0009), grupo obligatorio (`20261005130300`), `convocatorias-demo.sql` cargado, análisis del archivo de documentos; 324 pruebas, batería del panel 185/185, del portal 39/39 |
 | 2026-10-03 | `feat/sistema-interno` | R7 tableros de inicio y anulación de lo ya deshecho (`411883a`); R8 datos de demostración del panel, cargados (`9f268bc`); batería del panel 145/145 sobre los datos cargados; ADR 0007 y 0008; R9 revisión final con 17 defectos corregidos (`062efa1`, `7d48f50`): batería 165/165, 294 pruebas, tipos y build. Rama `v1` creada en ese punto |
 
 ---
@@ -683,24 +724,31 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
 
 ---
 
-## 16. Estado exacto al cierre de la v1 del sistema interno (2026-10-03)
+## 16. Estado exacto al cierre de la entrega 5 (2026-10-06)
 
 ### 16.1 Repositorio y entorno
 
 | | |
 |---|---|
-| Rama activa | `feat/sistema-interno` (la web de las entregas 2 y 3 + el panel R0–R9). Último commit y si está publicado: `git log -1` y `git ls-remote --heads origin` |
-| `v1` | Rama que marca la entrega del sistema interno v1; sale del último commit de `feat/sistema-interno` |
+| Rama activa | `feat/sistema-interno` (la web de las entregas 2 y 3, el panel R0–R9 y la entrega 5). Último commit y si está publicado: `git log -1` y `git ls-remote --heads origin` |
+| `v1` | Rama que marca la entrega del sistema interno v1 (`4e30149`); la entrega 5 va después, solo en `feat/sistema-interno` |
 | `main` | `25500d8` (fase 0 y entrega 2). Nada fusionado: espera la aprobación del usuario |
 | `feat/pagina-web` | `08df150` (entrega 3), en GitHub; `feat/sistema-interno` la contiene |
 | `.env.local` | Con los valores reales del proyecto (§7) |
-| Base de datos | 20 migraciones (22 aplicaciones en la base, ver el README de migraciones; §4). Cuentas de demostración y datos de demostración del panel cargados (2026-10-03). Valeria tiene una solicitud creada desde el portal |
+| Base de datos | 26 migraciones (28 aplicaciones en la base, ver el README de migraciones; §4). Cuentas y datos del panel (2026-10-03) y convocatorias (2026-10-06) de demostración cargados. Valeria y Diego tienen solicitudes pendientes de antes de las convocatorias (sin grupo) |
 | Servidor de vista previa | `web-produccion` (puerto 3100); el asistente lo arranca para comprobar y lo detiene (la memoria es justa, §7) |
 | Informes de revisión | En el directorio de la sesión (efímero). Lo confirmado y corregido está en `TASKS.md` (E4.R7 y E4.R9) |
 | HawkScan | No ejecutado: la máquina no tiene `HAWK_API_KEY`. El gancho de sesión lo pide tras cada commit; se ignora mientras falte la clave |
 
 ### 16.2 Lo verificado y lo no verificado
 
+- **Verificado (entrega 5):** 324 pruebas (cruce de horarios con los mismos
+  casos que la base, convocatoria, solicitud, lectura de la base), tipos,
+  build, greps y audit; batería del panel 185/185 (N113–N128 de convocatorias) y
+  del portal 39/39; ensayos revertidos de `convocatorias-demo.sql`, del bloque
+  de ensayo de `datos-demo.sql` y de `borrar-datos-demo.sql`; vistas nuevas
+  del portal y del formulario de grupo a 375 px en una página de muestra
+  (borrada).
 - **Verificado (v1 del panel):** pruebas unitarias, tipos, build y greps de
   §8; batería de la base del panel completa sobre los datos de demostración
   cargados (resultado en `TASKS.md` E4.R9); `curl` sin sesión → 307 en las
@@ -770,10 +818,28 @@ ADR 0007 y 0008):
 17. Los datos de demostración del panel (alumnos, montos, compras) son
     **ficticios** y se borran antes de producción.
 
+De la entrega 5 (ADR 0009 y análisis de documentos):
+
+18. El **plazo de inscripción rige solo el portal**: en persona, recepción
+    inscribe en cualquier grupo abierto o en curso.
+19. Un **grupo lleno no se ofrece**; las solicitudes pendientes no reservan
+    cupo (recepción ve los cupos al aprobar).
+20. El **cruce de horarios bloquea solo cuando es seguro**; si falta el
+    horario de algún grupo, el portal avisa y deja pedir.
+21. **La carrera por el portal**: el 1.er año en «Nueva inscripción», el 2.º y
+    el 3.er en «Renovar». Otros casos (convalidar, repetir), en la sede.
+22. El **catálogo completo sigue en la web pública**; el portal muestra solo
+    lo que tiene inscripciones abiertas.
+23. Los **horarios, plazos y fechas de las convocatorias de demostración**
+    son ficticios; las horas de inicio de la carrera siguen el catálogo.
+24. El **archivo de documentos no se construye** hasta que la institución
+    responda; el papel sigue siendo el original.
+
 ### 16.4 Ideas de siguiente paso ya conversadas
 
 - Revisión del panel con sesión por el usuario y ajustes que salgan de ella.
-- v1.1 del panel: Ajustes › Personal y Conceptos, cierre de mes, auditoría,
-  verificación de QR y revisión de arqueos.
+- v1.1 del panel: Ajustes › Personal y Conceptos, cierre de mes, auditoría y
+  verificación de QR.
+- Archivo digital de documentos por fases, si la institución lo aprueba.
 - Al llegar el QR bancario: mostrarlo en la tarjeta de pago del portal
   (`INSTITUTO.pago.qrDisponible`).
