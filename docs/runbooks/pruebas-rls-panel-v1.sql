@@ -2507,15 +2507,12 @@ begin
 
     perform set_config('request.jwt.claims', json_build_object('sub', v_valeria, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
-    -- N113 · transición (20261005130200): sin grupo todavía se pide, con las
-    -- reglas de antes, porque el portal de hoy no elige grupo. Cuando el
-    -- portal nuevo lo exija, este caso esperará «Elige un grupo con
-    -- inscripciones abiertas.». El ensayo se deshace para no estorbar a N116.
+    -- N113 · sin grupo no se pide (20261005130300: el portal ya elige grupo)
     begin
       insert into public.solicitudes (tipo, programa_codigo, sede_id) values ('inscripcion', 'cocina', v_la_paz);
-      raise exception using errcode = 'P0001', message = 'ensayo_revertido';
-    exception when others then
-      if sqlerrm <> 'ensayo_revertido' then raise exception 'FALLO N113: %', sqlerrm; end if;
+      raise exception 'FALLO N113: se pidió sin grupo';
+    exception when check_violation then
+      if sqlerrm <> 'Elige un grupo con inscripciones abiertas.' then raise exception 'FALLO N113: %', sqlerrm; end if;
       v_ok := v_ok + 1;
     end;
     -- N114 · el grupo es del programa pedido
@@ -2662,4 +2659,4 @@ begin
 
   raise exception 'OK · % pruebas superadas (todo revertido)', v_ok;
 end;
-$;
+$$;

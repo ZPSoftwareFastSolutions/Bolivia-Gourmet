@@ -48,6 +48,7 @@ herramienta `apply_migration` del conector o pegándolos en el editor SQL.
 | `20261005130000_panel_convocatorias.sql` | Entrega 5, inscripciones por convocatoria (ADR 0009): los grupos ganan horario (`hora_inicio`, `hora_fin`) y plazo de inscripción por el portal (`inscripcion_desde`, `inscripcion_hasta`); `solicitudes.cohorte_id` (el grupo pedido: la base copia de él sede, turno, días, duración y modalidad y valida convocatoria, cupos, «ya inscrito» y cruces); `app.cruce_de_grupos` (gemela de `cruceDeHorarios`); lecturas del portal `oferta_abierta()` y `mis_grupos()` (DEFINER con columnas seguras, solo `authenticated`) |
 | `20261005130100_panel_convocatorias_anio.sql` | Por el portal, la carrera se empieza en el 1.er año y se renueva al 2.º o 3.er año (disparador aparte, después del alta) |
 | `20261005130200_panel_convocatorias_transicion.sql` | Transición: mientras el portal no elige grupo, una solicitud SIN grupo se valida como antes de `20261005130000` (el portal de hoy sigue igual); CON grupo, con todas las reglas nuevas. El grupo pasa a ser obligatorio cuando llegue el portal nuevo |
+| `20261005130300_panel_convocatorias_grupo_obligatorio.sql` | Cierra la transición: con el portal nuevo (que elige grupo), una solicitud sin grupo se rechaza otra vez («Elige un grupo con inscripciones abiertas.»), salvo en modo mantenimiento (historial de demostración) |
 
 Estado tras aplicarlas (2026-10-03, 22 migraciones en la base): 29 tablas, 29 con RLS, 44 políticas,
 12 vistas `security_invoker`. `get_advisors(security)`: un aviso
@@ -96,6 +97,13 @@ contraseñas filtradas, se activa en el panel de Supabase).
   la fecha simulada en modo mantenimiento. `c_simular := true` lo ensaya y lo
   revierte («OK · simulación…»); es idempotente (se detiene si existe «Harina
   de trigo»).
+- `convocatorias-demo.sql` (ADR 0009): va DESPUÉS de las dos anteriores. Pone
+  horario a los grupos vigentes, abre tres convocatorias con fechas relativas
+  al día de la carga (Cocina sábados en La Paz, Tortas de lunes a miércoles en
+  El Alto, Gastronomía 2.º año de la gestión siguiente) y deja la carrera de
+  1.er año sin convocatoria. Inscribe a Diego en su 1.er año con una ficha
+  enlazada a su cuenta (su cuota queda por cobrar). `c_simular := true` lo
+  ensaya y lo revierte; se detiene si Diego ya tiene ficha.
 - `borrar-datos-demo.sql`: borra primero todos los datos del panel (en modo
   mantenimiento y en orden de claves foráneas) y después las cuentas con todo
   lo suyo. Se detiene sin borrar nada si el panel tiene registros de cuentas

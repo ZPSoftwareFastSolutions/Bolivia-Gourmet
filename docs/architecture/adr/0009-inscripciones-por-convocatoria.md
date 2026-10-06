@@ -1,17 +1,25 @@
 # ADR 0009 — Inscripciones por convocatoria
 
-**Estado:** Aceptada, en construcción (pausada el 2026-10-05) · **Fecha:**
+**Estado:** Aceptada y construida (2026-10-06) · **Fecha:**
 2026-10-05 · **Ámbito:** portal de estudiantes y panel (alumnos y grupos) ·
 Modifica ADR 0005 (qué pide un estudiante) y las reglas de solicitud del
 modelo de dominio.
 
-> **Dónde quedó (2026-10-05).** Se construye en tres pasos: ampliar la base,
-> cambiar el portal y el panel, y exigir el grupo. Está hecho el primero
-> (`20261005130000`, `20261005130100`) más una transición (`20261005130200`):
-> una solicitud **sin** grupo se valida como antes, así el portal de hoy
-> sigue funcionando; una **con** grupo pasa por todas las reglas de abajo.
-> Faltan el portal (§5), el panel (§6), los datos de demostración y el paso
-> que vuelve obligatorio el grupo (§2). Detalle en `TASKS.md` (E5.C).
+> **Cómo se construyó.** En tres pasos, para no romper el portal en uso:
+> 1. Ampliar la base: `20261005130000` (grupos con horario y plazo,
+>    `solicitudes.cohorte_id`, cruce, lecturas del portal) y `20261005130100`
+>    (año de la carrera).
+> 2. Una transición (`20261005130200`) mientras el portal viejo seguía en uso:
+>    sin grupo, reglas de antes.
+> 3. Con el portal y el panel nuevos (2026-10-06), `20261005130300` vuelve
+>    obligatorio el grupo.
+>
+> Dónde vive cada parte:
+> - dominio: `academico/horario.ts` (cruce y horario semanal),
+>   `portal/convocatoria.ts` (qué se ofrece y por qué un grupo se bloquea) y
+>   `portal/solicitud.ts` (validación);
+> - lectura de la base: `infrastructure/supabase/convocatoria-desde-base.ts`;
+> - datos de demostración: `supabase/seed/convocatorias-demo.sql`.
 
 ## Contexto
 
@@ -58,7 +66,9 @@ Administración lo escribe al abrir o editar el grupo.
   (lo que mande el navegador no cuenta);
 - comprueba que el grupo sea del programa, esté en convocatoria y tenga
   cupos, y que el estudiante no esté ya inscrito en él;
-- la renovación solo se pide en un grupo de la carrera;
+- la renovación solo se pide en un grupo de la carrera, y por el portal la
+  carrera se empieza en el 1.er año y se renueva al 2.º o 3.er
+  (`app.validar_anio_de_solicitud`, disparador aparte);
 - rechaza el **cruce de horarios** con sus cursos vigentes y con los grupos
   de sus otras solicitudes abiertas;
 - conserva las reglas de antes: una solicitud abierta por programa y tipo,
@@ -112,10 +122,14 @@ Dos lecturas DEFINER en `app` con fachada INVOKER en `public`, solo para
 
 ### 6. Panel
 
-- **Grupo:** campos de horario y de plazo de inscripción; etiqueta
-  «Inscripciones abiertas hasta …» en la lista y en el detalle.
-- **Bandeja de solicitudes:** muestra el grupo pedido; al aprobar, ese grupo
-  va primero y marcado.
+- **Grupo:** campos de horario y de plazo de inscripción por el portal, con
+  las mismas reglas que la base (`validarCohorte`). En la lista y en la ficha,
+  una etiqueta dice si el grupo recibe solicitudes por el portal
+  (`convocatoriaDelGrupo`): «inscripciones hasta el …», «abre el …», «ábrelo
+  para recibir solicitudes» (planificado), «sin cupos» o «cerradas».
+- **Bandeja de solicitudes:** muestra el grupo pedido («Grupo elegido en el
+  portal»); al aprobar, ese grupo va primero y marcado («El grupo que
+  eligió»), y recepción puede elegir otro si hace falta.
 - Las solicitudes viejas (sin grupo) se atienden como antes.
 
 ## Casos negativos (batería N113 en adelante)

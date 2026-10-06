@@ -128,6 +128,8 @@ Una apertura concreta de un programa. Es a lo que se inscribe un estudiante.
 | `turno`, `diasDeClase` (código), `modalidad` | Obligatorios si el programa los ofrece; vacíos si no |
 | `capacidad` | Opcional; sin capacidad = sin límite. La base no la deja bajar de los inscritos |
 | `estado` | `planificado` · `abierto` · `en_curso` · `cerrado` (en masculino, B.12-30) |
+| `horaInicio`, `horaFin` | Horario de clase `HH:MM` (ADR 0009): las dos o ninguna, y el fin después del inicio |
+| `inscripcionDesde`, `inscripcionHasta` | Plazo de inscripción **por el portal** (ADR 0009): las dos o ninguna, en orden, y **exige horario**. Sin plazo, el grupo no aparece en el portal y recepción inscribe igual en persona |
 
 `nombre` y `costoVigente` **ya no existen** (B.12-30): el nombre se arma y el
 precio vive en el plan de pagos.
@@ -146,6 +148,15 @@ Cursos: programa · días · turno · modalidad · mes de inicio · sede, solo c
 las partes que el grupo tiene («Tortas · Sábados · oct 2026 · La Paz»). Los
 días se rotulan desde su **código** (`sab` → «Sábados», `jue-vie` →
 «Jue–Vie»), porque la base solo ve el código.
+
+**Convocatoria (ADR 0009).** Un grupo está en convocatoria si está `abierto`
+o `en_curso`, hoy (La Paz) cae dentro de su plazo y tiene cupos. Solo esos
+grupos se ofrecen en el portal (`app.oferta_abierta`); el panel lo muestra con
+`convocatoriaDelGrupo()` (abierta, por abrir, sin cupos, cerrada o sin plazo).
+El cruce de horarios entre dos grupos lo deciden `cruceDeHorarios()`
+(`academico/horario.ts`) y su gemela `app.cruce_de_grupos`, en seis pasos:
+fechas, días, horas y, sin horas, el turno; solo «se cruza» bloquea, «sin
+horario» se avisa.
 
 ### `PlanDePago` y `Cuota`
 Cuánto y cuándo se cobra en un grupo (D3). Lo carga administración; sin plan,
@@ -246,8 +257,13 @@ elige** entre una ficha nueva (con los datos del perfil) o una ficha existente
 renovación se enlaza con la última inscripción no retirada y no renovada del
 mismo programa, si el alumno tiene historia en el sistema. «Rechazar» y
 «Pedir más datos» exigen una respuesta que verá el alumno (caso de uso). La
-solicitud en sí está en `portal/solicitud.ts` (opciones exactas del programa,
-renovación con gestión anterior, sin duplicados, máximo 5 abiertas).
+solicitud en sí está en `portal/solicitud.ts`: desde el ADR 0009 pide un
+**grupo en convocatoria** (el grupo fija sede, turno, días, duración y
+modalidad), sin cruces con lo que la persona cursa o ya pidió; la carrera se
+empieza en el 1.er año y se renueva al 2.º o 3.er; renovación con gestión
+anterior, sin duplicados, máximo 5 abiertas. Al aprobar, el grupo pedido va
+primero y marcado, pero recepción puede elegir otro (por ejemplo, si se
+llenó).
 
 ### Reglas
 
@@ -266,6 +282,12 @@ renovación con gestión anterior, sin duplicados, máximo 5 abiertas).
 | E11 | Cerrar un grupo concluye a sus inscritos y avisa cuántos deben (no bloquea) | decidida (B.3) | base: `app.cerrar_grupo` + `app.alumnos_que_deben` | N24 |
 | E12 | Aprobar una solicitud es inscribir; la ficha se enlaza a la cuenta solo si el personal la elige | decidida (B.8, B.9) | base `app.aprobar_solicitud` (`solicitud_cerrada`, `grupo_no_corresponde`, `ficha_con_cuenta`) · caso de uso `responderSolicitud` | `panel-alumnos.test.ts` › «rechazar o pedir datos exige una respuesta…»; N25, N26 |
 | E13 | Código de alumno `BG-AAAA-NNNN`, correlativo por año y sin duplicados en altas simultáneas | decidida (B.13-42) | base: `app.siguiente_codigo_de_estudiante` | N15 |
+| E14 | Por el portal solo se pide un grupo en convocatoria (abierto o en curso, dentro del plazo, con cupos); sin grupo, no se pide | decidida (ADR 0009) | `portal/convocatoria.ts` `gruposPara`, `disponibilidadDeGrupo` · `portal/solicitud.ts` `validarSolicitud` · base `app.validar_alta_de_solicitud`, `app.oferta_abierta` | `portal.test.ts` › «la solicitud pide un grupo en convocatoria…»; `convocatoria.test.ts`; N113–N116, N119, N124 |
+| E15 | El grupo fija la sede, el turno, los días, la duración y la modalidad de la solicitud; lo que mande el navegador no cuenta | decidida (ADR 0009) | base `app.validar_alta_de_solicitud` | N116 |
+| E16 | No se pide un grupo cuyo horario se cruza con un curso vigente o con un grupo ya pedido (en una renovación no se compara con la propia carrera); si no se puede comparar, se avisa | decidida (ADR 0009) | `academico/horario.ts` `cruceDeHorarios` · `disponibilidadDeGrupo` · base `app.cruce_de_grupos` | `horario.test.ts`; `convocatoria.test.ts`; N117, N118, N121, N122 |
+| E17 | Por el portal, la carrera se empieza en el 1.er año (inscripción) y se pasa al 2.º o 3.er año (renovación) | decidida (ADR 0009, supuesto 4) | `validarSolicitud` · base `app.validar_anio_de_solicitud` | `portal.test.ts` › «por el portal, la carrera empieza en el 1.er año…»; N127, N128 |
+| E18 | Quien ya está inscrito en un grupo no lo vuelve a pedir | decidida (ADR 0009) | `disponibilidadDeGrupo` · base | `convocatoria.test.ts`; N123 |
+| E19 | El estudiante lee solo la oferta abierta y sus propios grupos (inscripciones y solicitudes), con columnas seguras | decidida (ADR 0009) | base `oferta_abierta()`, `mis_grupos()` (DEFINER con fachada INVOKER, solo `authenticated`) · `convocatoria-desde-base.ts` | `convocatoria.test.ts` (lectura); N124, N125 |
 
 ---
 

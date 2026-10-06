@@ -21,6 +21,9 @@
 -- ciclos: movimientos ↔ lotes (se suelta `movimientos.lote_id` antes) y las
 -- autorreferencias (`movimientos.anula_a`, `inscripciones.renueva_a`: primero
 -- las filas que apuntan a otras). `operaciones` va al final: todo nace en una.
+-- Las solicitudes que piden un grupo (ADR 0009) lo sueltan antes de borrar
+-- los grupos; si alguna es de un estudiante real, se avisa (queda sin grupo,
+-- como las de antes de las convocatorias, con la sede y el horario copiados).
 --
 -- Guardas (se detiene sin borrar nada):
 --   - si una cuenta de demostración del personal revisó solicitudes de
@@ -100,6 +103,11 @@ begin
   delete from public.inscripciones where renueva_a is not null;
   delete from public.inscripciones;
   delete from public.planes_de_pago;
+  select count(*) into v_n from public.solicitudes where cohorte_id is not null and not (estudiante_id = any (v_ids));
+  if v_n > 0 then
+    raise notice '% solicitudes de estudiantes reales pedían un grupo de la demo: quedan sin grupo.', v_n;
+  end if;
+  update public.solicitudes set cohorte_id = null where cohorte_id is not null;
   delete from public.cohortes;
   delete from public.estudiantes;
 

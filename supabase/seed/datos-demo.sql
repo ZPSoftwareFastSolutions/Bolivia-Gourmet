@@ -16,8 +16,10 @@
 --   Diego Mamani         estudiante     1.er año (gestión 2026) aprobado: pide su renovación
 --   Camila Quispe        estudiante     3.er año: inscripción 2024 + renovaciones 2025 y 2026
 --
--- El modelo aún no tiene cohortes ni inscripciones (ADR 0004 pendiente): el
--- «año» del estudiante se deduce de su historial de solicitudes.
+-- Estas solicitudes son el historial de antes de las convocatorias (ADR 0009):
+-- se cargan en modo mantenimiento, que no exige grupo. Los grupos, los
+-- alumnos y la inscripción vigente de Diego los cargan después
+-- `datos-panel-demo.sql` y `convocatorias-demo.sql`.
 --
 -- Cómo se cargan las solicitudes: simulando la sesión de cada cuenta
 -- (`set local role authenticated` + `request.jwt.claims`), como la batería
@@ -56,6 +58,8 @@ declare
   v_la_paz uuid;
   v_el_alto uuid;
   v_sol uuid;
+  v_g_renovacion uuid;
+  v_g_nuevo uuid;
   v_n integer;
   r record;
   s record;
@@ -156,13 +160,16 @@ begin
     ) as t(orden, estudiante, revisor, tipo, sede, turno, gestion_anterior, respuesta, creada, revisada)
     order by orden
   loop
-    -- El estudiante la pide…
+    -- El estudiante la pide… (sin grupo: en modo mantenimiento, que solo
+    -- honra el rol postgres, ADR 0009)
     perform set_config('request.jwt.claims', json_build_object('sub', s.estudiante, 'role', 'authenticated')::text, true);
+    perform set_config('app.mantenimiento', 'si', true);
     execute 'set local role authenticated';
     insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, paquete, gestion_anterior)
     values (s.tipo, 'gastronomia', s.sede, s.turno, 'lun-vie', 3, 'economico', s.gestion_anterior)
     returning id into v_sol;
     execute 'reset role';
+    perform set_config('app.mantenimiento', 'no', true);
 
     -- …el personal la aprueba (el disparador anota quién y cuándo)…
     perform set_config('request.jwt.claims', json_build_object('sub', s.revisor, 'role', 'authenticated')::text, true);
@@ -204,11 +211,25 @@ begin
 
   if c_simular then
     -- Ensayo de lo que se hará en vivo, con las mismas reglas que el portal.
+    -- Desde el ADR 0009 se pide un grupo en convocatoria: se abren dos, como
+    -- postgres y a nombre de Carla (sin sesión, `auth.uid()` es nulo).
+    perform set_config('request.jwt.claims', '', true);
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado,
+                                 hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+    values ('gastronomia', v_la_paz, extract(year from app.hoy())::integer + 1, 2, 'noche', 'lun-vie', 3,
+            make_date(extract(year from app.hoy())::integer + 1, 2, 1), 'abierto', '18:00', '21:00', app.hoy() - 1, app.hoy() + 10, v_admin)
+    returning id into v_g_renovacion;
+    insert into public.cohortes (programa_codigo, sede_id, gestion, anio_de_carrera, turno, dias, duracion, fecha_inicio, estado,
+                                 hora_inicio, hora_fin, inscripcion_desde, inscripcion_hasta, registrado_por)
+    values ('gastronomia', v_la_paz, extract(year from app.hoy())::integer + 1, 1, 'tarde', 'lun-vie', 3,
+            make_date(extract(year from app.hoy())::integer + 1, 2, 1), 'abierto', '15:00', '18:00', app.hoy() - 1, app.hoy() + 10, v_admin)
+    returning id into v_g_nuevo;
+
     -- Diego pide su renovación.
     perform set_config('request.jwt.claims', json_build_object('sub', v_renueva, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
-    insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, gestion_anterior)
-    values ('renovacion', 'gastronomia', v_la_paz, 'noche', 'lun-vie', 3, 'Gestión 2026 · 1.er año');
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, gestion_anterior)
+    values ('renovacion', 'gastronomia', v_la_paz, v_g_renovacion, 'Gestión 2026 · 1.er año');
     select count(*) into v_n from public.solicitudes;
     if v_n <> 2 then raise exception 'FALLO: Diego ve % solicitudes (esperadas 2)', v_n; end if;
     execute 'reset role';
@@ -216,8 +237,8 @@ begin
     -- Valeria se inscribe y cancela.
     perform set_config('request.jwt.claims', json_build_object('sub', v_nuevo, 'role', 'authenticated')::text, true);
     execute 'set local role authenticated';
-    insert into public.solicitudes (tipo, programa_codigo, sede_id, turno, dias, duracion, paquete)
-    values ('inscripcion', 'gastronomia', v_la_paz, 'tarde', 'lun-vie', 3, 'economico')
+    insert into public.solicitudes (tipo, programa_codigo, sede_id, cohorte_id, paquete)
+    values ('inscripcion', 'gastronomia', v_la_paz, v_g_nuevo, 'economico')
     returning id into v_sol;
     update public.solicitudes set estado = 'cancelada' where id = v_sol;
     select count(*) into v_n from public.solicitudes;
