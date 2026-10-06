@@ -739,6 +739,8 @@ de aquí choca con otra sección, manda lo que el usuario dijo.
 | Servidor de vista previa | `web-produccion` (puerto 3100); el asistente lo arranca para comprobar y lo detiene (la memoria es justa, §7) |
 | Informes de revisión | En el directorio de la sesión (efímero). Lo confirmado y corregido está en `TASKS.md` (E4.R7 y E4.R9) |
 | HawkScan | No ejecutado: la máquina no tiene `HAWK_API_KEY`. El gancho de sesión lo pide tras cada commit; se ignora mientras falte la clave |
+| Revisor de seguridad (complemento `security-guidance`) | Sus avisos «Background security review found issues» no son hallazgos: le falta su archivo (`security_reminder_hook.py`) y no revisa nada. El usuario pidió (2026-10-06) no responderlos; para que dejen de llegar, el usuario desactiva el complemento en los ajustes de la app |
+| Cierre de la sesión del 2026-10-06 | Entrega 5 terminada y publicada: `feat/sistema-interno` en GitHub con los commits `25583c7`, `42e9fa7`, `99c9b54` y este cierre de documentación, igual que en local, y árbol limpio. Sin servidores ni agentes en segundo plano. El usuario revisó el sistema en localhost. Próximo paso: lo que indique el usuario (§0 «Siguiente») |
 
 ### 16.2 Lo verificado y lo no verificado
 
