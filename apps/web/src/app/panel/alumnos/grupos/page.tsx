@@ -9,17 +9,18 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { describirHorario } from '@core/domain/academico/horario';
 import type { EstadoDeCohorte } from '@core/domain/academico/programa';
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import { alumnosRepository } from '@infra/config/composition-root';
 import { cn } from '@/lib/cn';
-import { formatearFecha } from '@/lib/fechas';
+import { diaEnBolivia, formatearFecha } from '@/lib/fechas';
 import { RUTAS_ALUMNOS, rutaDeGrupo } from '@/lib/rutas';
 import { Aviso } from '@/presentation/formularios/Campos';
 import { Icono } from '@/presentation/icons/Icono';
 import { BarraDeCupos, EncabezadoDePanel, EstadoVacio } from '@/presentation/panel/Piezas';
 import { exigirPermiso, exigirPersonal } from '../../_sesion';
-import { ChipDeGrupo, parametro, PestanasDeAlumnos, PrecioDelGrupo, type Parametros } from '../_componentes';
+import { ChipDeConvocatoria, ChipDeGrupo, parametro, PestanasDeAlumnos, PrecioDelGrupo, type Parametros } from '../_componentes';
 
 export const metadata: Metadata = { title: 'Grupos y cupos' };
 
@@ -40,6 +41,7 @@ export default async function Grupos({ searchParams }: { readonly searchParams: 
   const [lista, abiertas] = await Promise.all([repo.listarGrupos({ estados: vista.estados }), repo.contarSolicitudesAbiertas()]);
   const puedeAbrir = tienePermiso(ctx, 'cohortes.gestionar');
   const sedesPropias = new Set(ctx.sedes.map((s) => s.id));
+  const hoy = diaEnBolivia(new Date());
 
   return (
     <div className="grid gap-6">
@@ -105,8 +107,10 @@ export default async function Grupos({ searchParams }: { readonly searchParams: 
                 </span>
                 <span className="text-sm text-tinta-suave">
                   Empieza el {formatearFecha(`${g.fechaInicio}T12:00:00Z`)}
+                  {g.horaInicio && g.horaFin ? ` · ${describirHorario({ dias: g.dias ?? undefined, horaInicio: g.horaInicio, horaFin: g.horaFin })}` : ''}
                   {sedesPropias.has(g.sedeId) ? '' : ' · otra sede'}
                 </span>
+                <ChipDeConvocatoria grupo={g} hoy={hoy} />
                 <BarraDeCupos inscritos={g.inscritos} capacidad={g.capacidad} />
                 <PrecioDelGrupo precios={g.precios} />
               </Link>

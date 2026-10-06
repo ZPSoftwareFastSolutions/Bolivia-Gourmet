@@ -55,7 +55,12 @@ export default async function AtenderSolicitud({ params }: { readonly params: Pr
   const s = leida.valor;
   if (!s) notFound();
 
-  const programa = await catalogoAcademico().programaPorCodigo(s.programaCodigo);
+  const [programa, fichaDelPedido] = await Promise.all([
+    catalogoAcademico().programaPorCodigo(s.programaCodigo),
+    s.grupoId ? repo.fichaDeGrupo(s.grupoId) : Promise.resolve(null),
+  ]);
+  // El grupo que eligió en el portal (ADR 0009); las solicitudes viejas no tienen.
+  const grupoPedido = fichaDelPedido && fichaDelPedido.exito ? (fichaDelPedido.valor?.grupo ?? null) : null;
   const esCarrera = programa?.tipo === 'carrera';
   const abierta = s.estado === 'pendiente' || s.estado === 'en_revision';
   const puedeAtender = abierta && tienePermiso(ctx, 'solicitudes.gestionar') && tienePermiso(ctx, 'inscripciones.gestionar');
@@ -72,7 +77,7 @@ export default async function AtenderSolicitud({ params }: { readonly params: Pr
     ]);
     if (!lista.exito) errorDeCarga = lista.error;
     else {
-      const puntaje = (g: GrupoEnLista) => (g.sedeId === s.sedeId ? 2 : 0) + (s.turno && g.turno === s.turno ? 1 : 0);
+      const puntaje = (g: GrupoEnLista) => (g.id === s.grupoId ? 10 : 0) + (g.sedeId === s.sedeId ? 2 : 0) + (s.turno && g.turno === s.turno ? 1 : 0);
       grupos = lista.valor.filter((g) => sedes.has(g.sedeId)).sort((a, b) => puntaje(b) - puntaje(a));
     }
     if (fichas && fichas.exito) sugeridas = fichas.valor;
@@ -104,6 +109,7 @@ export default async function AtenderSolicitud({ params }: { readonly params: Pr
           </h2>
           <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             <Dato etiqueta="Programa">{programa?.nombre ?? s.programaCodigo}</Dato>
+            {grupoPedido ? <Dato etiqueta="Grupo elegido en el portal">{grupoPedido.nombre}</Dato> : null}
             <Dato etiqueta="Sede">{s.sedeNombre}</Dato>
             {s.turno ? <Dato etiqueta="Turno">{ETIQUETA_DE_TURNO[s.turno as Turno] ?? s.turno}</Dato> : null}
             {s.dias ? <Dato etiqueta="Días">{etiquetaCortaDeDias(s.dias)}</Dato> : null}
@@ -190,9 +196,10 @@ export default async function AtenderSolicitud({ params }: { readonly params: Pr
                 columnas={2}
                 opciones={grupos.map((g) => {
                   const libres = g.capacidad === null ? 'sin límite' : `${Math.max(0, g.capacidad - g.inscritos)} libres`;
+                  const pedido = g.id === s.grupoId;
                   const coincide = g.sedeId === s.sedeId && (!s.turno || g.turno === s.turno);
                   const precio = g.precios.length > 0 ? describirPlan(g.precios[0]!) : 'precio: Consultar';
-                  return { valor: g.id, etiqueta: g.nombre, detalle: `${coincide ? 'Coincide con lo pedido · ' : 'Distinto de lo pedido · '}${libres} · ${precio}` };
+                  return { valor: g.id, etiqueta: g.nombre, detalle: `${pedido ? 'El grupo que eligió · ' : coincide ? 'Coincide con lo pedido · ' : 'Distinto de lo pedido · '}${libres} · ${precio}` };
                 })}
               />
 

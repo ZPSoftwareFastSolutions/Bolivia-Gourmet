@@ -164,6 +164,10 @@ function grupoDelFormulario(datos: FormData): DatosDeGrupo {
     modalidad: opcional(campo(datos, 'modalidad')) as Modalidad | undefined,
     fechaInicio: campo(datos, 'fechaInicio'),
     fechaFin: opcional(campo(datos, 'fechaFin')),
+    horaInicio: opcional(campo(datos, 'horaInicio')),
+    horaFin: opcional(campo(datos, 'horaFin')),
+    inscripcionDesde: opcional(campo(datos, 'inscripcionDesde')),
+    inscripcionHasta: opcional(campo(datos, 'inscripcionHasta')),
     capacidad: entero(campo(datos, 'capacidad')),
     estado: estado === 'abierto' || estado === 'en_curso' ? estado : 'planificado',
   };

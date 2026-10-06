@@ -21,6 +21,10 @@ export interface ValoresDeGrupo {
   readonly modalidad?: string | null;
   readonly fechaInicio?: string;
   readonly fechaFin?: string | null;
+  readonly horaInicio?: string | null;
+  readonly horaFin?: string | null;
+  readonly inscripcionDesde?: string | null;
+  readonly inscripcionHasta?: string | null;
   readonly capacidad?: number | null;
   readonly estado?: string;
 }
@@ -121,6 +125,27 @@ export function CamposDeGrupo({
           defaultValue={valores.fechaFin ?? ''}
         />
       </div>
+
+      <fieldset className="grid gap-4 rounded-md border-2 border-linea p-4 sm:p-5">
+        <legend className="px-1 font-semibold text-tinta">Horario de clase</legend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <CampoDeTexto id="horaInicio" etiqueta="Desde las" type="time" opcional defaultValue={valores.horaInicio ?? ''} />
+          <CampoDeTexto id="horaFin" etiqueta="Hasta las" type="time" opcional defaultValue={valores.horaFin ?? ''} />
+        </div>
+        <p className="text-sm text-tinta-suave">Con el horario, el estudiante ve «Mi horario» en el portal y no puede pedir un grupo que se cruce con lo que ya cursa.</p>
+      </fieldset>
+
+      <fieldset className="grid gap-4 rounded-md border-2 border-linea p-4 sm:p-5">
+        <legend className="px-1 font-semibold text-tinta">Inscripciones por el portal</legend>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <CampoDeTexto id="inscripcionDesde" etiqueta="Desde el" type="date" opcional defaultValue={valores.inscripcionDesde ?? ''} />
+          <CampoDeTexto id="inscripcionHasta" etiqueta="Hasta el" type="date" opcional defaultValue={valores.inscripcionHasta ?? ''} />
+        </div>
+        <p className="text-sm text-tinta-suave">
+          En ese plazo, el grupo aparece en el portal para pedir inscripción (si está abierto o en curso y tiene cupos). Vacío: no aparece, y
+          recepción inscribe igual en persona. Para abrirlo, el grupo necesita su horario.
+        </p>
+      </fieldset>
 
       <GrupoDeOpciones nombre="estado" leyenda="Estado" columnas={3} valor={valores.estado ?? 'abierto'} opciones={[...ESTADOS]} />
     </>

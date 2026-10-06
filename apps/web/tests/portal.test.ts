@@ -2,10 +2,10 @@
  * Pruebas del portal de estudiantes: dominio de solicitudes, credenciales y
  * casos de uso con puertos falsos en memoria.
  *
- * QUÉ SE PRUEBA. Que una solicitud solo acepte las opciones del programa
- * elegido (y pida las que ese programa exige), que la política de
- * contraseñas sea la acordada, que los casos de uso no llamen al proveedor
- * con datos inválidos, y que cancelar respete «solo pendientes».
+ * QUÉ SE PRUEBA. Que una solicitud pida un grupo en convocatoria del
+ * programa elegido (ADR 0009) y se rechace con las frases de la base, que la
+ * política de contraseñas sea la acordada, que los casos de uso no llamen al
+ * proveedor con datos inválidos, y que cancelar respete «solo pendientes».
  */
 
 import assert from 'node:assert/strict';
@@ -17,7 +17,7 @@ import {
   registrarEstudiante,
   solicitarRecuperacion,
 } from '../src/core/application/portal/acceso.usecase.ts';
-import { cancelarSolicitud, crearSolicitud, obtenerPanel } from '../src/core/application/portal/solicitudes.usecase.ts';
+import { cancelarSolicitud, crearSolicitud, obtenerConvocatoria, obtenerPanel } from '../src/core/application/portal/solicitudes.usecase.ts';
 import type {
   AutenticacionPort,
   EstadoDeSesion,
@@ -28,12 +28,15 @@ import type { PerfilDelPortal, PortalRepositoryPort } from '../src/core/applicat
 import type { Programa } from '../src/core/domain/academico/programa.ts';
 import { validarClave, validarCorreo, validarRegistro, type DatosDeRegistro } from '../src/core/domain/identidad/credenciales.ts';
 import { esPersonal, esRol } from '../src/core/domain/identidad/rol.ts';
+import { SIN_GRUPOS, type GrupoDelPortal, type MisGrupos } from '../src/core/domain/portal/convocatoria.ts';
 import {
   MAXIMO_DE_SOLICITUDES_ABIERTAS,
   puedeCancelar,
   validarSolicitud,
+  type ContextoDeSolicitud,
   type DatosDeSolicitud,
   type Solicitud,
+  type SolicitudValidada,
 } from '../src/core/domain/portal/solicitud.ts';
 import { exito, fallo, type Id, type Resultado } from '../src/core/domain/shared/tipos-base.ts';
 import { traducirErrorDeAuth, traducirErrorDeBase } from '../src/infrastructure/supabase/errores.ts';
@@ -45,92 +48,147 @@ const programa = (codigo: string): Programa => {
   assert.ok(p);
   return p;
 };
-const SEDES = ['la-paz', 'el-alto'];
 
 // ---------------------------------------------------------------- solicitudes
 
-const CARRERA: DatosDeSolicitud = {
-  tipo: 'inscripcion',
+const LA_PAZ = 'sede-la-paz' as Id;
+
+function grupo(id: string, cambios: Partial<GrupoDelPortal> = {}): GrupoDelPortal {
+  return {
+    id: id as Id,
+    programaCodigo: 'tortas',
+    programaNombre: 'Tortas',
+    programaTipo: 'curso',
+    sedeId: LA_PAZ,
+    sedeNombre: 'La Paz',
+    nombre: `Grupo ${id}`,
+    gestion: 2026,
+    dias: 'sab',
+    horaInicio: '14:00',
+    horaFin: '17:00',
+    fechaInicio: '2026-11-07',
+    fechaFin: '2027-01-02',
+    inscripcionDesde: '2026-10-01',
+    inscripcionHasta: '2026-11-04',
+    capacidad: 12,
+    libres: 12,
+    precios: [],
+    ...cambios,
+  };
+}
+
+const CARRERA_1 = grupo('c1', {
   programaCodigo: 'gastronomia',
-  sedeCodigo: 'la-paz',
+  programaNombre: 'Gastronomía',
+  programaTipo: 'carrera',
+  anioDeCarrera: 1,
   turno: 'noche',
   dias: 'lun-vie',
-  paquete: 'economico',
-};
+  horaInicio: '18:00',
+  horaFin: '21:00',
+  fechaInicio: '2027-02-01',
+  fechaFin: undefined,
+  nombre: 'Gastronomía · 1.er año · Noche · 2027 · La Paz',
+});
+const CARRERA_2 = grupo('c2', { ...CARRERA_1, id: 'c2' as Id, anioDeCarrera: 2, nombre: 'Gastronomía · 2.º año · Noche · 2027 · La Paz' });
+const TORTAS = grupo('t1');
+const TORTAS_SEMANA = grupo('t2', { dias: 'lun-mie', horaInicio: '19:00', horaFin: '21:00', fechaInicio: '2027-02-08', fechaFin: '2027-04-02' });
+const OFERTA = [CARRERA_1, CARRERA_2, TORTAS, TORTAS_SEMANA];
 
-test('la carrera exige turno, días y paquete; la duración única se fija sola', () => {
-  const ok = validarSolicitud(CARRERA, programa('gastronomia'), SEDES);
+const contexto = (cambios: Partial<ContextoDeSolicitud> = {}): ContextoDeSolicitud => ({
+  programa: programa('gastronomia'),
+  oferta: OFERTA,
+  misGrupos: SIN_GRUPOS,
+  solicitudes: [],
+  ...cambios,
+});
+
+const CARRERA: DatosDeSolicitud = { tipo: 'inscripcion', programaCodigo: 'gastronomia', grupoId: 'c1', paquete: 'economico' };
+const DE_TORTAS: DatosDeSolicitud = { tipo: 'inscripcion', programaCodigo: 'tortas', grupoId: 't1' };
+
+/** Los errores de un resultado fallido, para comparar frases. */
+function errores(resultado: Resultado<unknown, readonly string[]>): readonly string[] {
+  return resultado.exito ? [] : resultado.error;
+}
+
+test('la solicitud pide un grupo en convocatoria y guarda la sede del grupo', () => {
+  const ok = validarSolicitud(CARRERA, contexto());
   assert.ok(ok.exito);
-  assert.equal(ok.valor.duracion, 3, 'la carrera solo dura 3 años: no se pregunta');
-
-  const sinNada = validarSolicitud({ tipo: 'inscripcion', programaCodigo: 'gastronomia', sedeCodigo: 'la-paz' }, programa('gastronomia'), SEDES);
-  assert.equal(sinNada.exito, false);
-  assert.ok(!sinNada.exito && sinNada.error.length === 3, 'turno, días y paquete');
+  assert.deepEqual(ok.valor, {
+    tipo: 'inscripcion',
+    programaCodigo: 'gastronomia',
+    grupoId: 'c1',
+    sedeId: LA_PAZ,
+    paquete: 'economico',
+    gestionAnterior: undefined,
+    mensaje: undefined,
+  });
+  assert.deepEqual(errores(validarSolicitud({ ...CARRERA, grupoId: '  ' }, contexto())), ['Elige un grupo con inscripciones abiertas.']);
+  assert.deepEqual(errores(validarSolicitud({ ...CARRERA, grupoId: 'cerrado' }, contexto())), ['Las inscripciones de ese grupo no están abiertas.']);
 });
 
-test('un curso rechaza turno y paquete que no ofrece, y exige duración entre sus opciones', () => {
-  const tortas = programa('tortas');
-  assert.ok(validarSolicitud({ tipo: 'inscripcion', programaCodigo: 'tortas', sedeCodigo: 'el-alto', dias: 'sab', duracion: 4 }, tortas, SEDES).exito);
-  assert.equal(validarSolicitud({ tipo: 'inscripcion', programaCodigo: 'tortas', sedeCodigo: 'el-alto', dias: 'sab', duracion: 3 }, tortas, SEDES).exito, false);
-  assert.equal(
-    validarSolicitud({ tipo: 'inscripcion', programaCodigo: 'tortas', sedeCodigo: 'el-alto', dias: 'sab', duracion: 2, paquete: 'economico' }, tortas, SEDES).exito,
-    false,
-  );
-  assert.equal(validarSolicitud({ tipo: 'inscripcion', programaCodigo: 'tortas', sedeCodigo: 'el-alto', duracion: 2 }, tortas, SEDES).exito, false);
+test('el grupo tiene que ser del programa pedido', () => {
+  assert.deepEqual(errores(validarSolicitud({ ...CARRERA, grupoId: 't1' }, contexto())), ['El grupo elegido no es de ese programa.']);
 });
 
-test('los datos normalizados solo llevan lo que el programa usa', () => {
-  // Un turno colado en un curso sin turnos hace fallar la validación…
-  const conTurno = validarSolicitud(
-    { tipo: 'inscripcion', programaCodigo: 'cocina', sedeCodigo: 'la-paz', dias: 'jue-vie', duracion: 2, turno: 'noche' },
-    programa('cocina'),
-    SEDES,
-  );
-  assert.ok(conTurno.exito, 'cocina no ofrece turnos: el turno se ignora en vez de rechazar');
-  assert.equal(conTurno.valor.turno, undefined);
-  // …y el mensaje vacío no viaja.
-  const conMensajeVacio = validarSolicitud({ ...CARRERA, mensaje: '   ' }, programa('gastronomia'), SEDES);
-  assert.ok(conMensajeVacio.exito && conMensajeVacio.valor.mensaje === undefined);
+test('por el portal, la carrera empieza en el 1.er año y se renueva al 2.º o al 3.er año', () => {
+  assert.deepEqual(errores(validarSolicitud({ ...CARRERA, grupoId: 'c2' }, contexto())), [
+    'Por el portal, la carrera empieza en el 1.er año. Para pasar de año, pide tu renovación.',
+  ]);
+  const renovarAlPrimero = validarSolicitud({ tipo: 'renovacion', programaCodigo: 'gastronomia', grupoId: 'c1', gestionAnterior: '1.er año' }, contexto());
+  assert.deepEqual(errores(renovarAlPrimero), ['La renovación es para el 2.º o el 3.er año de la carrera.']);
+  const renovar = validarSolicitud({ tipo: 'renovacion', programaCodigo: 'gastronomia', grupoId: 'c2', gestionAnterior: ' 1.er año · gestión 2026 ' }, contexto());
+  assert.ok(renovar.exito, 'la renovación no obliga a elegir paquete');
+  assert.equal(renovar.valor.gestionAnterior, '1.er año · gestión 2026');
 });
 
-test('repostería exige uno de sus turnos (mañana, noche o único)', () => {
-  const base = { tipo: 'inscripcion' as const, programaCodigo: 'reposteria-y-panaderia', sedeCodigo: 'la-paz', dias: 'lun-mie', duracion: 6 };
-  assert.ok(validarSolicitud({ ...base, turno: 'unico' }, programa('reposteria-y-panaderia'), SEDES).exito);
-  assert.equal(validarSolicitud({ ...base, turno: 'tarde' }, programa('reposteria-y-panaderia'), SEDES).exito, false);
+test('la carrera exige el paquete; un curso no lo acepta', () => {
+  assert.deepEqual(errores(validarSolicitud({ ...CARRERA, paquete: undefined }, contexto())), ['Elige el paquete de pago.']);
+  const tortas = contexto({ programa: programa('tortas') });
+  assert.deepEqual(errores(validarSolicitud({ ...DE_TORTAS, paquete: 'economico' }, tortas)), ['Solo la carrera se inscribe por paquete.']);
+  const ok = validarSolicitud(DE_TORTAS, tortas);
+  assert.ok(ok.exito && ok.valor.paquete === undefined && ok.valor.grupoId === 't1');
 });
 
-test('los cursos de temporada piden modalidad y no inventan duración', () => {
-  const temporada = programa('cursos-de-temporada');
-  const ok = validarSolicitud({ tipo: 'inscripcion', programaCodigo: temporada.codigo, sedeCodigo: 'la-paz', modalidad: 'virtual' }, temporada, SEDES);
-  assert.ok(ok.exito);
-  assert.equal(ok.valor.duracion, undefined);
-  assert.equal(validarSolicitud({ tipo: 'inscripcion', programaCodigo: temporada.codigo, sedeCodigo: 'la-paz' }, temporada, SEDES).exito, false);
-});
-
-test('la renovación exige la gestión anterior y la inscripción no la guarda', () => {
-  const sinGestion = validarSolicitud({ ...CARRERA, tipo: 'renovacion' }, programa('gastronomia'), SEDES);
-  assert.equal(sinGestion.exito, false);
-  const conGestion = validarSolicitud({ ...CARRERA, tipo: 'renovacion', gestionAnterior: ' 1.er año ', paquete: undefined }, programa('gastronomia'), SEDES);
-  assert.ok(conGestion.exito, 'la renovación de la carrera no obliga a elegir paquete');
-  assert.equal(conGestion.valor.gestionAnterior, '1.er año');
-  const inscripcion = validarSolicitud({ ...CARRERA, gestionAnterior: 'algo' }, programa('gastronomia'), SEDES);
+test('la renovación es de la carrera y exige la gestión anterior; la inscripción no la guarda', () => {
+  const sinGestion = validarSolicitud({ tipo: 'renovacion', programaCodigo: 'gastronomia', grupoId: 'c2' }, contexto());
+  assert.equal(errores(sinGestion).length, 1);
+  const deUnCurso = validarSolicitud({ ...DE_TORTAS, tipo: 'renovacion', gestionAnterior: '2026' }, contexto({ programa: programa('tortas') }));
+  assert.ok(errores(deUnCurso).includes('La renovación es para la carrera.'));
+  const inscripcion = validarSolicitud({ ...CARRERA, gestionAnterior: 'algo' }, contexto());
   assert.ok(inscripcion.exito && inscripcion.valor.gestionAnterior === undefined);
 });
 
-test('programa inexistente, sede desconocida y mensaje largo se rechazan', () => {
-  assert.equal(validarSolicitud(CARRERA, null, SEDES).exito, false);
-  assert.equal(validarSolicitud({ ...CARRERA, sedeCodigo: 'cochabamba' }, programa('gastronomia'), SEDES).exito, false);
-  assert.equal(validarSolicitud({ ...CARRERA, mensaje: 'x'.repeat(501) }, programa('gastronomia'), SEDES).exito, false);
-  assert.equal(validarSolicitud(CARRERA, { ...programa('gastronomia'), activo: false }, SEDES).exito, false);
+test('programa inexistente o inactivo y mensaje largo se rechazan; el mensaje vacío no viaja', () => {
+  assert.equal(validarSolicitud(CARRERA, contexto({ programa: null })).exito, false);
+  assert.equal(validarSolicitud(CARRERA, contexto({ programa: { ...programa('gastronomia'), activo: false } })).exito, false);
+  assert.equal(validarSolicitud({ ...CARRERA, mensaje: 'x'.repeat(501) }, contexto()).exito, false);
+  const vacio = validarSolicitud({ ...CARRERA, mensaje: '   ' }, contexto());
+  assert.ok(vacio.exito && vacio.valor.mensaje === undefined);
+});
+
+test('lo que cursa y lo que ya pidió se comparan con las frases de la base', () => {
+  const cursaElPrimero: MisGrupos = { inscripciones: [{ inscripcionId: 'i1' as Id, estado: 'inscrito', grupo: CARRERA_1 }], solicitudes: [] };
+  assert.deepEqual(errores(validarSolicitud(CARRERA, contexto({ misGrupos: cursaElPrimero }))), ['Ya estás inscrito en ese grupo.']);
+  const deTortas = validarSolicitud({ ...DE_TORTAS, grupoId: 't2' }, contexto({ programa: programa('tortas'), misGrupos: cursaElPrimero }));
+  assert.deepEqual(errores(deTortas), ['Ese horario se cruza con tu curso «Gastronomía · 1.er año · Noche · 2027 · La Paz».']);
+  assert.ok(validarSolicitud(DE_TORTAS, contexto({ programa: programa('tortas'), misGrupos: cursaElPrimero })).exito, 'los sábados no chocan');
 });
 
 test('no se duplica una solicitud abierta y se respeta el límite de abiertas', () => {
-  const abierta = { programaCodigo: 'gastronomia', tipo: 'inscripcion' as const, estado: 'pendiente' as const };
-  assert.equal(validarSolicitud(CARRERA, programa('gastronomia'), SEDES, [abierta]).exito, false);
+  const abierta = { id: 'a' as Id, programaCodigo: 'gastronomia', tipo: 'inscripcion' as const, estado: 'pendiente' as const };
+  assert.deepEqual(errores(validarSolicitud(CARRERA, contexto({ solicitudes: [abierta] }))), ['Ya tienes una solicitud abierta para este programa.']);
   // Una cancelada no cuenta.
-  assert.ok(validarSolicitud(CARRERA, programa('gastronomia'), SEDES, [{ ...abierta, estado: 'cancelada' }]).exito);
-  const muchas = Array.from({ length: MAXIMO_DE_SOLICITUDES_ABIERTAS }, (_, i) => ({ programaCodigo: `otro-${i}`, tipo: 'inscripcion' as const, estado: 'en_revision' as const }));
-  assert.equal(validarSolicitud(CARRERA, programa('gastronomia'), SEDES, muchas).exito, false);
+  assert.ok(validarSolicitud(CARRERA, contexto({ solicitudes: [{ ...abierta, estado: 'cancelada' }] })).exito);
+  const muchas = Array.from({ length: MAXIMO_DE_SOLICITUDES_ABIERTAS }, (_, i) => ({
+    id: `m${i}` as Id,
+    programaCodigo: `otro-${i}`,
+    tipo: 'inscripcion' as const,
+    estado: 'en_revision' as const,
+  }));
+  assert.deepEqual(errores(validarSolicitud(CARRERA, contexto({ solicitudes: muchas }))), [
+    'Tienes demasiadas solicitudes en curso. Espera la respuesta de la institución.',
+  ]);
 });
 
 test('solo se cancela lo pendiente', () => {
@@ -268,9 +326,12 @@ test('cambiar la clave exige la sesión del enlace y una clave válida', async (
   assert.deepEqual(auth.clavesCambiadas, ['pan de batalla 99']);
 });
 
+
 class PortalEnMemoria implements PortalRepositoryPort {
   solicitudes: Solicitud[] = [];
-  creadas: DatosDeSolicitud[] = [];
+  oferta: GrupoDelPortal[] = [...OFERTA];
+  mios: MisGrupos = SIN_GRUPOS;
+  creadas: SolicitudValidada[] = [];
   canceladas: Id[] = [];
   perfil: PerfilDelPortal | null = { id: 'u1' as Id, rol: 'estudiante', nombres: 'Ana', apellidos: 'Quispe', correo: 'ana@correo.bo' };
   async miPerfil() {
@@ -279,7 +340,13 @@ class PortalEnMemoria implements PortalRepositoryPort {
   async misSolicitudes() {
     return exito(this.solicitudes);
   }
-  async crearSolicitud(datos: DatosDeSolicitud) {
+  async ofertaAbierta() {
+    return exito(this.oferta);
+  }
+  async misGrupos() {
+    return exito(this.mios);
+  }
+  async crearSolicitud(datos: SolicitudValidada) {
     this.creadas.push(datos);
     return exito(`s${this.creadas.length}` as Id);
   }
@@ -289,16 +356,29 @@ class PortalEnMemoria implements PortalRepositoryPort {
   }
 }
 
-test('crear una solicitud valida contra el catálogo antes de escribir', async () => {
+test('crear una solicitud valida contra la oferta abierta antes de escribir', async () => {
   const catalogo = new CatalogoEstaticoRepository();
   const portal = new PortalEnMemoria();
-  const mala = await crearSolicitud(catalogo, portal, { ...CARRERA, turno: 'unico' });
-  assert.equal(mala.exito, false);
+  portal.oferta = [CARRERA_2, TORTAS];
+  const cerrada = await crearSolicitud(catalogo, portal, CARRERA);
+  assert.deepEqual(cerrada, { exito: false, error: ['Las inscripciones de ese grupo no están abiertas.'] });
   assert.equal(portal.creadas.length, 0);
 
+  portal.oferta = [...OFERTA];
   const buena = await crearSolicitud(catalogo, portal, CARRERA);
   assert.ok(buena.exito);
-  assert.equal(portal.creadas[0]?.duracion, 3);
+  assert.equal(portal.creadas[0]?.grupoId, 'c1');
+  assert.equal(portal.creadas[0]?.sedeId, LA_PAZ, 'la sede sale del grupo');
+});
+
+test('cada página del portal ofrece sus grupos: cursos y 1.er año, o 2.º y 3.er año', async () => {
+  const portal = new PortalEnMemoria();
+  const inscripcion = await obtenerConvocatoria(portal, 'inscripcion');
+  assert.ok(inscripcion.exito);
+  assert.deepEqual(inscripcion.valor.grupos.map((g) => g.id), ['c1', 't1', 't2']);
+  const renovacion = await obtenerConvocatoria(portal, 'renovacion');
+  assert.ok(renovacion.exito);
+  assert.deepEqual(renovacion.valor.grupos.map((g) => g.id), ['c2']);
 });
 
 test('cancelar solo lo propio y pendiente', async () => {
@@ -319,9 +399,12 @@ test('cancelar solo lo propio y pendiente', async () => {
   assert.deepEqual(portal.canceladas, ['a']);
 });
 
-test('el panel exige perfil', async () => {
+test('el panel exige perfil y trae los cursos de la persona', async () => {
   const portal = new PortalEnMemoria();
-  assert.ok((await obtenerPanel(portal)).exito);
+  portal.mios = { inscripciones: [{ inscripcionId: 'i1' as Id, estado: 'inscrito', grupo: CARRERA_1 }], solicitudes: [] };
+  const panel = await obtenerPanel(portal);
+  assert.ok(panel.exito);
+  assert.equal(panel.valor.misGrupos.inscripciones.length, 1);
   portal.perfil = null;
   assert.equal((await obtenerPanel(portal)).exito, false);
 });

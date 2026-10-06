@@ -15,7 +15,7 @@ import { admiteInscripciones, ETIQUETA_DE_MODALIDAD, ETIQUETA_DE_TURNO, etiqueta
 import { tienePermiso } from '@core/domain/identidad/contexto-de-panel';
 import type { Id } from '@core/domain/shared/tipos-base';
 import { alumnosRepository } from '@infra/config/composition-root';
-import { formatearFecha } from '@/lib/fechas';
+import { diaEnBolivia, formatearDia, formatearFecha } from '@/lib/fechas';
 import { RUTAS_ALUMNOS, rutaDeAlumno, rutaDeGrupo } from '@/lib/rutas';
 import { Aviso } from '@/presentation/formularios/Campos';
 import { Icono } from '@/presentation/icons/Icono';
@@ -24,7 +24,7 @@ import { BarraDeCupos, Confirmacion, Dato, Desplegable, EncabezadoDePanel, Inici
 import { exigirPermiso, exigirPersonal } from '../../../_sesion';
 import { cerrarGrupoAccion } from '../../actions';
 import { generarCuotasAccion } from '../../../caja/actions';
-import { ChipDeGrupo, ChipDeInscripcion, ETIQUETA_DE_PAQUETE, parametro, PrecioDelGrupo, type Parametros } from '../../_componentes';
+import { ChipDeConvocatoria, ChipDeGrupo, ChipDeInscripcion, ETIQUETA_DE_PAQUETE, parametro, PrecioDelGrupo, type Parametros } from '../../_componentes';
 
 export const metadata: Metadata = { title: 'Grupo' };
 
@@ -87,7 +87,12 @@ export default async function FichaDelGrupo({ params, searchParams }: { readonly
 
       <EncabezadoDePanel
         titulo={g.nombre}
-        descripcion={<ChipDeGrupo estado={g.estado} />}
+        descripcion={
+          <span className="flex flex-wrap items-center gap-2">
+            <ChipDeGrupo estado={g.estado} />
+            <ChipDeConvocatoria grupo={g} hoy={diaEnBolivia(new Date())} />
+          </span>
+        }
         acciones={
           puedeInscribir ? (
             <Link href={`${RUTAS_ALUMNOS.inscribir}?grupo=${g.id}`} className="inline-flex min-h-12 items-center gap-2 rounded-md bg-accion px-5 font-bold text-sobre-accion hover:bg-accion-fuerte">
@@ -108,6 +113,12 @@ export default async function FichaDelGrupo({ params, searchParams }: { readonly
           {g.dias ? <Dato etiqueta="Días">{etiquetaCortaDeDias(g.dias)}</Dato> : null}
           {g.modalidad ? <Dato etiqueta="Modalidad">{ETIQUETA_DE_MODALIDAD[g.modalidad]}</Dato> : null}
           <Dato etiqueta="Gestión">{g.gestion}</Dato>
+          <Dato etiqueta="Horario">{g.horaInicio && g.horaFin ? `${g.horaInicio}–${g.horaFin}` : 'Sin horario'}</Dato>
+          <Dato etiqueta="Inscripciones por el portal">
+            {g.inscripcionDesde && g.inscripcionHasta
+              ? `Del ${formatearDia(g.inscripcionDesde)} al ${formatearDia(g.inscripcionHasta)}`
+              : 'Sin plazo: solo en persona'}
+          </Dato>
         </dl>
         <div className="grid content-start gap-4">
           <div>

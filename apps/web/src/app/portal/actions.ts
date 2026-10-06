@@ -24,7 +24,6 @@ import {
   solicitarRecuperacion as casoSolicitarRecuperacion,
 } from '@core/application/portal/acceso.usecase';
 import { cancelarSolicitud as casoCancelarSolicitud, crearSolicitud as casoCrearSolicitud } from '@core/application/portal/solicitudes.usecase';
-import type { Modalidad, Turno } from '@core/domain/academico/programa';
 import type { Paquete } from '@core/domain/estudiantes/estudiante';
 import type { TipoDeSolicitud } from '@core/domain/portal/solicitud';
 import type { Id } from '@core/domain/shared/tipos-base';
@@ -115,41 +114,34 @@ async function usuarioDeLaSesion() {
 }
 
 export async function crearSolicitud(_previo: EstadoDeFormulario, datos: FormData): Promise<EstadoDeFormulario> {
+  const renovacion = campo(datos, 'tipo') === 'renovacion';
   const usuario = await usuarioDeLaSesion();
-  if (!usuario) redirect(`${RUTAS.acceso}?siguiente=${encodeURIComponent(RUTAS.solicitud)}`);
+  if (!usuario) redirect(`${RUTAS.acceso}?siguiente=${encodeURIComponent(renovacion ? RUTAS.renovacion : RUTAS.solicitud)}`);
 
   const valores = {
-    tipo: campo(datos, 'tipo'),
+    tipo: renovacion ? 'renovacion' : 'inscripcion',
     programa: campo(datos, 'programa'),
-    sede: campo(datos, 'sede'),
-    turno: campo(datos, 'turno'),
-    dias: campo(datos, 'dias'),
-    duracion: campo(datos, 'duracion'),
-    modalidad: campo(datos, 'modalidad'),
+    grupo: campo(datos, 'grupo'),
     paquete: campo(datos, 'paquete'),
     gestionAnterior: campo(datos, 'gestionAnterior'),
     mensaje: campo(datos, 'mensaje'),
   };
-  const duracion = valores.duracion ? Number.parseInt(valores.duracion, 10) : undefined;
 
+  // El grupo es lo único que se elige (ADR 0009): el dominio comprueba que
+  // esté en la oferta abierta de hoy y que no se cruce con lo de la persona.
   const resultado = await casoCrearSolicitud(catalogoAcademico(), await portalRepository(usuario.id), {
-    tipo: (valores.tipo === 'renovacion' ? 'renovacion' : 'inscripcion') satisfies TipoDeSolicitud,
+    tipo: (renovacion ? 'renovacion' : 'inscripcion') satisfies TipoDeSolicitud,
     programaCodigo: valores.programa,
-    sedeCodigo: valores.sede,
-    turno: (valores.turno || undefined) as Turno | undefined,
-    dias: valores.dias || undefined,
-    duracion: Number.isFinite(duracion) ? duracion : undefined,
-    modalidad: (valores.modalidad || undefined) as Modalidad | undefined,
+    grupoId: valores.grupo,
     paquete: (valores.paquete || undefined) as Paquete | undefined,
     gestionAnterior: valores.gestionAnterior || undefined,
     mensaje: valores.mensaje || undefined,
   });
-  // Los valores sin validar se convierten arriba solo para tiparlos: el
-  // dominio los contrasta con las opciones reales del programa y rechaza lo
-  // que no esté entre ellas.
+  // El paquete sin validar se convierte arriba solo para tiparlo: el dominio
+  // lo contrasta con los paquetes reales y rechaza lo que no esté entre ellos.
 
   if (!resultado.exito) return { estado: 'error', mensaje: resultado.error.join(' '), valores };
-  redirect(`${RUTAS.portal}?enviada=${valores.tipo === 'renovacion' ? 'renovacion' : 'inscripcion'}`);
+  redirect(`${RUTAS.portal}?enviada=${valores.tipo}`);
 }
 
 export async function cancelarSolicitud(datos: FormData): Promise<void> {

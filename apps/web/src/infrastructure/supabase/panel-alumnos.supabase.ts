@@ -62,6 +62,11 @@ function grupoDesdeVista(f: Fila<'v_grupos'>, precios: readonly PrecioDeGrupo[] 
     modalidad: (f.modalidad ?? null) as Modalidad | null,
     fechaInicio: (f.fecha_inicio ?? '') as FechaISO,
     fechaFin: (f.fecha_fin ?? null) as FechaISO | null,
+    // `time` llega como «18:00:00»: se muestra y se edita como «18:00».
+    horaInicio: f.hora_inicio ? f.hora_inicio.slice(0, 5) : null,
+    horaFin: f.hora_fin ? f.hora_fin.slice(0, 5) : null,
+    inscripcionDesde: (f.inscripcion_desde ?? null) as FechaISO | null,
+    inscripcionHasta: (f.inscripcion_hasta ?? null) as FechaISO | null,
     capacidad: f.capacidad,
     estado: (f.estado ?? 'planificado') as EstadoDeCohorte,
     nombre: f.nombre ?? '',
@@ -105,6 +110,7 @@ interface SolicitudCruda {
   readonly tipo: 'inscripcion' | 'renovacion';
   readonly programa_codigo: string;
   readonly sede_id: string;
+  readonly cohorte_id: string | null;
   readonly turno: string | null;
   readonly dias: string | null;
   readonly duracion: number | null;
@@ -127,7 +133,7 @@ interface SolicitudCruda {
 }
 
 const COLUMNAS_DE_SOLICITUD =
-  'id, tipo, programa_codigo, sede_id, turno, dias, duracion, modalidad, paquete, gestion_anterior, mensaje, estado, respuesta, created_at, estudiante_id, sedes(nombre), perfiles!solicitudes_estudiante_id_fkey(nombres, apellidos, correo, telefono, documento)';
+  'id, tipo, programa_codigo, sede_id, cohorte_id, turno, dias, duracion, modalidad, paquete, gestion_anterior, mensaje, estado, respuesta, created_at, estudiante_id, sedes(nombre), perfiles!solicitudes_estudiante_id_fkey(nombres, apellidos, correo, telefono, documento)';
 
 export class PanelAlumnosSupabase implements AlumnosPort {
   private readonly cliente: SupabaseClient<Database>;
@@ -425,6 +431,10 @@ export class PanelAlumnosSupabase implements AlumnosPort {
         modalidad: datos.modalidad ?? null,
         fecha_inicio: datos.fechaInicio,
         fecha_fin: datos.fechaFin ?? null,
+        hora_inicio: datos.horaInicio ?? null,
+        hora_fin: datos.horaFin ?? null,
+        inscripcion_desde: datos.inscripcionDesde ?? null,
+        inscripcion_hasta: datos.inscripcionHasta ?? null,
         capacidad: datos.capacidad ?? null,
         estado: datos.estado,
       })
@@ -446,6 +456,10 @@ export class PanelAlumnosSupabase implements AlumnosPort {
         modalidad: datos.modalidad ?? null,
         fecha_inicio: datos.fechaInicio,
         fecha_fin: datos.fechaFin ?? null,
+        hora_inicio: datos.horaInicio ?? null,
+        hora_fin: datos.horaFin ?? null,
+        inscripcion_desde: datos.inscripcionDesde ?? null,
+        inscripcion_hasta: datos.inscripcionHasta ?? null,
         capacidad: datos.capacidad ?? null,
         estado: datos.estado,
       })
@@ -554,6 +568,7 @@ export class PanelAlumnosSupabase implements AlumnosPort {
         programaCodigo: s.programa_codigo,
         sedeId: s.sede_id as Id,
         sedeNombre: s.sedes?.nombre ?? '',
+        grupoId: (s.cohorte_id ?? null) as Id | null,
         turno: s.turno,
         dias: s.dias,
         duracion: s.duracion,

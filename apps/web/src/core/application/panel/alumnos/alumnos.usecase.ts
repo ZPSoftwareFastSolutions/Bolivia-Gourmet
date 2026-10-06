@@ -120,6 +120,10 @@ export function validarGrupo(programa: Programa | null, datos: DatosDeGrupo): Re
     modalidad: datos.modalidad,
     capacidad: datos.capacidad,
     estado: datos.estado,
+    horaInicio: datos.horaInicio,
+    horaFin: datos.horaFin,
+    inscripcionDesde: datos.inscripcionDesde as FechaISO | undefined,
+    inscripcionHasta: datos.inscripcionHasta as FechaISO | undefined,
   });
   return validacion.exito ? exito(true) : validacion;
 }

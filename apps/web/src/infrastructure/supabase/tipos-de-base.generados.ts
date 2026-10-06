@@ -401,7 +401,11 @@ export type Database = {
           fecha_fin: string | null;
           fecha_inicio: string;
           gestion: number;
+          hora_fin: string | null;
+          hora_inicio: string | null;
           id: string;
+          inscripcion_desde: string | null;
+          inscripcion_hasta: string | null;
           modalidad: string | null;
           programa_codigo: string;
           registrado_por: string;
@@ -419,7 +423,11 @@ export type Database = {
           fecha_fin?: string | null;
           fecha_inicio: string;
           gestion: number;
+          hora_fin?: string | null;
+          hora_inicio?: string | null;
           id?: string;
+          inscripcion_desde?: string | null;
+          inscripcion_hasta?: string | null;
           modalidad?: string | null;
           programa_codigo: string;
           registrado_por?: string;
@@ -437,7 +445,11 @@ export type Database = {
           fecha_fin?: string | null;
           fecha_inicio?: string;
           gestion?: number;
+          hora_fin?: string | null;
+          hora_inicio?: string | null;
           id?: string;
+          inscripcion_desde?: string | null;
+          inscripcion_hasta?: string | null;
           modalidad?: string | null;
           programa_codigo?: string;
           registrado_por?: string;
@@ -2388,6 +2400,7 @@ export type Database = {
       };
       solicitudes: {
         Row: {
+          cohorte_id: string | null;
           created_at: string;
           dias: string | null;
           duracion: number | null;
@@ -2408,6 +2421,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          cohorte_id?: string | null;
           created_at?: string;
           dias?: string | null;
           duracion?: number | null;
@@ -2428,6 +2442,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          cohorte_id?: string | null;
           created_at?: string;
           dias?: string | null;
           duracion?: number | null;
@@ -2448,6 +2463,20 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'solicitudes_cohorte_id_fkey';
+            columns: ['cohorte_id'];
+            isOneToOne: false;
+            referencedRelation: 'cohortes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'solicitudes_cohorte_id_fkey';
+            columns: ['cohorte_id'];
+            isOneToOne: false;
+            referencedRelation: 'v_grupos';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'solicitudes_estudiante_id_fkey';
             columns: ['estudiante_id'];
@@ -2813,7 +2842,11 @@ export type Database = {
           fecha_fin: string | null;
           fecha_inicio: string | null;
           gestion: number | null;
+          hora_fin: string | null;
+          hora_inicio: string | null;
           id: string | null;
+          inscripcion_desde: string | null;
+          inscripcion_hasta: string | null;
           inscritos: number | null;
           modalidad: string | null;
           nombre: string | null;
@@ -3702,6 +3735,8 @@ export type Database = {
         Returns: Json;
       };
       mi_contexto: { Args: never; Returns: Json };
+      mis_grupos: { Args: never; Returns: Json };
+      oferta_abierta: { Args: never; Returns: Json };
       prestar_utensilios: {
         Args: {
           p_clave: string;

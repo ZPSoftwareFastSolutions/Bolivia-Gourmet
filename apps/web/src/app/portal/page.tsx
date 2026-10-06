@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { obtenerPanel } from '@core/application/portal/solicitudes.usecase';
 import { esPersonal, ETIQUETA_DE_ROL } from '@core/domain/identidad/rol';
+import { cursosVigentes } from '@core/domain/portal/convocatoria';
 import { saludoDelMomento } from '@core/domain/portal/saludo';
 import { estaAbierta } from '@core/domain/portal/solicitud';
 import { catalogoAcademico, portalRepository } from '@infra/config/composition-root';
@@ -23,6 +24,7 @@ import { EnlaceBoton } from '@ui/Boton';
 import { Etiqueta } from '@ui/Marca';
 import { cerrarSesion } from './actions';
 import { AvisoIndisponible } from './_componentes/Marco';
+import { MiHorario, TarjetaDeCurso } from './_componentes/MisCursos';
 import { TarjetaDePago, TarjetaDeSolicitud } from './_componentes/Panel';
 import { exigirSesion } from './_sesion';
 
@@ -62,13 +64,15 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
     );
   }
 
-  const { perfil, solicitudes } = panel.valor;
+  const { perfil, solicitudes, misGrupos } = panel.valor;
   // El personal trabaja en el panel interno. `?panel=no` lo pone el propio panel
   // cuando la cuenta no puede entrar (desactivada o sin permiso): sin esa marca
   // se formaría un bucle de redirecciones entre /portal y /panel.
   const sinPanel = parametros.panel === 'no';
   if (esPersonal(perfil.rol) && !sinPanel) redirect(RUTAS.panel);
   const abiertas = solicitudes.filter(estaAbierta).length;
+  const vigentes = cursosVigentes(misGrupos);
+  const grupoDeSolicitud = new Map(misGrupos.solicitudes.map((s) => [s.solicitudId, s.grupo]));
   const carrera = programas.find((p) => p.tipo === 'carrera') ?? null;
   const ahora = new Date();
   const saludo = saludoDelMomento(horaEnBolivia(ahora), diaEnBolivia(ahora));
@@ -116,6 +120,22 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
         </Aviso>
       ) : null}
 
+      {vigentes.length > 0 ? (
+        <section aria-labelledby="mis-cursos" className="grid gap-6">
+          <h2 id="mis-cursos" className="t-display text-4xl text-estructural">
+            Mis cursos
+          </h2>
+          <ul className="grid gap-4 lg:grid-cols-2">
+            {vigentes.map((i) => (
+              <li key={i.inscripcionId}>
+                <TarjetaDeCurso inscripcion={i} />
+              </li>
+            ))}
+          </ul>
+          <MiHorario cursos={vigentes} />
+        </section>
+      ) : null}
+
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <section aria-labelledby="mis-solicitudes">
           <div className="flex flex-wrap items-end justify-between gap-4">
@@ -137,7 +157,7 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
                 <Icono nombre="gorro" tamano={28} />
               </span>
               <p className="mt-4 text-lg font-bold text-tinta">Aún no enviaste ninguna solicitud</p>
-              <p className="mt-1 text-tinta-suave">Elige la carrera o un curso y te contactamos para completar tu inscripción.</p>
+              <p className="mt-1 text-tinta-suave">Elige un curso o la carrera con inscripciones abiertas y te contactamos para completar tu inscripción.</p>
               <EnlaceBoton href={RUTAS.solicitud} className="mt-5" icono="flecha" iconoAlFinal>
                 Solicitar inscripción
               </EnlaceBoton>
@@ -146,7 +166,7 @@ export default async function Panel({ searchParams }: { readonly searchParams: P
             <ul className="mt-6 grid gap-4">
               {solicitudes.map((s) => (
                 <li key={s.id}>
-                  <TarjetaDeSolicitud solicitud={s} programa={programas.find((p) => p.codigo === s.programaCodigo)} />
+                  <TarjetaDeSolicitud solicitud={s} programa={programas.find((p) => p.codigo === s.programaCodigo)} grupo={grupoDeSolicitud.get(s.id)} />
                 </li>
               ))}
             </ul>

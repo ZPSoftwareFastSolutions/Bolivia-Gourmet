@@ -23,6 +23,7 @@ import {
   nombreDeGrupo,
   ordinal,
   validarCohorte,
+  convocatoriaDelGrupo,
   validarPlanDePago,
   validarPrograma,
   type DatosDeCohorte,
@@ -430,4 +431,50 @@ test('B.7: con «desde» no se generan las cuotas que vencen antes, y se conserv
   // «Antes de» es estricto: la que vence el mismo día de la puesta en marcha sí se genera.
   assert.equal(generarCuotas(plan, '2026-08-01' as FechaISO, '2026-09-05' as FechaISO).length, 2);
   assert.equal(generarCuotas(plan, '2026-08-01' as FechaISO, '2027-01-01' as FechaISO).length, 0);
+});
+
+// ---------------------------------------------------------------- horario y convocatoria (ADR 0009)
+
+test('el horario del grupo: las dos horas o ninguna, y la de fin después de la de inicio', () => {
+  const tortas = porCodigo('tortas');
+  assert.ok(validarCohorte(tortas, { ...COHORTE_TORTAS, horaInicio: '14:00', horaFin: '17:00' }).exito);
+  const errores = (cambios: Partial<DatosDeCohorte>) => {
+    const r = validarCohorte(tortas, { ...COHORTE_TORTAS, ...cambios });
+    return r.exito ? [] : r.error;
+  };
+  assert.deepEqual(errores({ horaInicio: '14:00' }), ['Indica la hora de inicio y la de fin, o deja las dos vacías.']);
+  assert.deepEqual(errores({ horaInicio: '17:00', horaFin: '14:00' }), ['La hora de fin debe ser posterior a la de inicio.']);
+  assert.deepEqual(errores({ horaInicio: '25:00', horaFin: '26:00' }), ['Escribe las horas como 18:00.']);
+});
+
+test('el plazo de inscripción por el portal: las dos fechas, en orden y con horario', () => {
+  const tortas = porCodigo('tortas');
+  const conHorario = { ...COHORTE_TORTAS, horaInicio: '14:00', horaFin: '17:00' };
+  const plazo = { inscripcionDesde: '2026-10-01' as FechaISO, inscripcionHasta: '2026-11-04' as FechaISO };
+  assert.ok(validarCohorte(tortas, { ...conHorario, ...plazo }).exito);
+  const errores = (datos: DatosDeCohorte) => {
+    const r = validarCohorte(tortas, datos);
+    return r.exito ? [] : r.error;
+  };
+  assert.deepEqual(errores({ ...COHORTE_TORTAS, ...plazo }), ['Para abrir inscripciones por el portal, el grupo necesita su horario.']);
+  assert.deepEqual(errores({ ...conHorario, inscripcionDesde: plazo.inscripcionDesde }), [
+    'Indica desde y hasta cuándo se inscribe por el portal, o deja las dos fechas vacías.',
+  ]);
+  assert.deepEqual(errores({ ...conHorario, inscripcionDesde: plazo.inscripcionHasta, inscripcionHasta: plazo.inscripcionDesde }), [
+    'El plazo de inscripción termina antes de empezar.',
+  ]);
+});
+
+test('la convocatoria del grupo: abierta solo en el plazo, abierto o en curso y con cupos', () => {
+  const base = { estado: 'abierto' as const, inscripcionDesde: '2026-10-01', inscripcionHasta: '2026-11-04', capacidad: 12, inscritos: 3 };
+  assert.equal(convocatoriaDelGrupo(base, '2026-10-06'), 'abierta');
+  assert.equal(convocatoriaDelGrupo(base, '2026-11-04'), 'abierta', 'el último día todavía se pide');
+  assert.equal(convocatoriaDelGrupo(base, '2026-11-05'), 'cerrada');
+  assert.equal(convocatoriaDelGrupo(base, '2026-09-30'), 'por_abrir');
+  assert.equal(convocatoriaDelGrupo({ ...base, estado: 'planificado' }, '2026-10-06'), 'por_abrir', 'hay que abrir el grupo');
+  assert.equal(convocatoriaDelGrupo({ ...base, estado: 'en_curso' }, '2026-10-06'), 'abierta');
+  assert.equal(convocatoriaDelGrupo({ ...base, estado: 'cerrado' }, '2026-10-06'), 'cerrada');
+  assert.equal(convocatoriaDelGrupo({ ...base, inscritos: 12 }, '2026-10-06'), 'llena');
+  assert.equal(convocatoriaDelGrupo({ ...base, capacidad: null, inscritos: 99 }, '2026-10-06'), 'abierta', 'sin límite de cupos');
+  assert.equal(convocatoriaDelGrupo({ ...base, inscripcionDesde: null, inscripcionHasta: null }, '2026-10-06'), 'sin_plazo');
 });

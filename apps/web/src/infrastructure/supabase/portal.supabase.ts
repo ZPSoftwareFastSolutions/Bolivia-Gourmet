@@ -13,9 +13,11 @@ import type { PerfilDelPortal, PortalRepositoryPort } from '@core/application/po
 import type { Modalidad, Turno } from '@core/domain/academico/programa';
 import type { Paquete } from '@core/domain/estudiantes/estudiante';
 import { esRol } from '@core/domain/identidad/rol';
-import type { DatosDeSolicitud, EstadoDeSolicitud, Solicitud, TipoDeSolicitud } from '@core/domain/portal/solicitud';
+import type { GrupoDelPortal, MisGrupos } from '@core/domain/portal/convocatoria';
+import type { EstadoDeSolicitud, Solicitud, SolicitudValidada, TipoDeSolicitud } from '@core/domain/portal/solicitud';
 import { exito, fallo, type Id, type Resultado } from '@core/domain/shared/tipos-base';
 import type { ClienteSupabase } from './cliente-servidor';
+import { gruposDesdeBase, misGruposDesdeBase } from './convocatoria-desde-base';
 import { traducirErrorDeBase } from './errores';
 
 const TURNOS: readonly string[] = ['manana', 'tarde', 'noche', 'especial', 'unico'];
@@ -61,7 +63,7 @@ export class PortalSupabase implements PortalRepositoryPort {
     const { data, error } = await this.cliente
       .from('solicitudes')
       .select(
-        'id, tipo, programa_codigo, turno, dias, duracion, modalidad, paquete, gestion_anterior, mensaje, estado, respuesta, created_at, programa:programas(nombre), sede:sedes(nombre)',
+        'id, tipo, programa_codigo, cohorte_id, turno, dias, duracion, modalidad, paquete, gestion_anterior, mensaje, estado, respuesta, created_at, programa:programas(nombre), sede:sedes(nombre)',
       )
       .eq('estudiante_id', this.usuarioId)
       .order('created_at', { ascending: false })
@@ -75,6 +77,7 @@ export class PortalSupabase implements PortalRepositoryPort {
         programaCodigo: fila.programa_codigo,
         programaNombre: nombreEmbebido(fila.programa),
         sedeNombre: nombreEmbebido(fila.sede),
+        grupoId: (fila.cohorte_id as Id | null) ?? undefined,
         turno: fila.turno && TURNOS.includes(fila.turno) ? (fila.turno as Turno) : undefined,
         dias: fila.dias ?? undefined,
         duracion: fila.duracion ?? undefined,
@@ -89,22 +92,29 @@ export class PortalSupabase implements PortalRepositoryPort {
     );
   }
 
-  async crearSolicitud(datos: DatosDeSolicitud): Promise<Resultado<Id>> {
-    const sede = await this.cliente.from('sedes').select('id').eq('codigo', datos.sedeCodigo).maybeSingle();
-    if (sede.error) return fallo(traducirErrorDeBase(sede.error));
-    if (!sede.data) return fallo('La sede elegida no está disponible.');
+  async ofertaAbierta(): Promise<Resultado<readonly GrupoDelPortal[]>> {
+    const { data, error } = await this.cliente.rpc('oferta_abierta');
+    if (error) return fallo(traducirErrorDeBase(error));
+    return exito(gruposDesdeBase(data));
+  }
 
+  async misGrupos(): Promise<Resultado<MisGrupos>> {
+    const { data, error } = await this.cliente.rpc('mis_grupos');
+    if (error) return fallo(traducirErrorDeBase(error));
+    return exito(misGruposDesdeBase(data));
+  }
+
+  async crearSolicitud(datos: SolicitudValidada): Promise<Resultado<Id>> {
     // Ni el autor ni el estado viajan: los fija la base (grants por columna).
+    // La sede, el turno, los días, la duración y la modalidad los copia la
+    // base del grupo (ADR 0009): lo que mande el navegador no cuenta.
     const { data, error } = await this.cliente
       .from('solicitudes')
       .insert({
         tipo: datos.tipo,
         programa_codigo: datos.programaCodigo,
-        sede_id: sede.data.id,
-        turno: datos.turno ?? null,
-        dias: datos.dias ?? null,
-        duracion: datos.duracion ?? null,
-        modalidad: datos.modalidad ?? null,
+        sede_id: datos.sedeId,
+        cohorte_id: datos.grupoId,
         paquete: datos.paquete ?? null,
         gestion_anterior: datos.gestionAnterior ?? null,
         mensaje: datos.mensaje ?? null,

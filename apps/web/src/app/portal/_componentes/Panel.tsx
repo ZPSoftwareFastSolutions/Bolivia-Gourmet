@@ -18,12 +18,14 @@ import {
   type EstadoDeSolicitud,
   type Solicitud,
 } from '@core/domain/portal/solicitud';
+import type { GrupoDelPortal } from '@core/domain/portal/convocatoria';
 import { esPendiente } from '@core/domain/shared/tipos-base';
 import { formatearFechaYHora } from '@/lib/fechas';
 import { Icono } from '@/presentation/icons/Icono';
 import { BotonEnviar } from '@/presentation/formularios/Interactivos';
 import { Etiqueta } from '@ui/Marca';
 import { cancelarSolicitud } from '../actions';
+import { fechasDeGrupo, horarioDeGrupo } from './grupos';
 
 const TONO_DE_ESTADO: Record<EstadoDeSolicitud, 'amarillo' | 'azul' | 'exito' | 'peligro' | 'neutro'> = {
   pendiente: 'amarillo',
@@ -33,7 +35,17 @@ const TONO_DE_ESTADO: Record<EstadoDeSolicitud, 'amarillo' | 'azul' | 'exito' | 
   cancelada: 'neutro',
 };
 
-function detalles(solicitud: Solicitud, programa: Programa | undefined): readonly string[] {
+function detalles(solicitud: Solicitud, programa: Programa | undefined, grupo: GrupoDelPortal | undefined): readonly string[] {
+  // Con grupo (ADR 0009), el grupo dice dónde, cuándo y a qué hora.
+  if (grupo) {
+    return [
+      `Sede ${grupo.sedeNombre}`,
+      horarioDeGrupo(grupo),
+      fechasDeGrupo(grupo),
+      ...(solicitud.paquete ? [ETIQUETA_DE_PAQUETE[solicitud.paquete]] : []),
+      ...(solicitud.gestionAnterior ? [`Viene de: ${solicitud.gestionAnterior}`] : []),
+    ];
+  }
   const lista: string[] = [`Sede ${solicitud.sedeNombre}`];
   if (solicitud.turno) lista.push(`Turno ${ETIQUETA_DE_TURNO[solicitud.turno].toLowerCase()}`);
   if (solicitud.dias) {
@@ -50,19 +62,29 @@ function detalles(solicitud: Solicitud, programa: Programa | undefined): readonl
   return lista;
 }
 
-export function TarjetaDeSolicitud({ solicitud, programa }: { readonly solicitud: Solicitud; readonly programa: Programa | undefined }) {
+export function TarjetaDeSolicitud({
+  solicitud,
+  programa,
+  grupo,
+}: {
+  readonly solicitud: Solicitud;
+  readonly programa: Programa | undefined;
+  /** El grupo pedido; las solicitudes de antes de las convocatorias no lo tienen. */
+  readonly grupo?: GrupoDelPortal;
+}) {
   return (
     <article className="rounded-[var(--t-radio-lg)] border border-linea bg-tarjeta p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="t-etiqueta">{ETIQUETA_DE_TIPO_DE_SOLICITUD[solicitud.tipo]}</p>
           <h3 className="t-display mt-1 text-3xl text-estructural">{solicitud.programaNombre}</h3>
+          {grupo ? <p className="text-sm font-semibold text-tinta">{grupo.nombre}</p> : null}
         </div>
         <Etiqueta tono={TONO_DE_ESTADO[solicitud.estado]}>{ETIQUETA_DE_ESTADO[solicitud.estado]}</Etiqueta>
       </div>
       <p className="mt-3 text-tinta">{EXPLICACION_DE_ESTADO[solicitud.estado]}</p>
       <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-tinta-suave">
-        {detalles(solicitud, programa).map((d) => (
+        {detalles(solicitud, programa, grupo).map((d) => (
           <li key={d} className="flex items-center gap-1.5">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-accion-fuerte" />
             {d}

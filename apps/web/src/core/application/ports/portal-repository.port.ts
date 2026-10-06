@@ -8,7 +8,8 @@
  */
 
 import type { Rol } from '../../domain/identidad/rol';
-import type { DatosDeSolicitud, Solicitud } from '../../domain/portal/solicitud';
+import type { GrupoDelPortal, MisGrupos } from '../../domain/portal/convocatoria';
+import type { Solicitud, SolicitudValidada } from '../../domain/portal/solicitud';
 import type { Id, Resultado } from '../../domain/shared/tipos-base';
 
 export interface PerfilDelPortal {
@@ -26,6 +27,10 @@ export interface PortalRepositoryPort {
   miPerfil(): Promise<Resultado<PerfilDelPortal | null>>;
   /** Las del estudiante de la sesión, más recientes primero. */
   misSolicitudes(): Promise<Resultado<readonly Solicitud[]>>;
-  crearSolicitud(datos: DatosDeSolicitud): Promise<Resultado<Id>>;
+  /** Los grupos con inscripciones abiertas hoy (ADR 0009). */
+  ofertaAbierta(): Promise<Resultado<readonly GrupoDelPortal[]>>;
+  /** Sus inscripciones vigentes y concluidas, y el grupo de cada solicitud que nombra uno. */
+  misGrupos(): Promise<Resultado<MisGrupos>>;
+  crearSolicitud(datos: SolicitudValidada): Promise<Resultado<Id>>;
   cancelarSolicitud(id: Id): Promise<Resultado<void>>;
 }

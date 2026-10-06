@@ -69,6 +69,10 @@ export default async function EditarGrupo({ params }: { readonly params: Promise
               modalidad: g.modalidad,
               fechaInicio: g.fechaInicio,
               fechaFin: g.fechaFin,
+              horaInicio: g.horaInicio,
+              horaFin: g.horaFin,
+              inscripcionDesde: g.inscripcionDesde,
+              inscripcionHasta: g.inscripcionHasta,
               capacidad: g.capacidad,
               estado: g.estado,
             }}

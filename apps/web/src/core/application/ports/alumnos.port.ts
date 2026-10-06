@@ -102,6 +102,12 @@ export interface GrupoEnLista {
   readonly modalidad: Modalidad | null;
   readonly fechaInicio: FechaISO;
   readonly fechaFin: FechaISO | null;
+  /** Horario de clase `HH:MM` (ADR 0009). */
+  readonly horaInicio: string | null;
+  readonly horaFin: string | null;
+  /** Plazo de inscripción por el portal. */
+  readonly inscripcionDesde: FechaISO | null;
+  readonly inscripcionHasta: FechaISO | null;
   readonly capacidad: number | null;
   readonly estado: EstadoDeCohorte;
   readonly nombre: string;
@@ -161,6 +167,8 @@ export interface SolicitudEnBandeja {
   readonly programaCodigo: string;
   readonly sedeId: Id;
   readonly sedeNombre: string;
+  /** El grupo pedido (ADR 0009); las solicitudes de antes de las convocatorias no lo tienen. */
+  readonly grupoId: Id | null;
   readonly turno: string | null;
   readonly dias: string | null;
   readonly duracion: number | null;
@@ -214,6 +222,10 @@ export interface DatosDeGrupo {
   readonly modalidad?: Modalidad;
   readonly fechaInicio: string;
   readonly fechaFin?: string;
+  readonly horaInicio?: string;
+  readonly horaFin?: string;
+  readonly inscripcionDesde?: string;
+  readonly inscripcionHasta?: string;
   readonly capacidad?: number;
   readonly estado: Exclude<EstadoDeCohorte, 'cerrado'>;
 }

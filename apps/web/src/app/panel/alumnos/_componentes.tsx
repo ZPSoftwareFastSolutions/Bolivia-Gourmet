@@ -6,9 +6,16 @@
  */
 
 import type { ReactNode } from 'react';
-import { describirPlan, ETIQUETA_DE_ESTADO_DE_COHORTE, type EstadoDeCohorte, type TipoDePrograma } from '@core/domain/academico/programa';
+import {
+  convocatoriaDelGrupo,
+  describirPlan,
+  ETIQUETA_DE_ESTADO_DE_COHORTE,
+  type EstadoDeCohorte,
+  type TipoDePrograma,
+} from '@core/domain/academico/programa';
 import { ETIQUETA_DE_ESTADO_DE_INSCRIPCION, type EstadoDeInscripcion, type Paquete } from '@core/domain/estudiantes/estudiante';
-import type { EstadoDeSolicitudEnBandeja, PrecioDeGrupo } from '@core/application/ports/alumnos.port';
+import type { EstadoDeSolicitudEnBandeja, GrupoEnLista, PrecioDeGrupo } from '@core/application/ports/alumnos.port';
+import { formatearDiaCorto } from '@/lib/fechas';
 import { RUTAS_ALUMNOS } from '@/lib/rutas';
 import { AreaDeTexto, CampoDeTexto } from '@/presentation/formularios/Campos';
 import { Chip, Pestanas, type TonoDeChip } from '@/presentation/panel/Piezas';
@@ -71,6 +78,32 @@ export function ChipDeGrupo({ estado }: { readonly estado: EstadoDeCohorte }) {
       {ETIQUETA_DE_ESTADO_DE_COHORTE[estado]}
     </Chip>
   );
+}
+
+/**
+ * Si el grupo recibe solicitudes por el portal (ADR 0009 §6). Sin plazo no
+ * se muestra nada: el grupo solo se inscribe en persona.
+ */
+export function ChipDeConvocatoria({ grupo, hoy }: { readonly grupo: GrupoEnLista; readonly hoy: string }) {
+  const estado = convocatoriaDelGrupo(grupo, hoy);
+  const desde = grupo.inscripcionDesde ? formatearDiaCorto(grupo.inscripcionDesde) : '';
+  const hasta = grupo.inscripcionHasta ? formatearDiaCorto(grupo.inscripcionHasta) : '';
+  switch (estado) {
+    case 'abierta':
+      return <Chip tono="verde" icono="calendario">{`Portal: inscripciones hasta el ${hasta}`}</Chip>;
+    case 'por_abrir':
+      return (
+        <Chip tono="amarillo" icono="calendario">
+          {grupo.estado === 'planificado' ? 'Portal: ábrelo para recibir solicitudes' : `Portal: abre el ${desde}`}
+        </Chip>
+      );
+    case 'llena':
+      return <Chip tono="rojo" icono="calendario">Portal: sin cupos</Chip>;
+    case 'cerrada':
+      return <Chip tono="gris" icono="calendario" contorno>Portal: inscripciones cerradas</Chip>;
+    case 'sin_plazo':
+      return null;
+  }
 }
 
 /** «Bs 650 (Económico)» o «Consultar»: lo que recepción dice a quien pregunta. */

@@ -241,6 +241,33 @@ export function admiteInscripciones(estado: EstadoDeCohorte): boolean {
   return ESTADOS_QUE_ADMITEN_INSCRIPCION.includes(estado);
 }
 
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * ¿Recibe solicitudes por el portal? (ADR 0009 §1; la oferta la decide
+ * `app.oferta_abierta` con las mismas condiciones). Sin plazo, no aparece en
+ * el portal; con plazo, se abre al llegar la fecha si el grupo está abierto o
+ * en curso y tiene cupos.
+ */
+export type EstadoDeConvocatoria = 'abierta' | 'por_abrir' | 'llena' | 'cerrada' | 'sin_plazo';
+
+export function convocatoriaDelGrupo(
+  grupo: {
+    readonly estado: EstadoDeCohorte;
+    readonly inscripcionDesde?: string | null;
+    readonly inscripcionHasta?: string | null;
+    readonly capacidad?: number | null;
+    readonly inscritos: number;
+  },
+  hoy: string,
+): EstadoDeConvocatoria {
+  if (!grupo.inscripcionDesde || !grupo.inscripcionHasta) return 'sin_plazo';
+  if (grupo.estado === 'cerrado' || hoy > grupo.inscripcionHasta) return 'cerrada';
+  if (grupo.estado === 'planificado' || hoy < grupo.inscripcionDesde) return 'por_abrir';
+  if (grupo.capacidad !== undefined && grupo.capacidad !== null && grupo.inscritos >= grupo.capacidad) return 'llena';
+  return 'abierta';
+}
+
 export interface Cohorte {
   readonly id: Id;
   readonly programaCodigo: string;
@@ -262,6 +289,12 @@ export interface Cohorte {
   /** Sin capacidad = sin límite. */
   readonly capacidad?: number;
   readonly estado: EstadoDeCohorte;
+  /** Horario de clase (`HH:MM`): las dos horas o ninguna (ADR 0009). */
+  readonly horaInicio?: string;
+  readonly horaFin?: string;
+  /** Plazo de inscripción por el portal: las dos fechas o ninguna; exige horario. */
+  readonly inscripcionDesde?: FechaISO;
+  readonly inscripcionHasta?: FechaISO;
 }
 
 export type DatosDeCohorte = Omit<Cohorte, 'id'>;
@@ -342,6 +375,27 @@ export function validarCohorte(
     }
   } else if (datos.anioDeCarrera !== undefined) {
     errores.push('Solo los grupos de la carrera llevan año de carrera.');
+  }
+
+  // ADR 0009: las mismas reglas que los CHECK de la base (cohortes_horario,
+  // cohortes_plazo y cohortes_plazo_con_horario).
+  const conHoras = Boolean(datos.horaInicio) || Boolean(datos.horaFin);
+  if (conHoras) {
+    if (!datos.horaInicio || !datos.horaFin) errores.push('Indica la hora de inicio y la de fin, o deja las dos vacías.');
+    else if (!HORA.test(datos.horaInicio) || !HORA.test(datos.horaFin)) errores.push('Escribe las horas como 18:00.');
+    else if (datos.horaFin <= datos.horaInicio) errores.push('La hora de fin debe ser posterior a la de inicio.');
+  }
+  if (datos.inscripcionDesde || datos.inscripcionHasta) {
+    if (!datos.inscripcionDesde || !datos.inscripcionHasta) {
+      errores.push('Indica desde y hasta cuándo se inscribe por el portal, o deja las dos fechas vacías.');
+    } else {
+      const desde = fechaISO(datos.inscripcionDesde);
+      const hasta = fechaISO(datos.inscripcionHasta);
+      if (!desde.exito) errores.push(desde.error);
+      else if (!hasta.exito) errores.push(hasta.error);
+      else if (hasta.valor < desde.valor) errores.push('El plazo de inscripción termina antes de empezar.');
+    }
+    if (!datos.horaInicio || !datos.horaFin) errores.push('Para abrir inscripciones por el portal, el grupo necesita su horario.');
   }
 
   if (datos.capacidad !== undefined && (!Number.isInteger(datos.capacidad) || datos.capacidad <= 0)) {
